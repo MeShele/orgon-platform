@@ -1,0 +1,22 @@
+server:
+  host: "0.0.0.0"
+  port: 8890
+  debug: false
+  cors_origins:
+    - "https://orgon.asystem.kg"
+    - "https://orgon.asystem.ai"
+    - "http://localhost:3000"
+
+safina:
+  base_url: "https://my.safina.pro/ece"
+  timeout: 30
+  max_retries: 3
+  retry_backoff: 1.5
+
+database:
+  path: "data/orgon.db"
+  postgresql_url_env: "DATABASE_URL"
+
+sync:
+  balance_interval_seconds: 300
+  pending_tx_interval_seconds: 60

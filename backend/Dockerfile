@@ -10,10 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Create "backend" symlink so "from backend.xxx" imports resolve to current dir
+# Symlink so "from backend.xxx" imports resolve
 RUN ln -sf /app /app/backend
 
-RUN mkdir -p /app/data
+# Default config + data dir
+RUN mkdir -p /app/config /app/data
+COPY config_default.yaml /app/config/orgon.yaml
 
 EXPOSE 8890
 

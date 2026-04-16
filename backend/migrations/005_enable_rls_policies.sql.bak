@@ -1,0 +1,128 @@
+-- Migration 005: Enable Row-Level Security (RLS) Policies
+-- Phase: 1.1 Database Design
+-- Date: 2026-02-10
+-- Description: Tenant isolation via PostgreSQL RLS (organizations cannot see each other's data)
+
+-- ============================================================
+-- CRITICAL: RLS ensures data isolation between organizations
+-- Backend MUST set session variables before each query:
+--   SET app.current_organization_id = '<uuid>';
+--   SET app.is_super_admin = <true|false>;
+-- ============================================================
+
+-- Enable RLS on all tenant-specific tables
+ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE signatures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- Force RLS for table owners (important for migrations and admin users)
+ALTER TABLE wallets FORCE ROW LEVEL SECURITY;
+ALTER TABLE transactions FORCE ROW LEVEL SECURITY;
+ALTER TABLE signatures FORCE ROW LEVEL SECURITY;
+ALTER TABLE contacts FORCE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_transactions FORCE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
+
+-- ============================================================
+-- RLS Policies: Allow access only to current organization's data
+-- (or all data for Super Admin)
+-- ============================================================
+
+-- 1. Wallets
+CREATE POLICY wallets_isolation_policy ON wallets
+    FOR ALL
+    USING (
+        organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid
+        OR COALESCE(current_setting('app.is_super_admin', true)::boolean, false) = true
+    )
+    WITH CHECK (
+        organization_id = NULLIF(current_setting('app.current_organization_id', true), '')::uuid
+        OR COALESCE(current_setting('app.is_super_admin', true)::boolean, false) = true
+    );
+
+-- 2. Transactions
+CREATE POLICY transactions_isolation_policy ON transactions
+    USING (
+        organization_id = current_setting('app.current_organization_id', true)::uuid
+        OR current_setting('app.is_super_admin', true)::boolean = true
+    );
+
+-- 3. Signatures
+CREATE POLICY signatures_isolation_policy ON signatures
+    USING (
+        organization_id = current_setting('app.current_organization_id', true)::uuid
+        OR current_setting('app.is_super_admin', true)::boolean = true
+    );
+
+-- 4. Contacts
+CREATE POLICY contacts_isolation_policy ON contacts
+    USING (
+        organization_id = current_setting('app.current_organization_id', true)::uuid
+        OR current_setting('app.is_super_admin', true)::boolean = true
+    );
+
+-- 5. Scheduled Transactions
+CREATE POLICY scheduled_transactions_isolation_policy ON scheduled_transactions
+    USING (
+        organization_id = current_setting('app.current_organization_id', true)::uuid
+        OR current_setting('app.is_super_admin', true)::boolean = true
+    );
+
+-- 6. Audit Logs (read-only, Super Admin sees all)
+CREATE POLICY audit_logs_isolation_policy ON audit_logs
+    FOR SELECT
+    USING (
+        organization_id = current_setting('app.current_organization_id', true)::uuid
+        OR current_setting('app.is_super_admin', true)::boolean = true
+    );
+
+-- ============================================================
+-- Helper Functions for Backend
+-- ============================================================
+
+-- Function to set session variables (call at the start of each request)
+CREATE OR REPLACE FUNCTION set_tenant_context(org_id UUID, is_admin BOOLEAN DEFAULT false)
+RETURNS void AS $$
+BEGIN
+    PERFORM set_config('app.current_organization_id', org_id::text, false);
+    PERFORM set_config('app.is_super_admin', is_admin::text, false);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to clear session variables (call at the end of request)
+CREATE OR REPLACE FUNCTION clear_tenant_context()
+RETURNS void AS $$
+BEGIN
+    PERFORM set_config('app.current_organization_id', '', false);
+    PERFORM set_config('app.is_super_admin', 'false', false);
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- Testing Queries (to verify RLS works correctly)
+-- ============================================================
+
+-- Example: Set context for organization A
+-- SELECT set_tenant_context('123e4567-e89b-12d3-a456-426614174000', false);
+-- SELECT * FROM wallets; -- Returns only org A's wallets
+
+-- Example: Set context for Super Admin
+-- SELECT set_tenant_context('00000000-0000-0000-0000-000000000000', true);
+-- SELECT * FROM wallets; -- Returns all wallets
+
+-- ============================================================
+-- Comments
+-- ============================================================
+
+COMMENT ON POLICY wallets_isolation_policy ON wallets IS 'RLS: Only show wallets belonging to current organization (or all for Super Admin)';
+COMMENT ON POLICY transactions_isolation_policy ON transactions IS 'RLS: Only show transactions belonging to current organization (or all for Super Admin)';
+COMMENT ON POLICY signatures_isolation_policy ON signatures IS 'RLS: Only show signatures belonging to current organization (or all for Super Admin)';
+COMMENT ON POLICY contacts_isolation_policy ON contacts IS 'RLS: Only show contacts belonging to current organization (or all for Super Admin)';
+COMMENT ON POLICY scheduled_transactions_isolation_policy ON scheduled_transactions IS 'RLS: Only show scheduled transactions belonging to current organization (or all for Super Admin)';
+COMMENT ON POLICY audit_logs_isolation_policy ON audit_logs IS 'RLS: Only show audit logs belonging to current organization (or all for Super Admin)';
+
+COMMENT ON FUNCTION set_tenant_context(UUID, BOOLEAN) IS 'Set session variables for RLS (call at request start)';
+COMMENT ON FUNCTION clear_tenant_context() IS 'Clear session variables for RLS (call at request end)';

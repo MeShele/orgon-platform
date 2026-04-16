@@ -1,0 +1,760 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search...",
+    "filter": "Filter",
+    "refresh": "Refresh",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "reset": "Reset",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No",
+    "all": "All",
+    "none": "None",
+    "select": "Select",
+    "clear": "Clear",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "profileSettings": "Profile Settings",
+    "done": "Done"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "wallets": "Wallets",
+    "transactions": "Transactions",
+    "scheduled": "Scheduled",
+    "analytics": "Analytics",
+    "signatures": "Signatures",
+    "contacts": "Address Book",
+    "audit": "Audit Log",
+    "networks": "Networks",
+    "profile": "Profile",
+    "settings": "Settings",
+    "documents": "Documents",
+    "organizations": "Organizations",
+    "billing": "Billing",
+    "compliance": "Compliance",
+    "users": "Users",
+    "reports": "Reports",
+    "support": "Support",
+    "fiat": "Fiat Operations",
+    "partner": "Partner API"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcomeMessage": "Welcome to ORGON",
+    "recentActivity": "Recent Activity",
+    "noActivity": "No recent activity",
+    "lastSync": "Last sync",
+    "stats": {
+      "wallets": "Wallets",
+      "totalWallets": "Total Wallets",
+      "transactions24h": "Transactions (24h)",
+      "pendingSignatures": "Pending Signatures",
+      "pendingSignaturesHelp": "Transactions awaiting your signature",
+      "networks": "Networks",
+      "activeNetworks": "Active Networks"
+    },
+    "alerts": {
+      "title": "System Alerts",
+      "allOperational": "All Systems Operational",
+      "noAlerts": "No alerts at this time",
+      "pendingSignatures": "{count, plural, one {# transaction awaits} other {# transactions await}} your signature",
+      "failedTransactions": "{count, plural, one {# failed transaction} other {# failed transactions}} in last 7 days",
+      "viewDetails": "View details →"
+    },
+    "activity": {
+      "title": "Recent Activity",
+      "lastEvents": "Last {count, plural, one {# event} other {# events}}",
+      "noActivity": "No Recent Activity",
+      "noActivityDesc": "Your recent transactions and signatures will appear here",
+      "justNow": "Just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago",
+      "viewDetails": "View details →",
+      "viewAll": "View all activity →"
+    },
+    "tokens": {
+      "title": "Token Balances",
+      "subtitle": "Aggregated across wallets",
+      "noBalances": "No token balances"
+    },
+    "actions": {
+      "createWallet": "Create Wallet",
+      "send": "Send"
+    },
+    "rates": {
+      "title": "Crypto Rates",
+      "token": "Token",
+      "price": "Price USD",
+      "change24h": "24h Change",
+      "noData": "No rate data",
+      "loading": "Loading rates..."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome to ORGON",
+      "subtitle": "Sign in to manage your multi-signature wallets",
+      "emailLabel": "Email",
+      "emailPlaceholder": "admin@orgon.app",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter your password",
+      "rememberMe": "Remember me",
+      "forgotPassword": "Forgot password?",
+      "signInButton": "Sign In",
+      "noAccount": "Don't have an account?",
+      "signUpLink": "Sign up",
+      "defaultAdmin": "Default admin: admin@orgon.app / admin123",
+      "errors": {
+        "invalidCredentials": "Incorrect email or password",
+        "accountLocked": "Account is locked",
+        "serverError": "Server error. Please try again later"
+      },
+      "quickLoginTitle": "Quick Login:",
+      "quickLoginOr": "Or enter credentials manually above",
+      "testUser": "Test User",
+      "adminUser": "Admin"
+    },
+    "register": {
+      "title": "Create Account",
+      "subtitle": "Join ORGON to manage multi-signature wallets",
+      "fullNameLabel": "Full Name",
+      "fullNamePlaceholder": "John Doe",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "confirmPasswordLabel": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter your password",
+      "roleLabel": "Role",
+      "roles": {
+        "viewer": "Viewer (Read-only)",
+        "signer": "Signer (Can sign transactions)",
+        "admin": "Admin (Full access)"
+      },
+      "termsAgree": "I agree to the",
+      "termsOfService": "Terms of Service",
+      "and": "and",
+      "privacyPolicy": "Privacy Policy",
+      "createButton": "Create Account",
+      "alreadyHaveAccount": "Already have an account?",
+      "signInLink": "Sign in",
+      "errors": {
+        "emailExists": "Email already in use",
+        "passwordMismatch": "Passwords do not match",
+        "passwordTooShort": "Password must be at least 8 characters",
+        "invalidEmail": "Invalid email format"
+      }
+    },
+    "logout": "Logout",
+    "profile": "Profile",
+    "profileSettings": "Profile Settings",
+    "forgotPassword": {
+      "title": "Reset Password",
+      "subtitle": "Enter your email to receive a password reset link",
+      "emailLabel": "Email",
+      "emailPlaceholder": "you@example.com",
+      "submitButton": "Send Reset Link",
+      "backToLogin": "Back to Login",
+      "success": "If an account with that email exists, we sent a password reset link.",
+      "errors": {
+        "emailRequired": "Enter your email",
+        "serverError": "Server error. Try again later"
+      }
+    },
+    "resetPassword": {
+      "title": "New Password",
+      "subtitle": "Enter a new password for your account",
+      "passwordLabel": "New Password",
+      "passwordPlaceholder": "At least 8 characters",
+      "confirmPasswordLabel": "Confirm Password",
+      "confirmPasswordPlaceholder": "Re-enter password",
+      "submitButton": "Save Password",
+      "success": "Password changed! You can now log in.",
+      "errors": {
+        "passwordMismatch": "Passwords do not match",
+        "passwordTooShort": "Password must be at least 8 characters",
+        "invalidToken": "Link is invalid or expired",
+        "serverError": "Server error. Try again later"
+      }
+    }
+  },
+  "contacts": {
+    "title": "Address Book",
+    "subtitle": "Manage your frequent recipients",
+    "addContact": "Add Contact",
+    "editContact": "Edit Contact",
+    "deleteContact": "Delete Contact",
+    "searchPlaceholder": "Search by name or address...",
+    "noContacts": "No contacts yet",
+    "noContactsFiltered": "No contacts match your filters",
+    "addFirstContact": "Add your first contact",
+    "deleteConfirm": "Delete this contact?",
+    "categories": {
+      "label": "Category",
+      "all": "All Categories",
+      "personal": "Personal",
+      "business": "Business",
+      "exchange": "Exchange",
+      "other": "Other"
+    },
+    "favorites": "Favorites",
+    "allContacts": "All Contacts",
+    "fields": {
+      "name": "Name",
+      "namePlaceholder": "Contact name",
+      "address": "Address",
+      "addressPlaceholder": "Wallet address",
+      "network": "Network",
+      "networkPlaceholder": "Select network",
+      "category": "Category",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional information"
+    },
+    "actions": {
+      "addToFavorites": "Add to favorites",
+      "removeFromFavorites": "Remove from favorites"
+    }
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Insights into your wallet activity",
+    "daysFilter": "d",
+    "days": {
+      "7": "7 days",
+      "14": "14 days",
+      "30": "30 days",
+      "90": "90 days"
+    },
+    "filters": {
+      "title": "Analysis Period"
+    },
+    "stats": {
+      "totalWallets": "Total Wallets",
+      "active": "Active",
+      "inactive": "Inactive",
+      "totalSignatures": "Total Signatures",
+      "signed": "Signed",
+      "pending": "Pending",
+      "tokenTypes": "Token Types",
+      "activeTokens": "Active tokens in portfolio"
+    },
+    "charts": {
+      "balanceHistory": "Balance History",
+      "tokenDistribution": "Token Distribution",
+      "transactionVolume": "Transaction Volume",
+      "signatureStats": "Signature Statistics",
+      "transactionActivity": "Transaction Activity",
+      "transactions": "Transactions",
+      "totalValue": "Total Value",
+      "noData": "No data available",
+      "network": "Network",
+      "txCount": "tx"
+    },
+    "refreshButton": "Refresh Analytics",
+    "loading": "Loading analytics...",
+    "error": "Failed to load analytics data",
+    "retry": "Retry"
+  },
+  "audit": {
+    "title": "Audit Log",
+    "subtitle": "Activity history and system events",
+    "searchPlaceholder": "Search logs...",
+    "searchButton": "Search",
+    "clearFilters": "Clear",
+    "noLogs": "No logs found",
+    "stats": {
+      "totalEvents": "Total Events",
+      "last24h": "Last 24 Hours",
+      "actionTypes": "Action Types"
+    },
+    "filters": {
+      "allActions": "All Actions",
+      "allResources": "All Resources",
+      "resources": {
+        "transaction": "Transaction",
+        "wallet": "Wallet",
+        "signature": "Signature",
+        "contact": "Contact",
+        "user": "User"
+      },
+      "fromDate": "From Date",
+      "toDate": "To Date",
+      "selectFromDate": "Select start date",
+      "selectToDate": "Select end date"
+    },
+    "actions": {
+      "create": "Create",
+      "update": "Update",
+      "delete": "Delete",
+      "sign": "Sign",
+      "reject": "Reject",
+      "view": "View"
+    },
+    "fields": {
+      "resourceId": "Resource ID",
+      "userId": "User ID",
+      "ipAddress": "IP Address",
+      "userAgent": "User Agent",
+      "details": "Details"
+    },
+    "refreshLogs": "Refresh Logs",
+    "detailModal": {
+      "title": "Audit Log Details",
+      "coreInfo": "Core Information",
+      "networkInfo": "Network Information",
+      "logId": "Log ID"
+    }
+  },
+  "scheduled": {
+    "title": "Scheduled Transactions",
+    "subtitle": "Manage your automated payments",
+    "noTransactions": "No scheduled transactions",
+    "filters": {
+      "title": "Status Filters",
+      "pending": "Pending",
+      "sent": "Sent",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "fields": {
+      "token": "Token",
+      "value": "Amount",
+      "recipient": "Recipient",
+      "scheduledAt": "Scheduled At",
+      "recurrence": "Recurrence",
+      "nextRun": "Next Run",
+      "sentAt": "Sent At",
+      "transactionId": "Transaction ID",
+      "error": "Error",
+      "info": "Info"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "cancelConfirm": "Cancel this scheduled transaction?",
+      "cancelFailed": "Failed to cancel transaction"
+    },
+    "status": {
+      "pending": "Pending",
+      "sent": "Sent",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "systemStatus": {
+      "title": "System Status",
+      "orgonBackend": "ORGON Backend",
+      "safinaApi": "Safina API",
+      "lastSync": "Last Sync"
+    },
+    "authentication": {
+      "title": "Authentication",
+      "subtitle": "Bearer token for API access",
+      "placeholder": "Enter admin token",
+      "saveButton": "Save Token"
+    },
+    "keyManagement": {
+      "title": "Key Management",
+      "link": "Manage EC signing keys"
+    },
+    "twofa": {
+      "title": "Two-Factor Authentication",
+      "description": "Add an extra layer of security to your account",
+      "setupTitle": "2FA Setup",
+      "enabled": "Enabled",
+      "enable": "Enable 2FA",
+      "disable": "Disable 2FA",
+      "verify": "Verify",
+      "download": "Download",
+      "scanQR": "Scan this QR code in Google Authenticator or Authy",
+      "manualEntry": "Or enter the key manually:",
+      "verificationCode": "Verification Code",
+      "enterCode": "Enter the 6-digit code from your authenticator app",
+      "enterCodeToDisable": "Enter verification code to disable 2FA",
+      "saveBackupCodes": "Save your backup codes",
+      "backupCodesWarning": "Save these codes in a safe place. You'll need them if you lose access to your authenticator app.",
+      "backupCodesTotal": "Total Codes",
+      "backupCodesRemaining": "Remaining Codes",
+      "regenerateBackupCodes": "Generate New Backup Codes",
+      "whyEnable": "Why enable 2FA?",
+      "securityBenefit": "Two-factor authentication protects your account even if someone knows your password.",
+      "prompts": {
+        "enterCode": "Enter verification code from your app to generate new backup codes:"
+      },
+      "errors": {
+        "setupFailed": "Failed to start 2FA setup",
+        "invalidCode": "Invalid code. Code must be 6 digits.",
+        "verificationFailed": "Invalid verification code",
+        "disableFailed": "Failed to disable 2FA",
+        "regenerateFailed": "Failed to generate new backup codes"
+      },
+      "backupCodeHelp": "Lost your authenticator app?\nUse one of your backup codes instead."
+    },
+    "sections": {
+      "profile": "Profile",
+      "security": "Security",
+      "apiKeys": "API Keys",
+      "notifications": "Notifications",
+      "theme": "Theme",
+      "language": "Language",
+      "limits": "Limits",
+      "backup": "Backup",
+      "about": "About"
+    },
+    "profile": {
+      "title": "Profile Settings",
+      "changeAvatar": "Change Avatar",
+      "fullName": "Full Name",
+      "email": "Email Address",
+      "role": "Role",
+      "saveChanges": "Save Changes"
+    },
+    "security": {
+      "title": "Security Settings",
+      "twoFactor": "Two-Factor Authentication",
+      "twoFactorDesc": "Add an extra layer of security to your account",
+      "changePassword": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "updatePassword": "Update Password",
+      "activeSessions": "Active Sessions",
+      "activeSessionsCount": "active session(s)",
+      "logoutAllSessions": "Logout all sessions"
+    },
+    "apiKeys": {
+      "title": "API Keys",
+      "createNew": "Create New API Key",
+      "revoke": "Revoke",
+      "created": "Created",
+      "lastUsed": "Last used"
+    },
+    "notifications": {
+      "title": "Notification Preferences",
+      "email": "Email Notifications",
+      "emailDesc": "Receive notifications via email",
+      "push": "Push Notifications",
+      "pushDesc": "Receive push notifications in browser",
+      "telegram": "Telegram Notifications",
+      "telegramDesc": "Receive notifications via Telegram bot",
+      "transactions": "Transaction Alerts",
+      "transactionsDesc": "Notify me about new transactions",
+      "security": "Security Alerts",
+      "securityDesc": "Notify me about security events",
+      "weekly": "Weekly Report",
+      "weeklyDesc": "Send weekly summary of activity"
+    },
+    "theme": {
+      "title": "Theme Preferences",
+      "light": "Light",
+      "dark": "Dark",
+      "auto": "Auto"
+    },
+    "language": {
+      "title": "Language Preferences"
+    },
+    "limits": {
+      "title": "Account Limits",
+      "wallets": "Wallets",
+      "monthlyVolume": "Monthly Volume",
+      "transaction": "Transaction Limits",
+      "maxTransactionSize": "Max transaction size",
+      "upgrade": "Upgrade Plan"
+    },
+    "backup": {
+      "title": "Data Export & Backup",
+      "description": "Export your data for backup or migration purposes",
+      "exportWallets": "Export Wallets",
+      "exportWalletsDesc": "Download wallet addresses and metadata",
+      "exportTransactions": "Export Transactions",
+      "exportTransactionsDesc": "Download transaction history as CSV",
+      "exportContacts": "Export Contacts",
+      "exportContactsDesc": "Download address book as JSON"
+    },
+    "about": {
+      "title": "About ORGON",
+      "version": "Version",
+      "backend": "Backend Status",
+      "safinaApi": "Safina API Status",
+      "lastSync": "Last Sync",
+      "documentation": "Documentation",
+      "website": "Website",
+      "support": "Support",
+      "rights": "All rights reserved."
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "description": "Manage your profile and security settings",
+    "memberSince": "Member since",
+    "password": {
+      "title": "Password",
+      "description": "Change your login password",
+      "change": "Change Password",
+      "cancel": "Cancel",
+      "current": "Current Password",
+      "new": "New Password",
+      "confirm": "Confirm New Password",
+      "save": "Save Password",
+      "mismatch": "Passwords do not match",
+      "tooShort": "Password must be at least 8 characters",
+      "success": "Password changed successfully",
+      "failed": "Failed to change password"
+    },
+    "sessions": {
+      "title": "Active Sessions",
+      "description": "Manage devices with access to your account",
+      "current": "Current session",
+      "mobile": "Mobile device",
+      "desktop": "Desktop",
+      "lastActive": "Last active",
+      "revoke": "Revoke",
+      "confirmRevoke": "Are you sure you want to revoke this session?",
+      "noSessions": "No active sessions"
+    },
+    "language": {
+      "title": "Interface Language",
+      "description": "Select your preferred language for ORGON interface",
+      "active": "Active"
+    },
+    "theme": {
+      "title": "Appearance Theme",
+      "description": "Customize the look and feel of ORGON interface",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "active": "Active"
+    }
+  },
+  "wallets": {
+    "title": "Wallets",
+    "exportButton": "Export CSV",
+    "exporting": "Exporting...",
+    "table": {
+      "favorite": "Favorite",
+      "name": "Name / Label",
+      "address": "Address",
+      "network": "Network",
+      "tokens": "Tokens",
+      "info": "Info",
+      "pending": "Pending...",
+      "noWallets": "No wallets found. Create one to get started."
+    }
+  },
+  "transactions": {
+    "title": "Transactions",
+    "filtered": "(filtered)",
+    "exportButton": "Export CSV",
+    "exporting": "Exporting...",
+    "failedToLoad": "Failed to load transactions",
+    "table": {
+      "unid": "UNID",
+      "to": "To",
+      "amount": "Amount",
+      "status": "Status",
+      "txHash": "TX Hash",
+      "date": "Date",
+      "noTransactions": "No transactions found"
+    },
+    "filters": {
+      "title": "Filters",
+      "wallet": "Wallet",
+      "allWallets": "All wallets",
+      "status": "Status",
+      "allStatuses": "All statuses",
+      "network": "Network",
+      "allNetworks": "All networks",
+      "fromDate": "From Date",
+      "toDate": "To Date",
+      "applyButton": "Apply Filters",
+      "clearButton": "Clear"
+    },
+    "statuses": {
+      "pending": "Pending",
+      "signed": "Signed",
+      "confirmed": "Confirmed",
+      "rejected": "Rejected",
+      "failed": "Failed"
+    },
+    "feeEstimate": {
+      "title": "Fee Estimate",
+      "estimating": "Estimating fee...",
+      "fee": "Fee",
+      "total": "Total",
+      "error": "Failed to estimate fee"
+    },
+    "addressValidation": {
+      "valid": "Address is valid",
+      "invalid": "Invalid address",
+      "validating": "Validating address..."
+    }
+  },
+  "networks": {
+    "title": "Networks",
+    "id": "ID",
+    "supportedTokens": "Supported Tokens"
+  },
+  "signatures": {
+    "title": "Signatures",
+    "notifications": {
+      "signed": "Transaction {txId}... signed successfully",
+      "rejected": "Transaction {txId}... rejected",
+      "signFailed": "Failed to sign transaction",
+      "rejectFailed": "Failed to reject transaction",
+      "loadFailed": "Failed to load signatures. Please try again."
+    },
+    "stats": {
+      "title": "Signature Statistics",
+      "pendingNow": "Pending Now",
+      "signed24h": "Signed (24h)",
+      "rejected24h": "Rejected (24h)",
+      "totalSigned": "Total Signed"
+    },
+    "pending": {
+      "title": "Pending Signatures",
+      "count": "({{count}})",
+      "table": {
+        "token": "Token",
+        "to": "To",
+        "value": "Value",
+        "age": "Age",
+        "progress": "Progress",
+        "actions": "Actions",
+        "signButton": "Sign",
+        "signing": "Signing...",
+        "rejectButton": "Reject",
+        "loadStatusButton": "Load Status",
+        "noSignatures": "No transactions awaiting signature"
+      },
+      "rejectDialog": {
+        "title": "Reject Transaction",
+        "reasonLabel": "Rejection Reason",
+        "reasonPlaceholder": "Enter reason...",
+        "cancelButton": "Cancel",
+        "confirmButton": "Reject"
+      }
+    },
+    "history": {
+      "title": "Recent History",
+      "table": {
+        "transaction": "Transaction",
+        "action": "Action",
+        "signer": "Signer",
+        "timestamp": "Timestamp",
+        "reason": "Reason",
+        "noHistory": "Signature history is empty"
+      },
+      "actions": {
+        "signed": "Signed",
+        "rejected": "Rejected"
+      }
+    }
+  },
+  "metadata": {
+    "title": "ORGON - Wallet Dashboard",
+    "description": "Crypto wallet management via Safina Pay"
+  },
+  "organizations": {
+    "title": "Organizations",
+    "newOrganization": "New Organization",
+    "selectOrganization": "Select Organization",
+    "manageOrganizations": "Manage Organizations",
+    "allOrganizations": "All Organizations",
+    "overview": "Overview",
+    "members": "Members",
+    "settings": "Settings",
+    "details": "Organization Details",
+    "addMember": "Add Member",
+    "maxWallets": "Max Wallets",
+    "maxVolume": "Max Volume",
+    "kycRequired": "KYC Required",
+    "created": "Created",
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "closed": "Closed"
+    },
+    "license": {
+      "free": "Free",
+      "pro": "Pro",
+      "enterprise": "Enterprise"
+    },
+    "role": {
+      "admin": "Admin",
+      "operator": "Operator",
+      "viewer": "Viewer"
+    }
+  },
+  "billing": {
+    "title": "Billing & Subscriptions",
+    "currentPlan": "Current Plan",
+    "month": "month",
+    "year": "year",
+    "renewalDate": "Renewal date",
+    "autoRenew": "Auto-renew",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "upgradePlan": "Upgrade Plan",
+    "cancelSubscription": "Cancel Subscription",
+    "noSubscription": "No active subscription",
+    "choosePlan": "Choose a Plan",
+    "outstandingBalance": "Outstanding Balance",
+    "totalSpend": "Total spend",
+    "recentInvoices": "Recent Invoices",
+    "invoiceNumber": "Invoice #",
+    "issueDate": "Issue Date",
+    "dueDate": "Due Date",
+    "amount": "Amount",
+    "status": "Status",
+    "actions": "Actions",
+    "payNow": "Pay Now",
+    "paid": "Paid",
+    "noInvoices": "No invoices yet",
+    "paymentHistory": "Payment History",
+    "noPayments": "No payments yet",
+    "select": "Select",
+    "cancelConfirm": "Are you sure you want to cancel your subscription?"
+  },
+  "compliance": {
+    "title": "Compliance & Regulatory",
+    "kycRecords": "KYC Records",
+    "amlAlerts": "AML Alerts",
+    "reports": "Reports",
+    "recentKYC": "Recent KYC Records",
+    "noKYC": "No KYC records yet",
+    "amlAlertsTitle": "AML Alerts",
+    "noAlerts": "No alerts",
+    "reportsTitle": "Compliance Reports",
+    "noReports": "No reports yet"
+  },
+  "branding": {
+    "title": "Branding & White Label",
+    "logo": "Logo",
+    "logoUrl": "Logo URL",
+    "colors": "Colors",
+    "primaryColor": "Primary Color",
+    "secondaryColor": "Secondary Color",
+    "accentColor": "Accent Color",
+    "platformInfo": "Platform Information",
+    "platformName": "Platform Name",
+    "tagline": "Tagline",
+    "supportEmail": "Support Email",
+    "preview": "Preview",
+    "previewButton": "Primary Button",
+    "previewSecondary": "Secondary Button"
+  }
+}

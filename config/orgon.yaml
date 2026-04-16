@@ -1,0 +1,48 @@
+# ORGON Configuration
+# Wallet Management Dashboard
+
+server:
+  host: "0.0.0.0"
+  port: 8890
+  debug: false
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
+    - "https://orgon.asystem.ai"
+    - "https://orgon.asystem.ai"
+    - "http://frontend:3000"  # Docker internal
+
+safina:
+  base_url: "https://my.safina.pro/ece"
+  timeout: 30
+  max_retries: 3
+  retry_backoff: 1.5
+
+database:
+  path: "data/orgon.db"  # SQLite fallback (deprecated)
+  postgresql_url_env: "DATABASE_URL"  # PostgreSQL (preferred)
+
+sync:
+  balance_interval_seconds: 300  # 5 min
+  pending_tx_interval_seconds: 60  # 1 min
+
+asagent:
+  gateway_ws: "ws://127.0.0.1:18789"
+  enable_bridge: false
+  enable_telegram: true
+
+telegram:
+  enabled: true
+  bot_token_env: "TELEGRAM_BOT_TOKEN"
+  chat_id_env: "TELEGRAM_CHAT_ID"
+  max_retries: 3
+  timeout: 10
+
+auth:
+  # Token from ORGON_ADMIN_TOKEN env var
+  token_env: "ORGON_ADMIN_TOKEN"
+  api_token: "ORGON_ADMIN_TOKEN"  # alias for token_env (env var name)
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"

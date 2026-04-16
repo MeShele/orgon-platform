@@ -1,0 +1,10 @@
+# Add OpenAPI metadata to existing main.py
+
+# After "app = FastAPI()" add:
+app = FastAPI(
+    title="ORGON API",
+    description="Multi-tenant cryptocurrency exchange platform",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
+)

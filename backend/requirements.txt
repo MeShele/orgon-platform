@@ -1,0 +1,44 @@
+# Core dependencies
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+pydantic==2.10.6
+pydantic-settings==2.7.1
+email-validator==2.2.0
+
+# Database
+asyncpg==0.30.0
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+PyJWT==2.9.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+pyotp==2.9.0
+
+# QR Codes
+qrcode==8.2
+pillow==12.1.0
+
+# HTTP & WebSocket
+websockets>=10.0.0,<14.0.0
+
+# Cryptography
+pycryptodome==3.21.0
+eth-account==0.13.4
+web3==7.7.0
+
+# Utilities
+python-dateutil==2.9.0
+pytz==2024.2
+aiofiles==24.1.0
+
+# Job Scheduling
+APScheduler==3.10.4
+croniter==5.0.1
+
+# Testing dependencies
+pytest==8.0.0
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
+httpx==0.28.1

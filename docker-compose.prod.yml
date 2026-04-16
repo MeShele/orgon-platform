@@ -1,0 +1,79 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orgon
+      POSTGRES_USER: orgon
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orgon_secret_2026}
+    volumes:
+      - orgon-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orgon"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./config:/app/config:ro
+    environment:
+      DATABASE_URL: postgresql://orgon:${POSTGRES_PASSWORD:-orgon_secret_2026}@postgres:5432/orgon
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-orgon_jwt_secret_2026_change_me}
+      SAFINA_EC_PRIVATE_KEY: ${SAFINA_EC_PRIVATE_KEY:-}
+      ORGON_ADMIN_TOKEN: ${ORGON_ADMIN_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    ports:
+      - "8891:8890"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orgon-api.rule=Host(`api.orgon.asystem.kg`)"
+      - "traefik.http.routers.orgon-api.entrypoints=https"
+      - "traefik.http.routers.orgon-api.tls=true"
+      - "traefik.http.routers.orgon-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.orgon-api.priority=100"
+      - "traefik.http.services.orgon-api.loadbalancer.server.port=8890"
+      - "traefik.http.routers.orgon-api-http.rule=Host(`api.orgon.asystem.kg`)"
+      - "traefik.http.routers.orgon-api-http.entrypoints=http"
+      - "traefik.http.routers.orgon-api-http.middlewares=redirect-to-https@file"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3100:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: https://api.orgon.asystem.kg
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.orgon-front.rule=Host(`orgon.asystem.kg`)"
+      - "traefik.http.routers.orgon-front.entrypoints=https"
+      - "traefik.http.routers.orgon-front.tls=true"
+      - "traefik.http.routers.orgon-front.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.orgon-front.priority=100"
+      - "traefik.http.services.orgon-front.loadbalancer.server.port=3000"
+      - "traefik.http.routers.orgon-front-http.rule=Host(`orgon.asystem.kg`)"
+      - "traefik.http.routers.orgon-front-http.entrypoints=http"
+      - "traefik.http.routers.orgon-front-http.middlewares=redirect-to-https@file"
+
+volumes:
+  orgon-pgdata:
+
+networks:
+  default:
+    name: coolify
+    external: true

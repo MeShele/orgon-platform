@@ -1,0 +1,151 @@
+# Prometheus Alerting Rules for ORGON B2B Platform
+
+groups:
+  - name: orgon_api_alerts
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) 
+            / 
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      # Slow API response time
+      - alert: SlowAPIResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Slow API response time (p95)"
+          description: "95th percentile response time is {{ $value }}s over the last 5 minutes."
+
+      # Database connection pool exhaustion
+      - alert: DatabasePoolExhaustion
+        expr: db_connections_active > 18
+        for: 2m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "Database connection pool near limit"
+          description: "Active database connections: {{ $value }}/20 (90% full)"
+
+      # Webhook queue backup
+      - alert: WebhookQueueBackup
+        expr: webhook_queue_size > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: webhooks
+        annotations:
+          summary: "Webhook retry queue backing up"
+          description: "{{ $value }} webhooks pending delivery."
+
+      # API rate limiting abuse
+      - alert: RateLimitAbuse
+        expr: |
+          sum(rate(rate_limit_hits_total[1m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High rate limit hits (potential abuse)"
+          description: "{{ $value }} rate limit hits per second."
+
+      # Backend service down
+      - alert: BackendDown
+        expr: up{job="orgon-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "ORGON Backend service is down"
+          description: "Backend has been down for more than 1 minute."
+
+  - name: orgon_partner_alerts
+    interval: 60s
+    rules:
+      # Partner API failure rate
+      - alert: PartnerAPIFailureRate
+        expr: |
+          (
+            sum by (partner_id) (rate(partner_api_errors_total[10m]))
+            /
+            sum by (partner_id) (rate(partner_api_requests_total[10m]))
+          ) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          component: partner_api
+        annotations:
+          summary: "High failure rate for partner {{ $labels.partner_id }}"
+          description: "{{ $value | humanizePercentage }} requests failing."
+
+      # Partner webhook delivery failure
+      - alert: PartnerWebhookDeliveryFailure
+        expr: |
+          sum by (partner_id) (rate(webhook_delivery_failures_total[30m]))
+          > 5
+        for: 30m
+        labels:
+          severity: warning
+          component: webhooks
+        annotations:
+          summary: "Webhook delivery issues for partner {{ $labels.partner_id }}"
+          description: "{{ $value }} webhooks failed delivery in the last 30 minutes."
+
+  - name: orgon_resource_alerts
+    interval: 60s
+    rules:
+      # High CPU usage (if node exporter is available)
+      - alert: HighCPUUsage
+        expr: |
+          (100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value }}%."
+
+      # High memory usage (if node exporter is available)
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value }}%."
+
+      # Disk space low (if node exporter is available)
+      - alert: LowDiskSpace
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value }}% on {{ $labels.mountpoint }}."

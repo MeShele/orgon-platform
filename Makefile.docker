@@ -1,0 +1,103 @@
+# ORGON Docker Management Makefile
+
+.PHONY: help build up down restart logs status clean rebuild health check
+
+help: ## Show this help message
+	@echo "ORGON Docker Management Commands:"
+	@echo ""
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+build: ## Build Docker images
+	docker-compose build
+
+up: ## Start all services
+	docker-compose --env-file docker.env up -d
+	@echo ""
+	@echo "✅ Services starting..."
+	@echo "⏳ Waiting for health checks (30s)..."
+	@sleep 30
+	@make status
+
+down: ## Stop all services
+	docker-compose down
+
+restart: ## Restart all services
+	docker-compose restart
+	@echo "✅ Services restarted"
+
+logs: ## Show logs (all services)
+	docker-compose logs -f
+
+logs-backend: ## Show backend logs only
+	docker-compose logs -f backend
+
+logs-frontend: ## Show frontend logs only
+	docker-compose logs -f frontend
+
+logs-tunnel: ## Show tunnel logs only
+	docker-compose logs -f cloudflared
+
+status: ## Show services status
+	@echo "📊 Services Status:"
+	@docker-compose ps
+	@echo ""
+	@echo "🔍 Health Checks:"
+	@docker inspect --format='{{.Name}}: {{.State.Health.Status}}' orgon-backend orgon-frontend 2>/dev/null || echo "No health data yet"
+
+health: ## Run health checks
+	@echo "🔍 Backend health:"
+	@curl -s http://localhost:8890/api/dashboard/stats | jq -r 'if .total_wallets then "✅ OK" else "❌ Error" end' || echo "❌ Backend not accessible"
+	@echo ""
+	@echo "🔍 Frontend health:"
+	@curl -s -o /dev/null -w "%%{http_code}" http://localhost:3000 | grep -q 200 && echo "✅ OK" || echo "❌ Error"
+	@echo ""
+	@echo "🔍 Public access (orgon.asystem.kg):"
+	@curl -s -o /dev/null -w "%%{http_code}" https://orgon.asystem.kg | grep -q 200 && echo "✅ OK" || echo "❌ Error or DNS not configured"
+
+check: health ## Alias for health
+
+clean: ## Stop and remove containers, networks, volumes
+	docker-compose down -v
+	@echo "✅ All containers, networks, and volumes removed"
+
+rebuild: ## Rebuild images from scratch
+	docker-compose build --no-cache
+	@echo "✅ Images rebuilt"
+
+prune: ## Remove unused Docker resources
+	docker system prune -f
+	@echo "✅ Unused resources removed"
+
+shell-backend: ## Open shell in backend container
+	docker exec -it orgon-backend bash
+
+shell-frontend: ## Open shell in frontend container
+	docker exec -it orgon-frontend sh
+
+stats: ## Show container resource usage
+	docker stats orgon-backend orgon-frontend orgon-tunnel
+
+migrate: ## Stop local services and start Docker
+	@echo "⏹️  Stopping local services..."
+	@pkill -f "uvicorn backend.main" || true
+	@pkill -f "node.*next" || true
+	@pkill -f cloudflared || true
+	@echo "✅ Local services stopped"
+	@echo ""
+	@echo "🚀 Starting Docker services..."
+	@make up
+
+test-api: ## Test API endpoint
+	@echo "Testing API endpoint..."
+	@curl -s https://orgon.asystem.kg/api/dashboard/stats | jq '.'
+
+backup-config: ## Backup configuration files
+	@mkdir -p backups
+	@tar -czf backups/orgon-config-$$(date +%Y%m%d-%H%M%S).tar.gz \
+		docker-compose.yml docker.env Dockerfile.* config/ cloudflare-tunnel-config.yaml
+	@echo "✅ Configuration backed up to backups/"
+
+update: ## Pull latest images and restart
+	docker-compose pull
+	docker-compose up -d
+	@echo "✅ Services updated and restarted"

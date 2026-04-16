@@ -1,0 +1,433 @@
+<html lang="en" class="dark"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ORGON Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.7/dist/iconify-icon.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; /* slate-300 */
+            border-radius: 3px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155; /* slate-700 */
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        /* Mobile sidebar transition */
+        #mobile-sidebar {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+    <script>
+        // Check local storage or system preference on load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('mobile-sidebar');
+            const backdrop = document.getElementById('sidebar-backdrop');
+            
+            if (sidebar.classList.contains('-translate-x-full')) {
+                // Open
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+                setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+            } else {
+                // Close
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.add('opacity-0');
+                setTimeout(() => backdrop.classList.add('hidden'), 300);
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-900 antialiased selection:bg-indigo-500/30 selection:text-indigo-600 dark:bg-slate-950 dark:text-slate-200 dark:selection:text-indigo-200 transition-colors duration-300">
+
+    <div class="flex min-h-screen w-full">
+        
+        <!-- Mobile Sidebar Backdrop -->
+        <div id="sidebar-backdrop" onclick="toggleSidebar()" class="fixed inset-0 z-40 hidden bg-slate-900/50 backdrop-blur-sm opacity-0 transition-opacity duration-300 lg:hidden"></div>
+
+        <!-- Sidebar (Shared for Mobile/Desktop) -->
+        <aside id="mobile-sidebar" class="fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950 transition-transform lg:static lg:translate-x-0">
+            <div class="flex h-16 items-center justify-between px-6">
+                <span class="text-xl font-semibold tracking-tighter text-slate-900 dark:text-white">ORGON</span>
+                <button onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white lg:hidden">
+                    <iconify-icon icon="solar:close-circle-linear" class="text-xl"></iconify-icon>
+                </button>
+            </div>
+            
+            <nav class="flex-1 space-y-1 px-3 py-4">
+                <a href="#" class="group flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:text-white transition-all hover:border-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-900">
+                    <iconify-icon icon="solar:widget-linear" class="text-lg text-indigo-600 dark:text-indigo-400" stroke-width="1.5"></iconify-icon>
+                    Dashboard
+                </a>
+                <a href="#" class="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-200">
+                    <iconify-icon icon="solar:wallet-linear" class="text-lg text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300" stroke-width="1.5"></iconify-icon>
+                    Wallets
+                </a>
+                <a href="#" class="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-200">
+                    <iconify-icon icon="solar:transfer-horizontal-linear" class="text-lg text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300" stroke-width="1.5"></iconify-icon>
+                    Transactions
+                </a>
+                <a href="#" class="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-200">
+                    <iconify-icon icon="solar:global-linear" class="text-lg text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300" stroke-width="1.5"></iconify-icon>
+                    Networks
+                </a>
+                <a href="#" class="group flex items-center gap-3 rounded-lg border border-transparent px-3 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 transition-all hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-200">
+                    <iconify-icon icon="solar:settings-linear" class="text-lg text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300" stroke-width="1.5"></iconify-icon>
+                    Settings
+                </a>
+            </nav>
+
+            <div class="border-t border-slate-200 dark:border-slate-800 p-4">
+                <div class="flex items-center gap-3 rounded-lg bg-slate-100 dark:bg-slate-900/50 p-3">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-medium text-slate-900 shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:text-white dark:ring-0">
+                        A
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-xs font-medium text-slate-900 dark:text-white">Admin User</span>
+                        <span class="text-[10px] text-slate-500">orgon-admin</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex min-h-screen flex-1 flex-col transition-all duration-300">
+            <!-- Header -->
+            <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/80 px-4 backdrop-blur-md sm:px-6 lg:px-8 transition-colors">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="flex items-center justify-center rounded-md border border-slate-200 dark:border-slate-800 p-1.5 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900 lg:hidden">
+                        <iconify-icon icon="solar:hamburger-menu-linear" class="text-xl"></iconify-icon>
+                    </button>
+                    <h1 class="text-sm font-semibold text-slate-900 dark:text-white lg:text-base">Dashboard</h1>
+                    <div class="hidden h-4 w-px bg-slate-200 dark:bg-slate-800 sm:block"></div>
+                    <div class="hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 sm:flex">
+                        <span class="relative flex h-1.5 w-1.5">
+                          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
+                          <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                        </span>
+                        Sync Live
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Theme Toggle -->
+                    <button onclick="toggleTheme()" class="group flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 transition-all">
+                        <iconify-icon icon="solar:sun-linear" class="hidden text-lg dark:block"></iconify-icon>
+                        <iconify-icon icon="solar:moon-linear" class="block text-lg dark:hidden"></iconify-icon>
+                    </button>
+
+                    <button class="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-900 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white dark:hover:bg-slate-800 dark:focus:ring-slate-700">
+                        <iconify-icon icon="solar:wallet-add-linear" class="text-base"></iconify-icon>
+                        <span class="hidden sm:inline">Create Wallet</span>
+                    </button>
+                    <button class="flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 dark:focus:ring-white dark:focus:ring-offset-slate-950">
+                        <iconify-icon icon="solar:plain-linear" class="text-base"></iconify-icon>
+                        <span class="hidden sm:inline">Send</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="space-y-6 p-4 sm:p-6 lg:p-8">
+                
+                <!-- Stats Grid -->
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <!-- Wallets -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:bg-slate-900/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500">Wallets</span>
+                            <iconify-icon icon="solar:wallet-linear" class="text-slate-400 dark:text-slate-600"></iconify-icon>
+                        </div>
+                        <div class="mt-3 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">1</div>
+                    </div>
+
+                    <!-- Token Types -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:bg-slate-900/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500">Token Types</span>
+                            <iconify-icon icon="solar:layers-linear" class="text-slate-400 dark:text-slate-600"></iconify-icon>
+                        </div>
+                        <div class="mt-3 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">4</div>
+                    </div>
+
+                    <!-- Pending TX -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:bg-slate-900/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500">Pending TX</span>
+                            <iconify-icon icon="solar:hourglass-linear" class="text-slate-400 dark:text-slate-600"></iconify-icon>
+                        </div>
+                        <div class="mt-3 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">0</div>
+                    </div>
+
+                    <!-- Total Balance -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-4 transition-all hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:bg-slate-900/40">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-medium text-slate-500">Total Balance</span>
+                            <iconify-icon icon="solar:wad-of-money-linear" class="text-slate-400 dark:text-slate-600"></iconify-icon>
+                        </div>
+                        <div class="mt-3 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">4985.85</div>
+                    </div>
+                </div>
+
+                <div class="grid gap-6 lg:grid-cols-3">
+                    <!-- Recent Transactions -->
+                    <div class="col-span-2 rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/20">
+                        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+                            <h3 class="text-sm font-medium text-slate-900 dark:text-white">Recent Transactions</h3>
+                            <a href="#" class="text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white">View all</a>
+                        </div>
+                        <div class="overflow-x-auto p-2">
+                            <table class="w-full text-left text-xs">
+                                <thead class="text-slate-500">
+                                    <tr>
+                                        <th class="whitespace-nowrap px-2 py-2 font-medium">To</th>
+                                        <th class="whitespace-nowrap px-2 py-2 font-medium">Amount</th>
+                                        <th class="whitespace-nowrap px-2 py-2 font-medium">Status</th>
+                                        <th class="whitespace-nowrap px-2 py-2 text-right font-medium">Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/50">
+                                    <tr class="group transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                        <td class="whitespace-nowrap px-2 py-3 font-mono text-slate-600 dark:text-slate-300">
+                                            TRx6xXCh...BdMZzL
+                                        </td>
+                                        <td class="whitespace-nowrap px-2 py-3 font-medium text-slate-900 dark:text-white">
+                                            1.01 TRX
+                                        </td>
+                                        <td class="whitespace-nowrap px-2 py-3">
+                                            <span class="inline-flex items-center rounded-md bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400 px-2 py-1 text-[10px] font-medium">confirmed</span>
+                                        </td>
+                                        <td class="whitespace-nowrap px-2 py-3 text-right text-slate-400">
+                                            03.02.2026, 19:26:43
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Token Balances -->
+                    <div class="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/20">
+                        <div class="border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+                            <h3 class="text-sm font-medium text-slate-900 dark:text-white">Token Balances</h3>
+                            <p class="text-[10px] text-slate-500">Aggregated across wallets</p>
+                        </div>
+                        <div class="space-y-1 p-2">
+                            <!-- LDFT -->
+                            <div class="group flex items-center justify-between rounded-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">L</div>
+                                    <div>
+                                        <div class="text-xs font-medium text-slate-900 dark:text-white">LDFT</div>
+                                        <div class="text-[10px] text-slate-500">Tron Nile TestNet</div>
+                                    </div>
+                                </div>
+                                <div class="text-xs font-medium text-slate-500 dark:text-slate-400">0.0000</div>
+                            </div>
+                            <!-- TLCA -->
+                            <div class="group flex items-center justify-between rounded-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-400">T</div>
+                                    <div>
+                                        <div class="text-xs font-medium text-slate-900 dark:text-white">TLCA</div>
+                                        <div class="text-[10px] text-slate-500">Tron Nile TestNet</div>
+                                    </div>
+                                </div>
+                                <div class="text-xs font-medium text-slate-500 dark:text-slate-400">0.0000</div>
+                            </div>
+                            <!-- TRX -->
+                            <div class="group flex items-center justify-between rounded-lg bg-slate-50 p-2 dark:bg-slate-800/20 dark:hover:bg-slate-800/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-[10px] font-bold text-red-500">T</div>
+                                    <div>
+                                        <div class="text-xs font-medium text-slate-900 dark:text-white">TRX</div>
+                                        <div class="text-[10px] text-slate-500">Tron Nile TestNet</div>
+                                    </div>
+                                </div>
+                                <div class="text-xs font-medium text-slate-900 dark:text-white">4985.8546</div>
+                            </div>
+                            <!-- USDT -->
+                            <div class="group flex items-center justify-between rounded-lg p-2 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/10 text-[10px] font-bold text-emerald-500">U</div>
+                                    <div>
+                                        <div class="text-xs font-medium text-slate-900 dark:text-white">USDT</div>
+                                        <div class="text-[10px] text-slate-500">Tron Nile TestNet</div>
+                                    </div>
+                                </div>
+                                <div class="text-xs font-medium text-slate-500 dark:text-slate-400">0.0000</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Networks -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between px-1">
+                        <div>
+                            <h3 class="text-sm font-medium text-slate-900 dark:text-white">Networks</h3>
+                            <p class="text-xs text-slate-500">Active blockchain networks</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        <!-- BTC -->
+                        <div class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-orange-500/10 text-orange-500">
+                                    <iconify-icon icon="solar:bitcoin-linear" class="text-lg"></iconify-icon>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-medium text-slate-900 dark:text-white">Bitcoin (BTC)</div>
+                                    <div class="font-mono text-[10px] text-slate-500">ID: 1000</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                <span class="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                                ok
+                            </div>
+                        </div>
+
+                        <!-- ETH -->
+                        <div class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-indigo-500/10 text-indigo-500">
+                                    <iconify-icon icon="solar:filters-linear" class="text-lg"></iconify-icon>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-medium text-slate-900 dark:text-white">Etherium (ETH)</div>
+                                    <div class="font-mono text-[10px] text-slate-500">ID: 3000</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                <span class="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                                ok
+                            </div>
+                        </div>
+
+                        <!-- Sepolia -->
+                        <div class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    <iconify-icon icon="solar:test-tube-linear" class="text-lg"></iconify-icon>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-medium text-slate-900 dark:text-white">ETH Sepolia Test</div>
+                                    <div class="font-mono text-[10px] text-slate-500">ID: 3040</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                <span class="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                                ok
+                            </div>
+                        </div>
+
+                        <!-- Tron -->
+                        <div class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-red-500/10 text-red-500">
+                                    <iconify-icon icon="solar:code-scan-linear" class="text-lg"></iconify-icon>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-medium text-slate-900 dark:text-white">Tron (TRX)</div>
+                                    <div class="font-mono text-[10px] text-slate-500">ID: 5000</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                <span class="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                                ok
+                            </div>
+                        </div>
+
+                        <!-- Tron Nile -->
+                        <div class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    <iconify-icon icon="solar:test-tube-linear" class="text-lg"></iconify-icon>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-medium text-slate-900 dark:text-white">Tron Nile TestNet</div>
+                                    <div class="font-mono text-[10px] text-slate-500">ID: 5010</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                <span class="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                                ok
+                            </div>
+                        </div>
+
+                        <!-- ORGON -->
+                        <div class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-slate-900 text-white dark:bg-white dark:text-slate-950">
+                                    <iconify-icon icon="solar:atom-linear" class="text-lg"></iconify-icon>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-medium text-slate-900 dark:text-white">ORGON (ORGON)</div>
+                                    <div class="font-mono text-[10px] text-slate-500">ID: 5800</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                <span class="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                                ok
+                            </div>
+                        </div>
+
+                         <!-- ORGON TestNet -->
+                         <div class="group flex items-center justify-between rounded-lg border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/20 dark:hover:border-slate-700">
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                    <iconify-icon icon="solar:test-tube-linear" class="text-lg"></iconify-icon>
+                                </div>
+                                <div>
+                                    <div class="text-xs font-medium text-slate-900 dark:text-white">ORGON TestNet</div>
+                                    <div class="font-mono text-[10px] text-slate-500">ID: 5810</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 px-1.5 py-0.5 text-[10px] font-medium">
+                                <span class="h-1 w-1 rounded-full bg-emerald-500 dark:bg-emerald-400"></span>
+                                ok
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+</body></html>

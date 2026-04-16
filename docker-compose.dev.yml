@@ -1,0 +1,79 @@
+# Docker Compose for Local Development with PostgreSQL
+# Purpose: Test multi-tenant migrations safely before production
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: orgon-postgres-dev
+    environment:
+      POSTGRES_USER: orgon_user
+      POSTGRES_PASSWORD: orgon_dev_password
+      POSTGRES_DB: orgon_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./backend/migrations:/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orgon_user -d orgon_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - orgon-dev
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: orgon-backend-dev
+    environment:
+      DATABASE_URL: postgresql://orgon_user:orgon_dev_password@postgres:5432/orgon_db
+      SAFINA_API_URL: https://api.safina.demo
+      SAFINA_API_KEY: dev-key-placeholder
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001
+      SECRET_KEY: dev-secret-key-change-in-production
+    ports:
+      - "8891:8890"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - orgon-dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8890/api/dashboard/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: orgon-frontend-dev
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8891
+      NODE_ENV: development
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - orgon-dev
+
+volumes:
+  postgres_dev_data:
+    driver: local
+
+networks:
+  orgon-dev:
+    driver: bridge

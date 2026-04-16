@@ -1,0 +1,98 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<title>Examples</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style>
+body { font:80% Verdana,Tahoma,Arial,sans-serif; }
+h1, h2, h3, h4 {  font-family: "Trebuchet MS",Georgia,"Times New Roman",serif; }
+ul.toc { padding: 4px; margin-left: 0; }
+ul.toc li { list-style-type:none; }
+ul.toc li.heading2 { margin-left: 1em; }
+ul.toc li.heading3 { margin-left: 2em; }
+a.wiki-anchor { display: none; margin-left: 6px; text-decoration: none; }
+a.wiki-anchor:hover { color: #aaa !important; text-decoration: none; }
+h1:hover a.wiki-anchor, h2:hover a.wiki-anchor, h3:hover a.wiki-anchor { display: inline; color: #ddd; }
+</style>
+</head>
+<body>
+<a name="Примеры"></a>
+<h1 >Примеры<a href="#Примеры" class="wiki-anchor">&para;</a></h1>
+
+
+	<a name="Примеры-кода-на-Nodejs"></a>
+<h2 >Примеры кода на Node.js<a href="#Примеры-кода-на-Nodejs" class="wiki-anchor">&para;</a></h2>
+
+
+	<a name="Пример-GET-запроса"></a>
+<h3 >Пример GET запроса<a href="#Пример-GET-запроса" class="wiki-anchor">&para;</a></h3>
+
+
+<pre><code class="javascript syntaxhl"><span class="c1">// Импортируем необходимые модули</span>
+<span class="kd">const</span> <span class="nx">Web3</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">web3</span><span class="dl">'</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">axios</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">axios</span><span class="dl">'</span><span class="p">);</span>
+
+<span class="c1">// Асинхронная функция для выполнения запроса к API</span>
+<span class="p">(</span><span class="k">async</span> <span class="kd">function</span> <span class="nx">testAPI</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">// Подпись данных (в данном случае пустого объекта) с использованием приватного ключа</span>
+    <span class="kd">const</span> <span class="nx">web3</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Web3</span><span class="p">();</span>
+    <span class="kd">const</span> <span class="nx">privateKey</span> <span class="o">=</span> <span class="dl">'</span><span class="s1">0xb7d9b51eda54d664366d74c1b1a4ed2ca9e1abed646732bfb83b141f22df3b39</span><span class="dl">'</span><span class="p">;</span>
+    <span class="kd">const</span> <span class="nx">dataToSign</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">({});</span>
+    <span class="kd">const</span> <span class="nx">sign</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">web3</span><span class="p">.</span><span class="nx">eth</span><span class="p">.</span><span class="nx">accounts</span><span class="p">.</span><span class="nx">sign</span><span class="p">(</span><span class="nx">dataToSign</span><span class="p">,</span> <span class="nx">privateKey</span><span class="p">);</span>
+
+    <span class="c1">// Заголовки для запроса, включающие адрес и подпись</span>
+    <span class="kd">const</span> <span class="nx">headers</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-from</span><span class="dl">'</span><span class="p">:</span> <span class="dl">'</span><span class="s1">0xA285990a1Ce696d770d578Cf4473d80e0228DF95</span><span class="dl">'</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-sign-r</span><span class="dl">'</span><span class="p">:</span> <span class="nx">sign</span><span class="p">.</span><span class="nx">r</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-sign-s</span><span class="dl">'</span><span class="p">:</span> <span class="nx">sign</span><span class="p">.</span><span class="nx">s</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-sign-v</span><span class="dl">'</span><span class="p">:</span> <span class="nx">sign</span><span class="p">.</span><span class="nx">v</span>
+    <span class="p">};</span>
+
+    <span class="c1">// Выполнение GET-запроса к API с указанными заголовками</span>
+    <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="kd">get</span><span class="p">(</span><span class="dl">'</span><span class="s1">https://my.h2k.me/ece/netlist/0</span><span class="dl">'</span><span class="p">,</span> <span class="p">{</span> <span class="nx">headers</span> <span class="p">});</span>
+<span class="p">})();</span>
+</code></pre>
+
+	<a name="Пример-POST-запроса-по-созданию-кошелька"></a>
+<h3 >Пример POST запроса по созданию кошелька<a href="#Пример-POST-запроса-по-созданию-кошелька" class="wiki-anchor">&para;</a></h3>
+
+
+<pre><code class="javascript syntaxhl"><span class="c1">// Импортируем необходимые модули</span>
+<span class="kd">const</span> <span class="nx">Web3</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">web3</span><span class="dl">'</span><span class="p">);</span>
+<span class="kd">const</span> <span class="nx">axios</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="dl">'</span><span class="s1">axios</span><span class="dl">'</span><span class="p">);</span>
+
+<span class="c1">// Асинхронная функция для выполнения запроса к API</span>
+<span class="p">(</span><span class="k">async</span> <span class="kd">function</span> <span class="nx">createNewWallet</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">// Подпись данных (в данном случае объекта с информацией о кошельке) с использованием приватного ключа</span>
+    <span class="kd">const</span> <span class="nx">web3</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">Web3</span><span class="p">();</span>
+    <span class="kd">const</span> <span class="nx">privateKey</span> <span class="o">=</span> <span class="dl">'</span><span class="s1">0xb7d9b51eda54d664366d74c1b1a4ed2ca9e1abed646732bfb83b141f22df3b39</span><span class="dl">'</span><span class="p">;</span>
+    <span class="kd">const</span> <span class="nx">requestBody</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="dl">"</span><span class="s2">slist</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="dl">"</span><span class="s2">min_signs</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">2</span><span class="dl">"</span><span class="p">,</span>
+            <span class="dl">"</span><span class="s2">0</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span> <span class="dl">"</span><span class="s2">type</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">all</span><span class="dl">"</span><span class="p">,</span> <span class="dl">"</span><span class="s2">email</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">e@mail.com</span><span class="dl">"</span> <span class="p">},</span>
+            <span class="dl">"</span><span class="s2">1</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span> <span class="dl">"</span><span class="s2">type</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">any</span><span class="dl">"</span><span class="p">,</span> <span class="dl">"</span><span class="s2">email</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">e@mail.ru</span><span class="dl">"</span><span class="p">,</span> <span class="dl">"</span><span class="s2">sms</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">+77777777777</span><span class="dl">"</span> <span class="p">},</span>
+            <span class="dl">"</span><span class="s2">2</span><span class="dl">"</span><span class="p">:</span> <span class="p">{</span> <span class="dl">"</span><span class="s2">type</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">all</span><span class="dl">"</span><span class="p">,</span> <span class="dl">"</span><span class="s2">ecaddress</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">0xa75db3c448bb62e208e4babf500925427837e464</span><span class="dl">"</span> <span class="p">}</span>
+        <span class="p">},</span>
+        <span class="dl">"</span><span class="s2">network</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">1000</span><span class="dl">"</span><span class="p">,</span>
+        <span class="dl">"</span><span class="s2">info</span><span class="dl">"</span><span class="p">:</span> <span class="dl">"</span><span class="s2">Мой первый кошелёк</span><span class="dl">"</span> 
+    <span class="p">};</span>
+    <span class="kd">const</span> <span class="nx">dataToSign</span> <span class="o">=</span> <span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">requestBody</span><span class="p">);</span>
+    <span class="kd">const</span> <span class="nx">sign</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">web3</span><span class="p">.</span><span class="nx">eth</span><span class="p">.</span><span class="nx">accounts</span><span class="p">.</span><span class="nx">sign</span><span class="p">(</span><span class="nx">dataToSign</span><span class="p">,</span> <span class="nx">privateKey</span><span class="p">);</span>
+
+    <span class="c1">// Заголовки для запроса, включающие адрес и подпись</span>
+    <span class="kd">const</span> <span class="nx">headers</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-from</span><span class="dl">'</span><span class="p">:</span> <span class="dl">'</span><span class="s1">0xA285990a1Ce696d770d578Cf4473d80e0228DF95</span><span class="dl">'</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-sign-r</span><span class="dl">'</span><span class="p">:</span> <span class="nx">sign</span><span class="p">.</span><span class="nx">r</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-sign-s</span><span class="dl">'</span><span class="p">:</span> <span class="nx">sign</span><span class="p">.</span><span class="nx">s</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">x-app-ec-sign-v</span><span class="dl">'</span><span class="p">:</span> <span class="nx">sign</span><span class="p">.</span><span class="nx">v</span><span class="p">,</span>
+        <span class="dl">'</span><span class="s1">Content-Type</span><span class="dl">'</span><span class="p">:</span> <span class="dl">'</span><span class="s1">application/json</span><span class="dl">'</span>
+    <span class="p">};</span>
+
+    <span class="c1">// Выполнение POST-запроса к API с указанными заголовками и телом запроса</span>
+    <span class="kd">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="k">await</span> <span class="nx">axios</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="dl">'</span><span class="s1">https://my.h2k.me/ece/newWallet</span><span class="dl">'</span><span class="p">,</span> <span class="nx">requestBody</span><span class="p">,</span> <span class="p">{</span> <span class="nx">headers</span> <span class="p">});</span>
+<span class="p">})();</span>
+</code></pre>
+
+<hr />
+</body>
+</html>

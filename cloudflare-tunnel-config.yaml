@@ -1,0 +1,36 @@
+# Cloudflare Tunnel Configuration for ORGON
+# Domain: orgon.asystem.ai
+
+tunnel: 81d9f92a-e0c6-4d85-a98c-8dc47c55f243
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # API endpoints to backend
+  - hostname: orgon.asystem.ai
+    path: /api/*
+    service: http://orgon-backend:8890
+    originRequest:
+      noTLSVerify: true
+      connectTimeout: 30s
+      
+  # WebSocket endpoints
+  - hostname: orgon.asystem.ai
+    path: /ws/*
+    service: http://orgon-backend:8890
+    originRequest:
+      noTLSVerify: true
+      
+  # Frontend (Next.js)
+  - hostname: orgon.asystem.ai
+    service: http://orgon-frontend:3000
+    originRequest:
+      noTLSVerify: true
+      
+  # Catch-all (404)
+  - service: http_status:404
+
+# Logging
+loglevel: info
+
+# Metrics (optional)
+metrics: 0.0.0.0:2000

@@ -1,0 +1,622 @@
+{
+  "common": {
+    "loading": "Жүктөлүүдө...",
+    "error": "Ката",
+    "success": "Ийгиликтүү",
+    "cancel": "Жокко чыгаруу",
+    "save": "Сактоо",
+    "delete": "Өчүрүү",
+    "edit": "Түзөтүү",
+    "create": "Түзүү",
+    "search": "Издөө...",
+    "filter": "Чыпка",
+    "refresh": "Жаңыртуу",
+    "close": "Жабуу",
+    "back": "Артка",
+    "next": "Кийинки",
+    "submit": "Жөнөтүү",
+    "reset": "Баштапкы абалга келтирүү",
+    "confirm": "Ырастоо",
+    "yes": "Ооба",
+    "no": "Жок",
+    "all": "Баары",
+    "none": "Жок",
+    "select": "Тандоо",
+    "clear": "Тазалоо",
+    "signIn": "Кирүү",
+    "signOut": "Чыгуу",
+    "profileSettings": "Профиль тууралоолору",
+    "done": "Даяр"
+  },
+  "navigation": {
+    "dashboard": "Башкы бет",
+    "wallets": "Капчыктар",
+    "transactions": "Операциялар",
+    "scheduled": "Пландаштырылган",
+    "analytics": "Аналитика",
+    "signatures": "Колтамгалар",
+    "contacts": "Дарек китепчеси",
+    "audit": "Аудит журналы",
+    "networks": "Тармактар",
+    "profile": "Профиль",
+    "settings": "Жөндөөлөр",
+    "documents": "Документтер",
+    "organizations": "Уюмдар",
+    "billing": "Биллинг",
+    "compliance": "Комплаенс",
+    "users": "Колдонуучулар",
+    "reports": "Отчёттор",
+    "support": "Колдоо",
+    "fiat": "Фиат операциялары",
+    "partner": "Партнёр API"
+  },
+  "dashboard": {
+    "title": "Башкы бет",
+    "welcomeMessage": "ORGON'га кош келиңиз",
+    "recentActivity": "Акыркы иш-чаралар",
+    "noActivity": "Акыркы иш-чаралар жок",
+    "lastSync": "Акыркы синхрондоштуруу",
+    "stats": {
+      "wallets": "Капчыктар",
+      "totalWallets": "Бардык капчыктар",
+      "transactions24h": "Операциялар (24с)",
+      "pendingSignatures": "Күтүүдөгү колтамгалар",
+      "pendingSignaturesHelp": "Сиздин колтамгаңызды күтүп турган операциялар",
+      "networks": "Тармактар",
+      "activeNetworks": "Активдүү тармактар"
+    },
+    "alerts": {
+      "title": "Системдик билдирүүлөр",
+      "allOperational": "Бардык системалар жакшы",
+      "noAlerts": "Билдирүүлөр жок",
+      "pendingSignatures": "{count, plural, one {# операция} other {# операциялар}} сиздин колтамгаңызды күтүп турат",
+      "failedTransactions": "Акыркы 7 күндө {count, plural, one {# ийгиликсиз операция} other {# ийгиликсиз операциялар}}",
+      "viewDetails": "Көбүрөөк →"
+    },
+    "activity": {
+      "title": "Акыркы иш-чаралар",
+      "lastEvents": "Акыркы {count, plural, one {# окуя} other {# окуялар}}",
+      "noActivity": "Акыркы иш-чаралар жок",
+      "noActivityDesc": "Сиздин акыркы операцияларыңыз жана колтамгаларыңыз бул жерде көрүнөт",
+      "justNow": "Азыр эле",
+      "minutesAgo": "{{count}}м мурун",
+      "hoursAgo": "{{count}}с мурун",
+      "daysAgo": "{{count}}к мурун",
+      "viewDetails": "Көбүрөөк →",
+      "viewAll": "Бардык иш-чаралар →"
+    },
+    "tokens": {
+      "title": "Токендердин балансы",
+      "subtitle": "Бардык капчыктар боюнча",
+      "noBalances": "Токендердин балансы жок"
+    },
+    "actions": {
+      "createWallet": "Капчык түзүү",
+      "send": "Жөнөтүү"
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "ORGON'га кирүү",
+      "subtitle": "Көп колтамгалуу капчыктарды башкаруу",
+      "emailLabel": "Email",
+      "emailPlaceholder": "admin@orgon.app",
+      "passwordLabel": "Сырсөз",
+      "passwordPlaceholder": "Сырсөзүңүздү киргизиңиз",
+      "rememberMe": "Мени эстеп кал",
+      "forgotPassword": "Сырсөзүңүздү унуттуңузбу?",
+      "signInButton": "Кирүү",
+      "noAccount": "Аккаунтуңуз жокпу?",
+      "signUpLink": "Катталуу",
+      "defaultAdmin": "Демейки: admin@orgon.app / admin123",
+      "errors": {
+        "invalidCredentials": "Туура эмес email же сырсөз",
+        "accountLocked": "Аккаунт бөгөттөлгөн",
+        "serverError": "Сервер катасы. Кийинчерээк аракет кылыңыз"
+      },
+      "quickLoginTitle": "Тез кирүү:",
+      "quickLoginOr": "Же жогорудагы формада киргизиңиз",
+      "testUser": "Test User",
+      "adminUser": "Admin"
+    },
+    "register": {
+      "title": "Аккаунт түзүү",
+      "subtitle": "Капчыктарды башкаруу үчүн ORGON'го кошулуңуз",
+      "fullNameLabel": "Толук аты",
+      "fullNamePlaceholder": "Иван Иванов",
+      "emailLabel": "Email",
+      "emailPlaceholder": "sen@example.com",
+      "passwordLabel": "Сырсөз",
+      "passwordPlaceholder": "Кеминде 8 символ",
+      "confirmPasswordLabel": "Сырсөздү ырастоо",
+      "confirmPasswordPlaceholder": "Сырсөздү кайра киргизиңиз",
+      "roleLabel": "Ролу",
+      "roles": {
+        "viewer": "Көрүүчү (окуу гана)",
+        "signer": "Колтамга коюучу (колтамга коё алат)",
+        "admin": "Администратор (толук кирүү)"
+      },
+      "termsAgree": "Мен макулмун",
+      "termsOfService": "Колдонуу шарттары",
+      "and": "жана",
+      "privacyPolicy": "Купуялуулук саясаты",
+      "createButton": "Аккаунт түзүү",
+      "alreadyHaveAccount": "Аккаунтуңуз барбы?",
+      "signInLink": "Кирүү",
+      "errors": {
+        "emailExists": "Email буга чейин колдонулган",
+        "passwordMismatch": "Сырсөздөр дал келбейт",
+        "passwordTooShort": "Сырсөз кеминде 8 символдон турушу керек",
+        "invalidEmail": "Туура эмес email форматы"
+      }
+    },
+    "logout": "Чыгуу",
+    "profile": "Профиль",
+    "profileSettings": "Профиль жөндөөлөрү"
+  },
+  "contacts": {
+    "title": "Дарек китепчеси",
+    "subtitle": "Көп колдонулуучу алуучуларды башкаруу",
+    "addContact": "Контакт кошуу",
+    "editContact": "Контактты түзөтүү",
+    "deleteContact": "Контактты өчүрүү",
+    "searchPlaceholder": "Аты же дареги боюнча издөө...",
+    "noContacts": "Контакттар жок",
+    "noContactsFiltered": "Чыпкага дал келген контакттар жок",
+    "addFirstContact": "Биринчи контактыңызды кошуңуз",
+    "deleteConfirm": "Бул контактты өчүрөсүзбү?",
+    "categories": {
+      "label": "Категория",
+      "all": "Бардык категориялар",
+      "personal": "Жеке",
+      "business": "Бизнес",
+      "exchange": "Биржалар",
+      "other": "Башка"
+    },
+    "favorites": "Тандалмалар",
+    "allContacts": "Бардык контакттар",
+    "fields": {
+      "name": "Аты",
+      "namePlaceholder": "Контакт аты",
+      "address": "Дарек",
+      "addressPlaceholder": "Капчык дареги",
+      "network": "Тармак",
+      "networkPlaceholder": "Тармакты тандаңыз",
+      "category": "Категория",
+      "notes": "Эскертмелер",
+      "notesPlaceholder": "Кошумча маалымат"
+    },
+    "actions": {
+      "addToFavorites": "Тандалмаларга кошуу",
+      "removeFromFavorites": "Тандалмалардан алып салуу"
+    }
+  },
+  "analytics": {
+    "title": "Аналитика",
+    "subtitle": "Сиздин активдүүлүгүңүздүн аналитикасы",
+    "daysFilter": "к",
+    "days": {
+      "7": "7 күн",
+      "14": "14 күн",
+      "30": "30 күн",
+      "90": "90 күн"
+    },
+    "filters": {
+      "title": "Талдоо мезгили"
+    },
+    "stats": {
+      "totalWallets": "Бардык капчыктар",
+      "active": "Активдүү",
+      "inactive": "Активдүү эмес",
+      "totalSignatures": "Бардык колтамгалар",
+      "signed": "Колтамга коюлган",
+      "pending": "Күтүүдө",
+      "tokenTypes": "Токен түрлөрү",
+      "activeTokens": "Портфелдеги активдүү токендер"
+    },
+    "charts": {
+      "balanceHistory": "Баланс тарыхы",
+      "tokenDistribution": "Токендердин бөлүштүрүлүшү",
+      "transactionVolume": "Операциялардын көлөмү",
+      "signatureStats": "Колтамгалардын статистикасы",
+      "transactionActivity": "Операциялардын активдүүлүгү",
+      "transactions": "Операциялар",
+      "totalValue": "Жалпы сумма",
+      "noData": "Маалымат жок",
+      "network": "Тармак",
+      "txCount": "операц."
+    },
+    "refreshButton": "Аналитиканы жаңыртуу",
+    "loading": "Аналитика жүктөлүүдө...",
+    "error": "Аналитика маалыматтарын жүктөп алуу мүмкүн эмес",
+    "retry": "Кайталоо"
+  },
+  "audit": {
+    "title": "Аудит журналы",
+    "subtitle": "Активдүүлүк тарыхы жана системдик окуялар",
+    "searchPlaceholder": "Логдорду издөө...",
+    "searchButton": "Издөө",
+    "clearFilters": "Тазалоо",
+    "noLogs": "Логдор табылган жок",
+    "stats": {
+      "totalEvents": "Бардык окуялар",
+      "last24h": "Акыркы 24 саатта",
+      "actionTypes": "Аракет түрлөрү"
+    },
+    "filters": {
+      "allActions": "Бардык аракеттер",
+      "allResources": "Бардык ресурстар",
+      "resources": {
+        "transaction": "Операция",
+        "wallet": "Капчык",
+        "signature": "Колтамга",
+        "contact": "Контакт",
+        "user": "Колдонуучу"
+      },
+      "fromDate": "Датадан",
+      "toDate": "Датага чейин",
+      "selectFromDate": "Башталыш датасын тандаңыз",
+      "selectToDate": "Аяктоо датасын тандаңыз"
+    },
+    "actions": {
+      "create": "Түзүү",
+      "update": "Жаңыртуу",
+      "delete": "Өчүрүү",
+      "sign": "Колтамга коюу",
+      "reject": "Четке кагуу",
+      "view": "Көрүү"
+    },
+    "fields": {
+      "resourceId": "Ресурстун ID",
+      "userId": "Колдонуучунун ID",
+      "ipAddress": "IP дареги",
+      "userAgent": "User Agent",
+      "details": "Деталдар"
+    },
+    "refreshLogs": "Логдорду жаңыртуу",
+    "detailModal": {
+      "title": "Аудит жазуусунун деталдары",
+      "coreInfo": "Негизги маалымат",
+      "networkInfo": "Тармактык маалымат",
+      "logId": "Жазуунун ID"
+    }
+  },
+  "scheduled": {
+    "title": "Пландаштырылган операциялар",
+    "subtitle": "Автоматтык төлөмдөрдү башкаруу",
+    "noTransactions": "Пландаштырылган операциялар жок",
+    "filters": {
+      "title": "Статус боюнча чыпкалар",
+      "pending": "Күтүүдө",
+      "sent": "Жөнөтүлгөн",
+      "failed": "Ката",
+      "cancelled": "Жокко чыгарылган"
+    },
+    "fields": {
+      "token": "Токен",
+      "value": "Сумма",
+      "recipient": "Алуучу",
+      "scheduledAt": "Пландаштырылган убакыт",
+      "recurrence": "Кайталануу",
+      "nextRun": "Кийинки иштөө",
+      "sentAt": "Жөнөтүлгөн убакыт",
+      "transactionId": "Операциянын ID",
+      "error": "Ката",
+      "info": "Маалымат"
+    },
+    "actions": {
+      "cancel": "Жокко чыгаруу",
+      "cancelConfirm": "Бул пландаштырылган операцияны жокко чыгарасызбы?",
+      "cancelFailed": "Операцияны жокко чыгаруу мүмкүн эмес"
+    },
+    "status": {
+      "pending": "Күтүүдө",
+      "sent": "Жөнөтүлдү",
+      "failed": "Ката",
+      "cancelled": "Жокко чыгарылды"
+    }
+  },
+  "settings": {
+    "title": "Жөндөөлөр",
+    "systemStatus": {
+      "title": "Системанын статусу",
+      "orgonBackend": "ORGON Backend",
+      "safinaApi": "Safina API",
+      "lastSync": "Акыркы синхрондоштуруу"
+    },
+    "authentication": {
+      "title": "Аутентификация",
+      "subtitle": "API кирүү үчүн Bearer токени",
+      "placeholder": "Администратор токенин киргизиңиз",
+      "saveButton": "Токенди сактоо"
+    },
+    "keyManagement": {
+      "title": "Ачкычтарды башкаруу",
+      "link": "EC колтамга ачкычтарын башкаруу"
+    },
+    "twofa": {
+      "title": "Эки факторлуу аутентификация",
+      "description": "Аккаунтуңузга кошумча коопсуздук деңгээлин кошуңуз",
+      "setupTitle": "2FA тууралоо",
+      "enabled": "Иштетилген",
+      "enable": "2FA иштетүү",
+      "disable": "2FA өчүрүү",
+      "verify": "Текшерүү",
+      "download": "Жүктөп алуу",
+      "scanQR": "Бул QR кодду Google Authenticator же Authy колдонмосунда скандаңыз",
+      "manualEntry": "Же ачкычты кол менен киргизиңиз:",
+      "verificationCode": "Ырастоо коду",
+      "enterCode": "Колдонмодон 6 сандуу кодду киргизиңиз",
+      "enterCodeToDisable": "2FA өчүрүү үчүн ырастоо кодун киргизиңиз",
+      "saveBackupCodes": "Камдык кодторду сактаңыз",
+      "backupCodesWarning": "Бул кодторду коопсуз жерде сактаңыз. Аутентификатор колдонмосуна кирүү мүмкүнчүлүгүн жоготсоңуз керек болот.",
+      "backupCodesTotal": "Бардыгы кодтор",
+      "backupCodesRemaining": "Калган кодтор",
+      "regenerateBackupCodes": "Жаңы камдык кодторду түзүү",
+      "whyEnable": "Эмне үчүн 2FA иштетүү керек?",
+      "securityBenefit": "Эки факторлуу аутентификация сыр сөзүңүздү билген адам болсо да аккаунтуңузду коргойт.",
+      "prompts": {
+        "enterCode": "Жаңы камдык кодторду түзүү үчүн колдонмодон ырастоо кодун киргизиңиз:"
+      },
+      "errors": {
+        "setupFailed": "2FA тууралоону баштоо мүмкүн эмес",
+        "invalidCode": "Туура эмес код. Код 6 саннан турушу керек.",
+        "verificationFailed": "Туура эмес ырастоо коду",
+        "disableFailed": "2FA өчүрүү мүмкүн эмес",
+        "regenerateFailed": "Жаңы камдык кодторду түзүү мүмкүн эмес"
+      },
+      "backupCodeHelp": "Аутентификация колдонмосун жоготтуңузбу?\nКамдоо коддорунун биринин колдонуңуз."
+    },
+    "sections": {
+      "profile": "Профиль",
+      "security": "Коопсуздук",
+      "apiKeys": "API Ачкычтар",
+      "notifications": "Билдирмелер",
+      "theme": "Тема",
+      "language": "Тил",
+      "limits": "Чектөөлөр",
+      "backup": "Резервдик көчүрмө",
+      "about": "Программа жөнүндө"
+    },
+    "profile": {
+      "title": "Профиль жөндөөлөрү",
+      "changeAvatar": "Аватарды өзгөртүү",
+      "fullName": "Толук аты",
+      "email": "Email дареги",
+      "role": "Ролу",
+      "saveChanges": "Өзгөртүүлөрдү сактоо"
+    },
+    "security": {
+      "title": "Коопсуздук жөндөөлөрү",
+      "twoFactor": "Эки факторлуу аутентификация",
+      "twoFactorDesc": "Кошумча коргоо деңгээлин кошуңуз",
+      "changePassword": "Сырсөздү өзгөртүү",
+      "currentPassword": "Учурдагы сырсөз",
+      "newPassword": "Жаңы сырсөз",
+      "confirmPassword": "Жаңы сырсөздү ырастоо",
+      "updatePassword": "Сырсөздү жаңыртуу",
+      "activeSessions": "Активдүү сеанстар",
+      "activeSessionsCount": "активдүү сеанстар",
+      "logoutAllSessions": "Бардык сеанстардан чыгуу"
+    },
+    "apiKeys": {
+      "title": "API Ачкычтар",
+      "createNew": "Жаңы ачкыч түзүү",
+      "revoke": "Жокко чыгаруу",
+      "created": "Түзүлгөн",
+      "lastUsed": "Акыркы колдонулуш"
+    },
+    "notifications": {
+      "title": "Билдирмелер жөндөөлөрү",
+      "email": "Email билдирмелер",
+      "emailDesc": "Email аркылуу билдирмелерди алуу",
+      "push": "Push билдирмелер",
+      "pushDesc": "Браузерде push билдирмелерди алуу",
+      "telegram": "Telegram билдирмелер",
+      "telegramDesc": "Telegram бот аркылуу билдирмелерди алуу",
+      "transactions": "Транзакциялар жөнүндө билдирүү",
+      "transactionsDesc": "Жаңы транзакциялар жөнүндө билдирүү",
+      "security": "Коопсуздук билдирүүлөрү",
+      "securityDesc": "Коопсуздук окуялары жөнүндө билдирүү",
+      "weekly": "Жума сайын отчет",
+      "weeklyDesc": "Активдүүлүктүн жума сайын кыскача маалыматын жөнөтүү"
+    },
+    "theme": {
+      "title": "Тема жөндөөлөрү",
+      "light": "Жарык",
+      "dark": "Караңгы",
+      "auto": "Авто"
+    },
+    "language": {
+      "title": "Интерфейс тили"
+    },
+    "limits": {
+      "title": "Аккаунт чектөөлөрү",
+      "wallets": "Капчыктар",
+      "monthlyVolume": "Айлык көлөмү",
+      "transaction": "Транзакция чектөөлөрү",
+      "maxTransactionSize": "Макс. транзакция өлчөмү",
+      "upgrade": "Тарифти жакшыртуу"
+    },
+    "backup": {
+      "title": "Маалыматтарды экспорттоо жана резервдик көчүрмө",
+      "description": "Резервдик көчүрмө же миграция үчүн маалыматтарды экспорттоо",
+      "exportWallets": "Капчыктарды экспорттоо",
+      "exportWalletsDesc": "Капчык даректерин жана метамаалыматтарын жүктөп алуу",
+      "exportTransactions": "Транзакцияларды экспорттоо",
+      "exportTransactionsDesc": "Транзакциялардын тарыхын CSV форматында жүктөп алуу",
+      "exportContacts": "Байланыштарды экспорттоо",
+      "exportContactsDesc": "Даректер китепчесин JSON форматында жүктөп алуу"
+    },
+    "about": {
+      "title": "ORGON программасы жөнүндө",
+      "version": "Версия",
+      "backend": "Backend абалы",
+      "safinaApi": "Safina API абалы",
+      "lastSync": "Акыркы синхрондоштуруу",
+      "documentation": "Документация",
+      "website": "Веб-сайт",
+      "support": "Колдоо",
+      "rights": "Бардык укуктар корголгон."
+    }
+  },
+  "profile": {
+    "title": "Профиль",
+    "description": "Профилиңизди жана коопсуздук параметрлерин башкаруу",
+    "memberSince": "Колдонуучу",
+    "password": {
+      "title": "Сырсөз",
+      "description": "Кирүү сырсөзүн өзгөртүү",
+      "change": "Сырсөздү өзгөртүү",
+      "cancel": "Жокко чыгаруу",
+      "current": "Учурдагы сырсөз",
+      "new": "Жаңы сырсөз",
+      "confirm": "Жаңы сырсөздү ырастаңыз",
+      "save": "Сырсөздү сактоо",
+      "mismatch": "Сырсөздөр дал келбейт",
+      "tooShort": "Сырсөз кеминде 8 символдон турушу керек",
+      "success": "Сырсөз ийгиликтүү өзгөртүлдү",
+      "failed": "Сырсөздү өзгөртүү мүмкүн болбоду"
+    },
+    "sessions": {
+      "title": "Активдүү сеанстар",
+      "description": "Аккаунтка кирүү мүмкүнчүлүгү бар түзмөктөрдү башкаруу",
+      "current": "Учурдагы сеанс",
+      "mobile": "Мобилдик түзмөк",
+      "desktop": "Компьютер",
+      "lastActive": "Акыркы активдүүлүк",
+      "revoke": "Токтотуу",
+      "confirmRevoke": "Сиз бул сеансты токтотууга ишенесизби?",
+      "noSessions": "Активдүү сеанстар жок"
+    },
+    "language": {
+      "title": "Интерфейс тили",
+      "description": "ORGON интерфейси үчүн тилди тандаңыз",
+      "active": "Активдүү"
+    },
+    "theme": {
+      "title": "Интерфейс темасы",
+      "description": "ORGON интерфейсинин көрүнүшүн тууралаңыз",
+      "light": "Жарык",
+      "dark": "Караңгы",
+      "system": "Системалык",
+      "active": "Активдүү"
+    }
+  },
+  "wallets": {
+    "title": "Капчыктар",
+    "exportButton": "Экспорт CSV",
+    "exporting": "Экспорттолууда...",
+    "table": {
+      "favorite": "Тандалмалар",
+      "name": "Аты / Белгиси",
+      "address": "Дарек",
+      "network": "Тармак",
+      "tokens": "Токендер",
+      "info": "Маалымат",
+      "pending": "Күтүүдө...",
+      "noWallets": "Капчыктар табылган жок. Биринчисин түзүңүз."
+    }
+  },
+  "transactions": {
+    "title": "Операциялар",
+    "filtered": "(чыпкаланган)",
+    "exportButton": "Экспорт CSV",
+    "exporting": "Экспорттолууда...",
+    "failedToLoad": "Операцияларды жүктөп алуу мүмкүн эмес",
+    "table": {
+      "unid": "UNID",
+      "to": "Кимге",
+      "amount": "Сумма",
+      "status": "Статус",
+      "txHash": "TX Hash",
+      "date": "Дата",
+      "noTransactions": "Операциялар табылган жок"
+    },
+    "filters": {
+      "title": "Чыпкалар",
+      "wallet": "Капчык",
+      "allWallets": "Бардык капчыктар",
+      "status": "Статус",
+      "allStatuses": "Бардык статустар",
+      "network": "Тармак",
+      "allNetworks": "Бардык тармактар",
+      "fromDate": "Башталыш дата",
+      "toDate": "Аяктоо дата",
+      "applyButton": "Чыпкаларды колдонуу",
+      "clearButton": "Тазалоо"
+    },
+    "statuses": {
+      "pending": "Күтүүдө",
+      "signed": "Колтамга коюлган",
+      "confirmed": "Ырасталган",
+      "rejected": "Четке кагылган",
+      "failed": "Ката"
+    }
+  },
+  "networks": {
+    "title": "Тармактар",
+    "id": "ID",
+    "supportedTokens": "Колдоого алынган токендер"
+  },
+  "signatures": {
+    "title": "Колтамгалар",
+    "notifications": {
+      "signed": "Операция {txId}... ийгиликтүү колтамга коюлду",
+      "rejected": "Операция {txId}... четке кагылды",
+      "signFailed": "Операцияга колтамга коюу мүмкүн эмес",
+      "rejectFailed": "Операцияны четке кагуу мүмкүн эмес",
+      "loadFailed": "Колтамгаларды жүктөп алуу мүмкүн эмес. Кайра аракет кылыңыз."
+    },
+    "stats": {
+      "title": "Колтамга статистикасы",
+      "pendingNow": "Азыр күтүүдө",
+      "signed24h": "Колтамга коюлган (24с)",
+      "rejected24h": "Четке кагылган (24с)",
+      "totalSigned": "Баары колтамга коюлган"
+    },
+    "pending": {
+      "title": "Күтүүдөгү колтамгалар",
+      "count": "({{count}})",
+      "table": {
+        "token": "Токен",
+        "to": "Кимге",
+        "value": "Суммасы",
+        "age": "Жашы",
+        "progress": "Прогресс",
+        "actions": "Аракеттер",
+        "signButton": "Колтамга коюу",
+        "signing": "Колтамга коюлууда...",
+        "rejectButton": "Четке кагуу",
+        "loadStatusButton": "Статусту жүктөө",
+        "noSignatures": "Колтамга күтүп турган операциялар жок"
+      },
+      "rejectDialog": {
+        "title": "Операцияны четке кагуу",
+        "reasonLabel": "Четке кагуу себеби",
+        "reasonPlaceholder": "Себебин киргизиңиз...",
+        "cancelButton": "Жокко чыгаруу",
+        "confirmButton": "Четке кагуу"
+      }
+    },
+    "history": {
+      "title": "Акыркы тарых",
+      "table": {
+        "transaction": "Операция",
+        "action": "Аракет",
+        "signer": "Колтамга коюучу",
+        "timestamp": "Убакыт",
+        "reason": "Себеп",
+        "noHistory": "Колтамгалардын тарыхы бош"
+      },
+      "actions": {
+        "signed": "Колтамга коюлган",
+        "rejected": "Четке кагылган"
+      }
+    }
+  },
+  "metadata": {
+    "title": "ORGON - Капчыктарды башкаруу",
+    "description": "Safina Pay аркылуу криптовалюта капчыктарын башкаруу"
+  }
+}

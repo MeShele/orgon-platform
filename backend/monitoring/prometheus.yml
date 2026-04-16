@@ -1,0 +1,49 @@
+# Prometheus Configuration for ORGON B2B Platform
+# Scrapes metrics from backend /metrics endpoint
+
+global:
+  scrape_interval: 15s      # Scrape targets every 15 seconds
+  evaluation_interval: 15s  # Evaluate rules every 15 seconds
+  external_labels:
+    cluster: 'orgon-production'
+    environment: 'prod'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alerting rules
+rule_files:
+  - 'alerts.yml'
+
+# Scrape configurations
+scrape_configs:
+  # ORGON Backend API
+  - job_name: 'orgon-backend'
+    static_configs:
+      - targets:
+          - 'host.docker.internal:8890'  # Backend running on host
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+
+  # PostgreSQL exporter (optional, if installed)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets:
+  #         - 'postgres-exporter:9187'
+
+  # Node exporter (optional, for host metrics)
+  # - job_name: 'node'
+  #   static_configs:
+  #     - targets:
+  #         - 'node-exporter:9100'

@@ -1,0 +1,762 @@
+{
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успешно",
+    "cancel": "Отмена",
+    "save": "Сохранить",
+    "delete": "Удалить",
+    "edit": "Редактировать",
+    "create": "Создать",
+    "search": "Поиск...",
+    "filter": "Фильтр",
+    "refresh": "Обновить",
+    "close": "Закрыть",
+    "back": "Назад",
+    "next": "Далее",
+    "submit": "Отправить",
+    "reset": "Сбросить",
+    "confirm": "Подтвердить",
+    "yes": "Да",
+    "no": "Нет",
+    "all": "Все",
+    "none": "Нет",
+    "select": "Выбрать",
+    "clear": "Очистить",
+    "signIn": "Войти",
+    "signOut": "Выйти",
+    "profileSettings": "Настройки профиля",
+    "done": "Готово"
+  },
+  "navigation": {
+    "dashboard": "Главная",
+    "wallets": "Кошельки",
+    "transactions": "Транзакции",
+    "scheduled": "Запланированные",
+    "analytics": "Аналитика",
+    "signatures": "Подписи",
+    "contacts": "Адресная книга",
+    "audit": "Журнал аудита",
+    "networks": "Сети",
+    "help": "Справка",
+    "profile": "Профиль",
+    "settings": "Настройки",
+    "documents": "Документы",
+    "organizations": "Организации",
+    "billing": "Биллинг",
+    "compliance": "Комплаенс",
+    "users": "Пользователи",
+    "reports": "Отчёты",
+    "support": "Поддержка",
+    "fiat": "Фиат операции",
+    "partner": "Партнёр API"
+  },
+  "dashboard": {
+    "title": "Главная",
+    "welcomeMessage": "Добро пожаловать в ORGON",
+    "recentActivity": "Последняя активность",
+    "noActivity": "Нет недавней активности",
+    "lastSync": "Последняя синхронизация",
+    "stats": {
+      "wallets": "Кошельки",
+      "totalWallets": "Всего кошельков",
+      "transactions24h": "Транзакций (24ч)",
+      "pendingSignatures": "Ожидают подписи",
+      "pendingSignaturesHelp": "Транзакции, ожидающие вашей подписи",
+      "networks": "Сети",
+      "activeNetworks": "Активные сети"
+    },
+    "alerts": {
+      "title": "Системные оповещения",
+      "allOperational": "Все системы в порядке",
+      "noAlerts": "Нет оповещений",
+      "pendingSignaturesPrefix": "ожидают вашей подписи",
+      "failedTransactionsPrefix": "неудачных",
+      "failedTransactionsSuffix": "за последние 7 дней",
+      "viewDetails": "Подробнее →"
+    },
+    "activity": {
+      "title": "Последняя активность",
+      "lastEvents": "Последних {{count}} {{word}}",
+      "noActivity": "Нет недавней активности",
+      "noActivityDesc": "Ваши недавние транзакции и подписи появятся здесь",
+      "justNow": "Только что",
+      "minutesAgo": "{{count}}м назад",
+      "hoursAgo": "{{count}}ч назад",
+      "daysAgo": "{{count}}д назад",
+      "viewDetails": "Подробнее →",
+      "viewAll": "Вся активность →"
+    },
+    "tokens": {
+      "title": "Балансы токенов",
+      "subtitle": "Агрегировано по всем кошелькам",
+      "noBalances": "Нет балансов токенов"
+    },
+    "actions": {
+      "createWallet": "Создать кошелёк",
+      "send": "Отправить"
+    },
+    "rates": {
+      "title": "Курсы криптовалют",
+      "token": "Токен",
+      "price": "Цена USD",
+      "change24h": "Изменение 24ч",
+      "noData": "Нет данных о курсах",
+      "loading": "Загрузка курсов..."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Вход в ORGON",
+      "subtitle": "Управляйте мультиподписными кошельками",
+      "emailLabel": "Электронная почта",
+      "emailPlaceholder": "admin@orgon.app",
+      "passwordLabel": "Пароль",
+      "passwordPlaceholder": "Введите ваш пароль",
+      "rememberMe": "Запомнить меня",
+      "forgotPassword": "Забыли пароль?",
+      "signInButton": "Войти",
+      "noAccount": "Нет аккаунта?",
+      "signUpLink": "Зарегистрироваться",
+      "defaultAdmin": "По умолчанию: admin@orgon.app / admin123",
+      "errors": {
+        "invalidCredentials": "Неверный email или пароль",
+        "accountLocked": "Аккаунт заблокирован",
+        "serverError": "Ошибка сервера. Попробуйте позже"
+      },
+      "quickLoginTitle": "Быстрый вход:",
+      "quickLoginOr": "Или введите данные вручную выше",
+      "testUser": "Test User",
+      "adminUser": "Admin"
+    },
+    "register": {
+      "title": "Создать аккаунт",
+      "subtitle": "Присоединяйтесь к ORGON для управления кошельками",
+      "fullNameLabel": "Полное имя",
+      "fullNamePlaceholder": "Иван Иванов",
+      "emailLabel": "Электронная почта",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Пароль",
+      "passwordPlaceholder": "Минимум 8 символов",
+      "confirmPasswordLabel": "Подтвердите пароль",
+      "confirmPasswordPlaceholder": "Введите пароль повторно",
+      "roleLabel": "Роль",
+      "roles": {
+        "viewer": "Наблюдатель (только чтение)",
+        "signer": "Подписант (может подписывать)",
+        "admin": "Администратор (полный доступ)"
+      },
+      "termsAgree": "Я согласен с",
+      "termsOfService": "Условиями использования",
+      "and": "и",
+      "privacyPolicy": "Политикой конфиденциальности",
+      "createButton": "Создать аккаунт",
+      "alreadyHaveAccount": "Уже есть аккаунт?",
+      "signInLink": "Войти",
+      "errors": {
+        "emailExists": "Email уже используется",
+        "passwordMismatch": "Пароли не совпадают",
+        "passwordTooShort": "Пароль должен быть минимум 8 символов",
+        "invalidEmail": "Неверный формат email"
+      }
+    },
+    "logout": "Выйти",
+    "profile": "Профиль",
+    "profileSettings": "Настройки профиля",
+    "forgotPassword": {
+      "title": "Восстановление пароля",
+      "subtitle": "Введите email для получения ссылки на сброс пароля",
+      "emailLabel": "Электронная почта",
+      "emailPlaceholder": "you@example.com",
+      "submitButton": "Отправить ссылку",
+      "backToLogin": "Вернуться к входу",
+      "success": "Если аккаунт с таким email существует, мы отправили ссылку для сброса пароля.",
+      "errors": {
+        "emailRequired": "Введите email",
+        "serverError": "Ошибка сервера. Попробуйте позже"
+      }
+    },
+    "resetPassword": {
+      "title": "Новый пароль",
+      "subtitle": "Введите новый пароль для вашего аккаунта",
+      "passwordLabel": "Новый пароль",
+      "passwordPlaceholder": "Минимум 8 символов",
+      "confirmPasswordLabel": "Подтвердите пароль",
+      "confirmPasswordPlaceholder": "Введите пароль повторно",
+      "submitButton": "Сохранить пароль",
+      "success": "Пароль успешно изменён! Теперь вы можете войти.",
+      "errors": {
+        "passwordMismatch": "Пароли не совпадают",
+        "passwordTooShort": "Пароль должен быть минимум 8 символов",
+        "invalidToken": "Ссылка недействительна или истекла",
+        "serverError": "Ошибка сервера. Попробуйте позже"
+      }
+    }
+  },
+  "contacts": {
+    "title": "Адресная книга",
+    "subtitle": "Управляйте вашими частыми получателями",
+    "addContact": "Добавить контакт",
+    "editContact": "Редактировать контакт",
+    "deleteContact": "Удалить контакт",
+    "searchPlaceholder": "Поиск по имени или адресу...",
+    "noContacts": "Нет контактов",
+    "noContactsFiltered": "Нет контактов, соответствующих фильтрам",
+    "addFirstContact": "Добавьте ваш первый контакт",
+    "deleteConfirm": "Удалить этот контакт?",
+    "categories": {
+      "label": "Категория",
+      "all": "Все категории",
+      "personal": "Личные",
+      "business": "Бизнес",
+      "exchange": "Биржи",
+      "other": "Другое"
+    },
+    "favorites": "Избранное",
+    "allContacts": "Все контакты",
+    "fields": {
+      "name": "Имя",
+      "namePlaceholder": "Имя контакта",
+      "address": "Адрес",
+      "addressPlaceholder": "Адрес кошелька",
+      "network": "Сеть",
+      "networkPlaceholder": "Выберите сеть",
+      "category": "Категория",
+      "notes": "Заметки",
+      "notesPlaceholder": "Дополнительная информация"
+    },
+    "actions": {
+      "addToFavorites": "Добавить в избранное",
+      "removeFromFavorites": "Удалить из избранного"
+    }
+  },
+  "analytics": {
+    "title": "Аналитика",
+    "subtitle": "Аналитика вашей активности",
+    "daysFilter": "дн",
+    "days": {
+      "7": "7 дней",
+      "14": "14 дней",
+      "30": "30 дней",
+      "90": "90 дней"
+    },
+    "filters": {
+      "title": "Период анализа"
+    },
+    "stats": {
+      "totalWallets": "Всего кошельков",
+      "active": "Активные",
+      "inactive": "Неактивные",
+      "totalSignatures": "Всего подписей",
+      "signed": "Подписано",
+      "pending": "Ожидают",
+      "tokenTypes": "Типы токенов",
+      "activeTokens": "Активных токенов в портфеле"
+    },
+    "charts": {
+      "balanceHistory": "История баланса",
+      "tokenDistribution": "Распределение токенов",
+      "transactionVolume": "Объем транзакций",
+      "signatureStats": "Статистика подписей",
+      "transactionActivity": "Активность транзакций",
+      "transactions": "Транзакции",
+      "totalValue": "Общая сумма",
+      "noData": "Нет данных",
+      "network": "Сеть",
+      "txCount": "транз."
+    },
+    "refreshButton": "Обновить аналитику",
+    "loading": "Загрузка аналитики...",
+    "error": "Не удалось загрузить данные аналитики",
+    "retry": "Повторить"
+  },
+  "audit": {
+    "title": "Журнал аудита",
+    "subtitle": "История активности и системные события",
+    "searchPlaceholder": "Поиск в логах...",
+    "searchButton": "Поиск",
+    "clearFilters": "Очистить",
+    "noLogs": "Логи не найдены",
+    "stats": {
+      "totalEvents": "Всего событий",
+      "last24h": "За последние 24 часа",
+      "actionTypes": "Типы действий"
+    },
+    "filters": {
+      "allActions": "Все действия",
+      "allResources": "Все ресурсы",
+      "resources": {
+        "transaction": "Транзакция",
+        "wallet": "Кошелёк",
+        "signature": "Подпись",
+        "contact": "Контакт",
+        "user": "Пользователь"
+      },
+      "fromDate": "С даты",
+      "toDate": "По дату",
+      "selectFromDate": "Выберите начальную дату",
+      "selectToDate": "Выберите конечную дату"
+    },
+    "actions": {
+      "create": "Создание",
+      "update": "Обновление",
+      "delete": "Удаление",
+      "sign": "Подпись",
+      "reject": "Отклонение",
+      "view": "Просмотр"
+    },
+    "fields": {
+      "resourceId": "ID ресурса",
+      "userId": "ID пользователя",
+      "ipAddress": "IP адрес",
+      "userAgent": "User Agent",
+      "details": "Детали"
+    },
+    "refreshLogs": "Обновить логи",
+    "detailModal": {
+      "title": "Детали записи аудита",
+      "coreInfo": "Основная информация",
+      "networkInfo": "Сетевая информация",
+      "logId": "ID записи"
+    }
+  },
+  "scheduled": {
+    "title": "Запланированные транзакции",
+    "subtitle": "Управляйте автоматическими платежами",
+    "noTransactions": "Нет запланированных транзакций",
+    "filters": {
+      "title": "Фильтры по статусу",
+      "pending": "Ожидают",
+      "sent": "Отправлены",
+      "failed": "Ошибка",
+      "cancelled": "Отменены"
+    },
+    "fields": {
+      "token": "Токен",
+      "value": "Сумма",
+      "recipient": "Получатель",
+      "scheduledAt": "Запланировано на",
+      "recurrence": "Повторение",
+      "nextRun": "Следующий запуск",
+      "sentAt": "Отправлено",
+      "transactionId": "ID транзакции",
+      "error": "Ошибка",
+      "info": "Информация"
+    },
+    "actions": {
+      "cancel": "Отменить",
+      "cancelConfirm": "Отменить эту запланированную транзакцию?",
+      "cancelFailed": "Не удалось отменить транзакцию"
+    },
+    "status": {
+      "pending": "Ожидает",
+      "sent": "Отправлено",
+      "failed": "Ошибка",
+      "cancelled": "Отменено"
+    }
+  },
+  "settings": {
+    "title": "Настройки",
+    "systemStatus": {
+      "title": "Статус системы",
+      "orgonBackend": "ORGON Backend",
+      "safinaApi": "Safina API",
+      "lastSync": "Последняя синхронизация"
+    },
+    "authentication": {
+      "title": "Аутентификация",
+      "subtitle": "Bearer токен для доступа к API",
+      "placeholder": "Введите токен администратора",
+      "saveButton": "Сохранить токен"
+    },
+    "keyManagement": {
+      "title": "Управление ключами",
+      "link": "Управление EC ключами для подписи"
+    },
+    "twofa": {
+      "title": "Двухфакторная аутентификация",
+      "description": "Добавьте дополнительный уровень безопасности к вашему аккаунту",
+      "setupTitle": "Настройка 2FA",
+      "enabled": "Включено",
+      "enable": "Включить 2FA",
+      "disable": "Отключить 2FA",
+      "verify": "Проверить",
+      "download": "Скачать",
+      "scanQR": "Отсканируйте QR-код в приложении Google Authenticator или Authy",
+      "manualEntry": "Или введите ключ вручную:",
+      "verificationCode": "Код подтверждения",
+      "enterCode": "Введите 6-значный код из вашего приложения",
+      "enterCodeToDisable": "Введите код подтверждения для отключения 2FA",
+      "saveBackupCodes": "Сохраните резервные коды",
+      "backupCodesWarning": "Сохраните эти коды в безопасном месте. Они понадобятся если вы потеряете доступ к приложению аутентификации.",
+      "backupCodesTotal": "Всего кодов",
+      "backupCodesRemaining": "Осталось кодов",
+      "regenerateBackupCodes": "Создать новые резервные коды",
+      "whyEnable": "Зачем включать 2FA?",
+      "securityBenefit": "Двухфакторная аутентификация защищает ваш аккаунт даже если кто-то узнает ваш пароль.",
+      "prompts": {
+        "enterCode": "Введите код подтверждения из приложения для создания новых резервных кодов:"
+      },
+      "errors": {
+        "setupFailed": "Не удалось начать настройку 2FA",
+        "invalidCode": "Неверный код. Код должен содержать 6 цифр.",
+        "verificationFailed": "Неверный код подтверждения",
+        "disableFailed": "Не удалось отключить 2FA",
+        "regenerateFailed": "Не удалось создать новые резервные коды"
+      },
+      "backupCodeHelp": "Потеряли приложение аутентификации?\nИспользуйте один из резервных кодов."
+    },
+    "sections": {
+      "profile": "Профиль",
+      "security": "Безопасность",
+      "apiKeys": "API Ключи",
+      "notifications": "Уведомления",
+      "theme": "Тема",
+      "language": "Язык",
+      "limits": "Лимиты",
+      "backup": "Резервное копирование",
+      "about": "О программе"
+    },
+    "profile": {
+      "title": "Настройки профиля",
+      "changeAvatar": "Изменить аватар",
+      "fullName": "Полное имя",
+      "email": "Email адрес",
+      "role": "Роль",
+      "saveChanges": "Сохранить изменения"
+    },
+    "security": {
+      "title": "Настройки безопасности",
+      "twoFactor": "Двухфакторная аутентификация",
+      "twoFactorDesc": "Добавьте дополнительный уровень защиты",
+      "changePassword": "Изменить пароль",
+      "currentPassword": "Текущий пароль",
+      "newPassword": "Новый пароль",
+      "confirmPassword": "Подтвердите новый пароль",
+      "updatePassword": "Обновить пароль",
+      "activeSessions": "Активные сессии",
+      "activeSessionsCount": "активных сессий",
+      "logoutAllSessions": "Выйти из всех сессий"
+    },
+    "apiKeys": {
+      "title": "API Ключи",
+      "createNew": "Создать новый ключ",
+      "revoke": "Отозвать",
+      "created": "Создан",
+      "lastUsed": "Последнее использование"
+    },
+    "notifications": {
+      "title": "Настройки уведомлений",
+      "email": "Email уведомления",
+      "emailDesc": "Получать уведомления на email",
+      "push": "Push уведомления",
+      "pushDesc": "Получать push уведомления в браузере",
+      "telegram": "Telegram уведомления",
+      "telegramDesc": "Получать уведомления через Telegram бота",
+      "transactions": "Уведомления о транзакциях",
+      "transactionsDesc": "Уведомлять о новых транзакциях",
+      "security": "Уведомления о безопасности",
+      "securityDesc": "Уведомлять о событиях безопасности",
+      "weekly": "Еженедельный отчет",
+      "weeklyDesc": "Отправлять еженедельную сводку активности"
+    },
+    "theme": {
+      "title": "Тема оформления",
+      "light": "Светлая",
+      "dark": "Темная",
+      "auto": "Авто"
+    },
+    "language": {
+      "title": "Язык интерфейса"
+    },
+    "limits": {
+      "title": "Лимиты аккаунта",
+      "wallets": "Кошельки",
+      "monthlyVolume": "Месячный объем",
+      "transaction": "Лимиты транзакций",
+      "maxTransactionSize": "Макс. размер транзакции",
+      "upgrade": "Улучшить тариф"
+    },
+    "backup": {
+      "title": "Экспорт данных и резервное копирование",
+      "description": "Экспортируйте данные для резервного копирования или миграции",
+      "exportWallets": "Экспорт кошельков",
+      "exportWalletsDesc": "Скачать адреса кошельков и метаданные",
+      "exportTransactions": "Экспорт транзакций",
+      "exportTransactionsDesc": "Скачать историю транзакций в CSV",
+      "exportContacts": "Экспорт контактов",
+      "exportContactsDesc": "Скачать адресную книгу в JSON"
+    },
+    "about": {
+      "title": "О программе ORGON",
+      "version": "Версия",
+      "backend": "Статус Backend",
+      "safinaApi": "Статус Safina API",
+      "lastSync": "Последняя синхронизация",
+      "documentation": "Документация",
+      "website": "Веб-сайт",
+      "support": "Поддержка",
+      "rights": "Все права защищены."
+    }
+  },
+  "profile": {
+    "title": "Профиль",
+    "description": "Управление вашим профилем и настройками безопасности",
+    "memberSince": "Пользователь с",
+    "password": {
+      "title": "Пароль",
+      "description": "Изменение пароля для входа в систему",
+      "change": "Изменить пароль",
+      "cancel": "Отмена",
+      "current": "Текущий пароль",
+      "new": "Новый пароль",
+      "confirm": "Подтвердите новый пароль",
+      "save": "Сохранить пароль",
+      "mismatch": "Пароли не совпадают",
+      "tooShort": "Пароль должен содержать минимум 8 символов",
+      "success": "Пароль успешно изменен",
+      "failed": "Не удалось изменить пароль"
+    },
+    "sessions": {
+      "title": "Активные сессии",
+      "description": "Управление устройствами с доступом к вашему аккаунту",
+      "current": "Текущая сессия",
+      "mobile": "Мобильное устройство",
+      "desktop": "Компьютер",
+      "lastActive": "Последняя активность",
+      "revoke": "Завершить",
+      "confirmRevoke": "Вы уверены, что хотите завершить эту сессию?",
+      "noSessions": "Нет активных сессий"
+    },
+    "language": {
+      "title": "Язык интерфейса",
+      "description": "Выберите предпочитаемый язык для интерфейса ORGON",
+      "active": "Активный"
+    },
+    "theme": {
+      "title": "Тема оформления",
+      "description": "Настройте внешний вид интерфейса ORGON",
+      "light": "Светлая",
+      "dark": "Темная",
+      "system": "Системная",
+      "active": "Активная"
+    }
+  },
+  "wallets": {
+    "title": "Кошельки",
+    "exportButton": "Экспорт CSV",
+    "exporting": "Экспорт...",
+    "table": {
+      "favorite": "Избранное",
+      "name": "Имя / Метка",
+      "address": "Адрес",
+      "network": "Сеть",
+      "tokens": "Токены",
+      "info": "Информация",
+      "pending": "Ожидает...",
+      "noWallets": "Кошельки не найдены. Создайте первый кошелёк."
+    }
+  },
+  "transactions": {
+    "title": "Транзакции",
+    "filtered": "(отфильтровано)",
+    "exportButton": "Экспорт CSV",
+    "exporting": "Экспорт...",
+    "failedToLoad": "Не удалось загрузить транзакции",
+    "table": {
+      "unid": "UNID",
+      "to": "Кому",
+      "amount": "Сумма",
+      "status": "Статус",
+      "txHash": "TX Hash",
+      "date": "Дата",
+      "noTransactions": "Транзакции не найдены"
+    },
+    "filters": {
+      "title": "Фильтры",
+      "wallet": "Кошелёк",
+      "allWallets": "Все кошельки",
+      "status": "Статус",
+      "allStatuses": "Все статусы",
+      "network": "Сеть",
+      "allNetworks": "Все сети",
+      "fromDate": "С даты",
+      "toDate": "До даты",
+      "applyButton": "Применить фильтры",
+      "clearButton": "Очистить"
+    },
+    "statuses": {
+      "pending": "Ожидает",
+      "signed": "Подписано",
+      "confirmed": "Подтверждено",
+      "rejected": "Отклонено",
+      "failed": "Ошибка"
+    },
+    "feeEstimate": {
+      "title": "Оценка комиссии",
+      "estimating": "Расчёт комиссии...",
+      "fee": "Комиссия",
+      "total": "Итого",
+      "error": "Не удалось рассчитать комиссию"
+    },
+    "addressValidation": {
+      "valid": "Адрес валиден",
+      "invalid": "Невалидный адрес",
+      "validating": "Проверка адреса..."
+    }
+  },
+  "networks": {
+    "title": "Сети",
+    "id": "ID",
+    "supportedTokens": "Поддерживаемые токены"
+  },
+  "signatures": {
+    "title": "Подписи",
+    "notifications": {
+      "signed": "Транзакция {txId}... успешно подписана",
+      "rejected": "Транзакция {txId}... отклонена",
+      "signFailed": "Не удалось подписать транзакцию",
+      "rejectFailed": "Не удалось отклонить транзакцию",
+      "loadFailed": "Не удалось загрузить подписи. Попробуйте снова."
+    },
+    "stats": {
+      "title": "Статистика подписей",
+      "pendingNow": "Ожидают сейчас",
+      "signed24h": "Подписано (24ч)",
+      "rejected24h": "Отклонено (24ч)",
+      "totalSigned": "Всего подписано"
+    },
+    "pending": {
+      "title": "Ожидают подписи",
+      "count": "({{count}})",
+      "table": {
+        "token": "Токен",
+        "to": "Кому",
+        "value": "Сумма",
+        "age": "Возраст",
+        "progress": "Прогресс",
+        "actions": "Действия",
+        "signButton": "Подписать",
+        "signing": "Подписание...",
+        "rejectButton": "Отклонить",
+        "loadStatusButton": "Загрузить статус",
+        "noSignatures": "Нет транзакций, ожидающих подписи"
+      },
+      "rejectDialog": {
+        "title": "Отклонить транзакцию",
+        "reasonLabel": "Причина отклонения",
+        "reasonPlaceholder": "Введите причину...",
+        "cancelButton": "Отмена",
+        "confirmButton": "Отклонить"
+      }
+    },
+    "history": {
+      "title": "Последняя история",
+      "table": {
+        "transaction": "Транзакция",
+        "action": "Действие",
+        "signer": "Подписант",
+        "timestamp": "Время",
+        "reason": "Причина",
+        "noHistory": "История подписей пуста"
+      },
+      "actions": {
+        "signed": "Подписано",
+        "rejected": "Отклонено"
+      }
+    }
+  },
+  "metadata": {
+    "title": "ORGON - Управление кошельками",
+    "description": "Управление криптовалютными кошельками через Safina Pay"
+  },
+  "organizations": {
+    "title": "Организации",
+    "newOrganization": "Новая организация",
+    "selectOrganization": "Выбрать организацию",
+    "manageOrganizations": "Управление организациями",
+    "allOrganizations": "Все организации",
+    "overview": "Обзор",
+    "members": "Участники",
+    "settings": "Настройки",
+    "details": "Детали организации",
+    "addMember": "Добавить участника",
+    "maxWallets": "Макс. кошельков",
+    "maxVolume": "Макс. объем",
+    "kycRequired": "Требуется KYC",
+    "created": "Создано",
+    "status": {
+      "active": "Активна",
+      "suspended": "Приостановлена",
+      "closed": "Закрыта"
+    },
+    "license": {
+      "free": "Бесплатная",
+      "pro": "Профессиональная",
+      "enterprise": "Корпоративная"
+    },
+    "role": {
+      "admin": "Администратор",
+      "operator": "Оператор",
+      "viewer": "Наблюдатель"
+    }
+  },
+  "billing": {
+    "title": "Биллинг и подписки",
+    "currentPlan": "Текущий план",
+    "month": "месяц",
+    "year": "год",
+    "renewalDate": "Дата продления",
+    "autoRenew": "Автопродление",
+    "enabled": "Включено",
+    "disabled": "Выключено",
+    "upgradePlan": "Улучшить план",
+    "cancelSubscription": "Отменить подписку",
+    "noSubscription": "Нет активной подписки",
+    "choosePlan": "Выберите план",
+    "outstandingBalance": "Задолженность",
+    "totalSpend": "Всего потрачено",
+    "recentInvoices": "Последние счета",
+    "invoiceNumber": "Счёт №",
+    "issueDate": "Дата выставления",
+    "dueDate": "Срок оплаты",
+    "amount": "Сумма",
+    "status": "Статус",
+    "actions": "Действия",
+    "payNow": "Оплатить",
+    "paid": "Оплачено",
+    "noInvoices": "Счетов пока нет",
+    "paymentHistory": "История платежей",
+    "noPayments": "Платежей пока нет",
+    "select": "Выбрать",
+    "cancelConfirm": "Вы уверены что хотите отменить подписку?"
+  },
+  "compliance": {
+    "title": "Комплаенс и регуляторика",
+    "kycRecords": "KYC записи",
+    "amlAlerts": "AML оповещения",
+    "reports": "Отчёты",
+    "recentKYC": "Последние KYC записи",
+    "noKYC": "KYC записей пока нет",
+    "amlAlertsTitle": "AML оповещения",
+    "noAlerts": "Оповещений нет",
+    "reportsTitle": "Отчёты для регулятора",
+    "noReports": "Отчётов пока нет"
+  },
+  "branding": {
+    "title": "Брендинг и White Label",
+    "logo": "Логотип",
+    "logoUrl": "URL логотипа",
+    "colors": "Цвета",
+    "primaryColor": "Основной цвет",
+    "secondaryColor": "Вторичный цвет",
+    "accentColor": "Акцентный цвет",
+    "platformInfo": "Информация о платформе",
+    "platformName": "Название платформы",
+    "tagline": "Слоган",
+    "supportEmail": "Email поддержки",
+    "preview": "Предпросмотр",
+    "previewButton": "Основная кнопка",
+    "previewSecondary": "Вторичная кнопка"
+  }
+}

@@ -1,0 +1,629 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<title>Wiki</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style>
+body { font:80% Verdana,Tahoma,Arial,sans-serif; }
+h1, h2, h3, h4 {  font-family: "Trebuchet MS",Georgia,"Times New Roman",serif; }
+ul.toc { padding: 4px; margin-left: 0; }
+ul.toc li { list-style-type:none; }
+ul.toc li.heading2 { margin-left: 1em; }
+ul.toc li.heading3 { margin-left: 2em; }
+a.wiki-anchor { display: none; margin-left: 6px; text-decoration: none; }
+a.wiki-anchor:hover { color: #aaa !important; text-decoration: none; }
+h1:hover a.wiki-anchor, h2:hover a.wiki-anchor, h3:hover a.wiki-anchor { display: inline; color: #ddd; }
+</style>
+</head>
+<body>
+<ul class="toc right"><li><strong>Содержание</strong></li><li><a href="#API">API</a><ul><li><ul><li><a href="#Общие-для-всех-запросов-параметры">Общие для всех запросов параметры:</a></li></ul>
+</li><li><a href="#Описание-методов">Описание методов:</a><ul><li><a href="#Получение-справочника-сетей">Получение справочника сетей:</a></li><li><a href="#Создание-кошелька">Создание кошелька:</a></li><li><a href="#Получение-списка-кошельков">Получение списка кошельков:</a></li><li><a href="#Получение-списка-всех-токенов-пользователя">Получение списка всех токенов пользователя:</a></li><li><a href="#Получение-справочника-токенов">Получение справочника токенов:</a></li><li><a href="#Получение-параметров-и-списка-адресов-кошелька-по-его-имени">Получение параметров и списка адресов кошелька по его имени:</a></li><li><a href="#Получение-параметров-и-списка-адресов-кошелька-по-его-уникальному-идентификатору-заявки-на-создания-UNID-">Получение параметров и списка адресов кошелька по его уникальному идентификатору заявки на создания (UNID) :</a></li><li><a href="#Получение-списка-токенов-пользователя-с-одного-кошелька">Получение списка токенов пользователя с одного кошелька:</a></li><li><a href="#Отправка-транзакции">Отправка транзакции</a></li><li><a href="#Получение-списка-транзакций">Получение списка транзакций:</a></li><li><a href="#Получение-списка-транзакций-определённого-токена">Получение списка транзакций определённого токена:</a></li><li><a href="#Получение-списка-ожидаемых-подписей-для-транзакции">Получение списка ожидаемых подписей для транзакции</a></li><li><a href="#Получение-списка-полученных-подписей-для-транзакции">Получение списка полученных подписей для транзакции</a></li><li><a href="#Получение-списка-полученных-и-ожидаемых-подписей-для-транзакции">Получение списка полученных и ожидаемых подписей для транзакции</a></li><li><a href="#Получение-массива-tx_unid-транзакций">Получение массива tx_unid (транзакций)</a></li><li><a href="#Подписание-транзакции">Подписание транзакции</a></li><li><a href="#Отклонение-транзакции">Отклонение транзакции</a></li><li><a href="#Получение-массива-токенов-пользователя-и-общего-баланса-по-ним">Получение массива токенов пользователя и общего баланса по ним</a></li><li><a href="#Получение-последних-50-ти-транзакций-которые-подписал-пользователь">Получение последних 50-ти транзакций, которые подписал пользователь</a></li><li><a href="#Примеры">Примеры</a></li></ul></li></ul></li></ul>
+
+
+	<p><a class="wiki-page" href="Основные_идеи.html">Основные идеи</a><br /><a class="wiki-page" href="Exampls.html">Примеры</a> <br /><a class="wiki-page" href="H2K_Pay.html">Safina Pay</a></p>
+
+
+	<a name="API"></a>
+<h1 >API<a href="#API" class="wiki-anchor">&para;</a></h1>
+
+
+	<a name="Общие-для-всех-запросов-параметры"></a>
+<h3 >Общие для всех запросов параметры:<a href="#Общие-для-всех-запросов-параметры" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Basic URL: <br /><pre>
+https://my.safina.pro/ece/
+</pre></p>
+
+
+	<p>Электронная подпись:<br />Предполагается, что подпись формировалась библиотеками, предназначенными для ETH сети которые тело подписываемой транзакции добавляют служебную информацию</p>
+
+
+<pre>
+HEADRES:
+  x-app-ec-from 
+  x-app-ec-sign-r
+  x-app-ec-sign-s
+  x-app-ec-sign-v
+</pre>
+
+  x-app-ec-from   : адрес подписавшего (HEX) с префиксом 0x <br /><pre>0xa75db3c448bb62e208e4babf500925427837e464</pre><br />  x-app-ec-sign-r : R компонента подписи (HEX) с префиксом 0x <pre>0xdb07295a5f780159d51c4872a104e6e486428942db38ea3b7d91433c38658c0b</pre><br />  x-app-ec-sign-s : S компонента подписи (HEX) с префиксом 0x <pre>0x3a64d736044d63cff3713b85aa2a2fad902c080c2b64acfcdbee7ce9e20cae0e</pre><br />  x-app-ec-sign-v : V компонента подписи (HEX) с префиксом 0x, флаг восстановления адреса <pre>0x1b</pre>
+
+	<p>Подписываемая строка: <br /><pre>
+1. "{}" в случае отсутствия полей формы или запроса GET ({})
+2. json с полями формы в случае запроса POST, PATCH, DELETE 
+</pre><br />Пример json: <br /><pre>
+{"slist":{"0":{"type":"all","email":"e@mail.com","ecaddres":"0xa12343c448bb62e208e4babf500925427837e464"},"1":{"type":"any","email":"e@mail.ru","sms":"+77777777777","ecaddres":"0x1234567448bb62e208e4babf500925427837e464"}},"network":"1000","info":"My first wallet"}
+</pre><br />Никаких пробелов в структуре JSON не допускается, иначе ОШИБКА ПОДПИСИ.</p>
+
+
+	<p>В случае ошибки ответ будет:
+{"ERROR":"Ошибка 12313", "LINE":"125"}</p>
+
+
+<hr />
+
+
+	<a name="Описание-методов"></a>
+<h2 >Описание методов:<a href="#Описание-методов" class="wiki-anchor">&para;</a></h2>
+
+
+	<a name="Получение-справочника-сетей"></a>
+<h3 >Получение справочника сетей:<a href="#Получение-справочника-сетей" class="wiki-anchor">&para;</a></h3>
+
+
+	<p><strong>Действующие сети:</strong></p>
+
+
+<pre>GET https://my.safina.pro/ece/netlist/1</pre>
+
+	<p><strong>Отключенные сети:</strong></p>
+
+
+<pre>GET https://my.safina.pro/ece/netlist/0</pre>
+
+	<p>Ответ:<br /><pre>
+[
+{"network_id":1000,"network_name":"Bitcoin (BTC)",
+"link":"https://www.bitcoin.com",
+"address_explorer":"https://www.blockchain.com/btc/address/",
+"tx_explorer":"https://www.blockchain.com/btc/tx/",
+"block_explorer":"https://www.blockchain.com/btc/block/","info":null,"status":1},
+
+{"network_id":1010,"network_name":"Bitcoin Test (BTC)",
+"link":"https://www.bitcoin.com",
+"address_explorer":"https://www.blockchain.com/btc-testnet/address/",
+"tx_explorer":"https://www.blockchain.com/btc-testnet/tx/",
+"block_explorer":"https://www.blockchain.com/btc-testnet/block/","info":null,"status":1},
+
+{"network_id":3000,"network_name":"Etherium (ETH)",
+"link":"https://ethereum.org",
+"address_explorer":"https://etherscan.io/address/",
+"tx_explorer":"https://etherscan.io/tx/",
+"block_explorer":"https://etherscan.io/block/","info":null,"status":1},
+
+{"network_id":3010,"network_name":"ETH Ropsten Test (ETH)",
+"link":"https://ethereum.org",
+"address_explorer":"https://ropsten.etherscan.io/address/",
+"tx_explorer":"https://ropsten.etherscan.io/tx/",
+"block_explorer":"https://ropsten.etherscan.io/block/","info":null,"status":1},
+...
+]
+</pre></p>
+
+
+<hr />
+
+
+	<a name="Создание-кошелька"></a>
+<h3 >Создание кошелька:<a href="#Создание-кошелька" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Запрос:<br /><pre>POST https://my.safina.pro/ece/newWallet</pre></p>
+
+
+	<p>Body:</p>
+
+
+<pre>
+{
+  "slist": {
+          "min_signs":"2",
+          "0":{"type":"all", "email":"e@mail.com"},
+          "1":{"type":"any", "email":"e@mail.ru", "sms":"+77777777777"},
+          "2":{"type":"all", "ecaddress":"0xa75db3c448bb62e208e4babf500925427837e464"}
+         },
+  "network": "1000",
+  "info": "Мой первый кошелёк" 
+}
+</pre><br />Если структуры slist нет, то создастся ОБЫЧНЫЙ ОДНОПОДПИСНОЙ КОШЕЛЁК<br />Структура slist в случае наличия означает что это запрос на МУЛЬТИПОДПИСНОЙ кошелёк. В ней содержатся данные подписантов.<br />type = all значит для совершения транзакции необходимо подтверждение всеми способами, указанными в slist<br />type = any значит для совершения транзакции необходимо подтверждение любым одним способом из указаннымх в slist
+
+	<p>min_signs - необязательный параметр, определяющий какое минимальное количество подписей необходимо чтобы транзакция была подтверждена, значение больше нуля. Если не указан - то подтвердить должны все подписанты.</p>
+
+
+	<p>Необязательные параметры "email", "sms", "ecaddress", при наличии элемента slist обязательно присутствие одного из них.</p>
+
+
+	<p>Ответ:<br /><pre>{"myUNID":"BE96CC2F2455C63546258901003B170C"}</pre></p>
+
+
+	<p>"myUNID" - уникальное имя заявки на создание кошелька</p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-кошельков"></a>
+<h3 >Получение списка кошельков:<a href="#Получение-списка-кошельков" class="wiki-anchor">&para;</a></h3>
+
+
+<pre>GET https://my.safina.pro/ece/wallets</pre><br /><pre>GET https://my.safina.pro/ec/wallets_2 то же самое, но разделитель у токенов не запятая, а ";"</pre><br />В ответ придёт JsonArray, каждый элемент которого будет содержать данные о кошельке. Если кошельков нет, то вернётся просто "[]":
+
+<pre>
+[
+{"wallet_id":849,"network":5010,"wallet_type":1,"name":"945C6F4C54B3921F4625890300235114","info":"Test Test","addr":"TXuQVGNiu38V5fcxCgawKucnL1MikefHB5","addr_info":null,"myUNID":"C4834FE85AD1B20E4625890300231CC8","tokenShortNames":"TRX,USDT"},
+{"wallet_id":857,"network":5010,"wallet_type":1,"name":"786D9289D827EB5046258903002DE1BC","info":"Test Test","addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL","addr_info":null,"myUNID":"F74E34049A12714446258903002DAB04","tokenShortNames":"TRX,USDT"},
+{"wallet_id":858,"network":5010,"wallet_type":1,"name":"E256AAB7E8E0B0E646258903002DE217","info":"Test Test","addr":"TTsoaqmR795wPT1ohVYSJFVXinHjwW6ex8","addr_info":null,"myUNID":"3A8FA1DFAC303D0C46258903002DCA23","tokenShortNames":"TRX,USDT"},
+{"wallet_id":861,"network":5010,"wallet_type":1,"name":"0F12E99B06DAFF9E46258903002EAAAE","info":"Test Test","addr":"TF1WzAQX2hkWnspEgwqyNaQoa3dqCuNT1Z","addr_info":null,"myUNID":"FB48C991F6A78B9A46258903002E6665","tokenShortNames":"TRX,USDT"},
+{"wallet_id":862,"network":5010,"wallet_type":1,"name":"5852554B1764A7A946258903002EAB0F","info":"Test Test","addr":"TY1crvAPB8Z1qpfWTkjjFqZJRztvD9ECoS","addr_info":null,"myUNID":"BB4C9B312887AA4D46258903002E7F6E","tokenShortNames":"TRX,USDT"},
+{"wallet_id":863,"network":5010,"wallet_type":1,"name":"C63C1591E72687E1462589030034C9F4","info":"Test Test","addr":"TS5sFz9mo3RS3z2kifw3q2i1ypLbXiCTsQ","addr_info":null,"myUNID":"FF297EC3C1B86300462589030034A4D5","tokenShortNames":"TRX,USDT"},
+{"wallet_id":962,"network":5010,"name":"BE96CC2F2455C63546258901003B170C","info":"Test Test Test","addr":""}
+]
+</pre>
+
+	<p>где "wallet_type":1 значит что кошелёк горячий<br />если запись кошелька имеет поле пустое addr = "", то она соответствует заявке на создание кошелька и выводится сокращённым набором полей:<br /><pre>
+{"wallet_id":962,"network":5010,"name":"BE96CC2F2455C63546258901003B170C","info":"Test Test Test","addr":""}
+</pre><br />поле name соответствует уникальному номеру заявки на создание кошелька (myUNID) и после создания кошелька будет изменено на новое.</p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-всех-токенов-пользователя"></a>
+<h3 >Получение списка всех токенов пользователя:<a href="#Получение-списка-всех-токенов-пользователя" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Для пользователя, подписавшего запрос отдаются все токены со всех его кошельков.<br />Базовые токены сети с балансом 0 создаются в момент создания кошелька, производные токены появляются после того, как на адрес кошелька поступят эти токены.</p>
+
+
+<pre>GET https://my.safina.pro/ece/tokens</pre>
+
+	<p>Ответ:<br /><pre>[
+{
+  "id" : "357",
+  "wallet_id" : "254",
+  "network" : "3010",
+  "token" : "TRX",
+  "value" : "154,254" 
+  "decimals" " "6" 
+  "value_hex" : "0x931BAB0" 
+},
+{
+  "id" : "371",
+  "wallet_id" : "259",
+  "network" : "3010",
+  "token" : "TRX",
+  "value" : "15,0" 
+  "decimals" " "6" 
+  "value_hex" : "0xE4E1C0" 
+},
+
+]</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-справочника-токенов"></a>
+<h3 >Получение справочника токенов:<a href="#Получение-справочника-токенов" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Для пользователя, подписавшего запрос отдаётся справочник токенов, поддерживаемых системой.</p>
+
+
+	<p>"token" = токен,<br />"c" = множитель комиссии (например 0.01 = 1%),<br />"cMin" = минимальная сумма комиссии,<br />"cMax" = максимальная сумма комиссии</p>
+
+
+<pre>GET https://my.safina.pro/ece/tokensinfo</pre>
+
+	<p>Ответ:<br /><pre>[
+  {"token":"1000:::BTC","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"1010:::BTC","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3000:::ETH","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3010:::ETH","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3030:::ETH","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3040:::ETH","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3000:::USDT","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3010:::USDT","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3030:::USDT","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"3040:::USDT","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"5000:::TRX","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"5010:::TRX","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"5000:::USDT","c":"0.01","cMin":"0.001","cMax":"100"},
+  {"token":"5010:::USDT","c":"0.01","cMin":"0.001","cMax":"100"}
+]</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-параметров-и-списка-адресов-кошелька-по-его-имени"></a>
+<h3 >Получение параметров и списка адресов кошелька по его имени:<a href="#Получение-параметров-и-списка-адресов-кошелька-по-его-имени" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Для пользователя, подписавшего запрос отдаётся информация по одному кошельку.</p>
+
+
+<pre>GET https://my.safina.pro/ece/wallet/:name</pre>
+
+	<p>Пример: <br /><pre>GET https://my.safina.pro/ece/wallet/4079BF13E4A8619846258903003556D5</pre></p>
+
+
+	<p>Ответ:<br /><pre>
+
+{
+  "wallet_name":"6E879E7AC87C6B00462589020067E03D",
+  "info":"Test Test",
+  "network":5010,
+  "wallet_type":1,
+  "myFlags":"",
+  "unid":"09283CBBF50094D046258902006722E3",
+  "slist":{
+    "0":{
+      "type":"all",
+      "ecaddress":"0xa15db3c448bb62e208e4ba12500925427837e464",
+      "email":"treests@oris.space",
+      "sms":"+77777777777" 
+    }
+  },
+  "addrs":"TEdxjMESmmgREyqXbqBeHq5PRqNoW3MnvF,T01xjMESmmgRE78XbqBeHq5PRqNoW387vA" 
+}
+
+</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-параметров-и-списка-адресов-кошелька-по-его-уникальному-идентификатору-заявки-на-создания-UNID-"></a>
+<h3 >Получение параметров и списка адресов кошелька по его уникальному идентификатору заявки на создания (UNID) :<a href="#Получение-параметров-и-списка-адресов-кошелька-по-его-уникальному-идентификатору-заявки-на-создания-UNID-" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Для пользователя, подписавшего запрос отдаётся информация по одному кошельку.</p>
+
+
+<pre>GET https://my.safina.pro/ece/walletbyunid/:unid</pre>
+
+	<p>Пример: <br /><pre>GET https://my.safina.pro/ece/walletbyunid/5049BF13E4A8619846849903A03556D5</pre></p>
+
+
+	<p>Ответ:<br /><pre>
+
+{
+  "wallet_name":"6E879E7AC87C6B00462589020067E03D",
+  "info":"Test Test",
+  "network":5010,
+  "wallet_type":1,
+  "myFlags":"",
+  "unid":"09283CBBF50094D046258902006722E3",
+  "slist":{
+    "0":{
+      "type":"all",
+      "ecaddress":"0xa15db3c448bb62e208e4ba12500925427837e464",
+      "email":"treests@oris.space",
+      "sms":"+77777777777" 
+    }
+  },
+  "addrs":"TEdxjMESmmgREyqXbqBeHq5PRqNoW3MnvF,T01xjMESmmgRE78XbqBeHq5PRqNoW387vA" 
+}
+
+</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-токенов-пользователя-с-одного-кошелька"></a>
+<h3 >Получение списка токенов пользователя с одного кошелька:<a href="#Получение-списка-токенов-пользователя-с-одного-кошелька" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Для пользователя, подписавшего запрос отдаются токены со одного кошелька.</p>
+
+
+<pre>GET https://my.safina.pro/ece/wallet_tokens/:name</pre>
+
+	<p>Пример: <br /><pre>GET https://my.safina.pro/ece/wallet_tokens/4079BF13E4A8619846258903003556D5</pre></p>
+
+
+	<p>Ответ:<br /><pre>[
+{
+  "id" : "357",
+  "wallet_id" : "254",
+  "network" : "3010",
+  "token" : "TRX",
+  "value" : "154,254" 
+  "decimals" " "6" 
+  "value_hex" : "0x931BAB0" 
+},
+{
+  "id" : "371",
+  "wallet_id" : "259",
+  "network" : "3010",
+  "token" : "TRX",
+  "value" : "15,0" 
+  "decimals" " "6" 
+  "value_hex" : "0xE4E1C0" 
+},
+
+]</pre></p>
+
+
+<hr />
+
+
+	<a name="Отправка-транзакции"></a>
+<h3 >Отправка транзакции<a href="#Отправка-транзакции" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>TODO: добавить ключ "instant":"". Если он есть, то транзакция не требует подтверждения пользователя после сбора подписей.<br /><pre>POST https://my.safina.pro/ece/tx</pre></p>
+
+
+<pre>
+{
+  "token":"5010:::TRX###945C6F4C54B3921F4625890300235114",
+  "info":"Test Test",
+  "value":"1,01",
+  "toAddress":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL",
+  "json_info":{"order_id":"125478"}
+}
+</pre>
+
+	<p>"value" - разделитель дробной части всегда запятая</p>
+
+
+	<p>Ответ:<br /><pre>{"tx_unid":"FA581EE3B5899573462589030071DF52"}</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-транзакций"></a>
+<h3 >Получение списка транзакций:<a href="#Получение-списка-транзакций" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Для пользователя, подписавшего запрос отдаются все исходящие транзакции со всех его кошельков, инициированные в нашей системе. Внешние транзакции не отображаются</p>
+
+
+<pre>GET https://my.safina.pro/ece/tx</pre>
+
+	<p>Ответ:<br /><pre>[
+  {
+   "id":470,
+   "tx":null,
+   "token":"5010:::TRX###9C51E0B331882BCF46258913005338CB",
+   "token_name":"TRX",
+   "to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL",
+   "value":"1,005","value_hex":"0",
+   "unid":"2E19FB324B3867C146258915006AC7F0",
+   "init_ts":1670786865,
+   "min_sign":null,
+   "wait":[{"ecaddress":"0xA285990a1Ce696d770d578Cf4473d80e0228DF95"}],
+   "signed":null
+  },
+  {
+   "id":469,
+   "tx":null,
+   "token":"5010:::TRX###9C51E0B331882BCF46258913005338CB",
+   "token_name":"TRX",
+   "to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL",
+   "value":"1,005","value_hex":"0",
+   "unid":"C9D0C61AD75DF26F4625891500402B26",
+   "init_ts":1670758938,
+   "min_sign":null,
+   "wait":[{}],
+   "signed":[
+              {"ecaddress":"0xA285990a1Ce696d770d578Cf4473d80e0228DF95",
+               "ecsign":"0xb1cb0ac4a67df3dbe4a018bb2f398d98024ca0be12c5c137f980814f8eaf339d0x0ac527b42e5510646b9f8d4254913ba0c000d454bb2ebbc145cf731d037744950x1c" 
+              }
+            ]
+  },
+  {
+   "id":468,
+   "tx":null,
+   "token":"5010:::TRX###9C51E0B331882BCF46258913005338CB",
+   "token_name":"TRX",
+   "to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL",
+   "value":"1,005","value_hex":"0",
+   "unid":"D09BBF3B2A77A1B746258915003FB2EC",
+   "init_ts":1670758630,
+   "min_sign":null,
+   "wait":null,
+   "signed":null
+  }
+]</pre></p>
+
+
+	<p>"tx" - хэш транзакции, заполняется только если транзакция уже размещена в сети, до этого передаётся null</p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-транзакций-определённого-токена"></a>
+<h3 >Получение списка транзакций определённого токена:<a href="#Получение-списка-транзакций-определённого-токена" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Для пользователя, подписавшего запрос отдаются все исходящие транзакции определённого токена по всем кошелькам, инициированные в нашей системе. Внешние транзакции не отображаются</p>
+
+
+<pre>GET https://my.safina.pro/ece/tx/:token</pre>
+
+<pre>
+GET https://my.safina.pro/ece/tx/5040:::ETH 
+</pre>
+
+	<p>Ответ:<br /><pre>[
+  {
+   "id":470,
+   "tx":null,
+   "to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL",
+   "value":"1,005",
+   "value_hex":"0",
+   "unid":"2E19FB324B3867C146258915006AC7F0",
+   "init_ts":1670786865
+  },
+  {
+   "id":469,
+   "tx":null,
+   "to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL",
+   "value":"1,005",
+   "value_hex":"0",
+   "unid":"C9D0C61AD75DF26F4625891500402B26",
+   "init_ts":1670758938   
+  }
+]</pre></p>
+
+
+	<p>"tx" - хэш транзакции, заполняется только если транзакция уже размещена в сети, до этого передаётся null</p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-ожидаемых-подписей-для-транзакции"></a>
+<h3 >Получение списка ожидаемых подписей для транзакции<a href="#Получение-списка-ожидаемых-подписей-для-транзакции" class="wiki-anchor">&para;</a></h3>
+
+
+<pre>GET https://my.safina.pro/ece/tx_sign_wait/:tx_unid</pre>
+
+	<p>Пример<br /><pre>GET https://my.safina.pro/ece/tx_sign_wait/AD9EAFA6DADCC3BE4625890E007795B3</pre></p>
+
+
+	<p>Ответ<br /><pre>[{"ecaddress":"0x534dfB93c5e19974C16c380e9B822CD80Cc3a825"},{"ecaddress":"0x534dfB93c5e19974C16c380e9B822CD80Cc3a825"}]</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-полученных-подписей-для-транзакции"></a>
+<h3 >Получение списка полученных подписей для транзакции<a href="#Получение-списка-полученных-подписей-для-транзакции" class="wiki-anchor">&para;</a></h3>
+
+
+<pre>GET https://my.safina.pro/ece/tx_sign_signed/:tx_unid</pre>
+
+	<p>Пример<br /><pre>GET https://my.safina.pro/ece/tx_sign_signed/AD9EAFA6DADCC3BE4625890E007795B3</pre></p>
+
+
+	<p>Ответ<br /><pre>[{"ecaddress":"0x534dfB93c5e19974C16c380e9B822CD80Cc3a825"},{}]</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-списка-полученных-и-ожидаемых-подписей-для-транзакции"></a>
+<h3 >Получение списка полученных и ожидаемых подписей для транзакции<a href="#Получение-списка-полученных-и-ожидаемых-подписей-для-транзакции" class="wiki-anchor">&para;</a></h3>
+
+
+<pre>GET https://my.safina.pro/ece/tx_sign/:tx_unid</pre>
+
+	<p>Пример<br /><pre>GET https://my.safina.pro/ece/tx_sign/AD9EAFA6DADCC3BE4625890E007795B3</pre></p>
+
+
+	<p>Ответ<br /><pre>[{"signed":{"ecaddress":"0x534dfB93c5e19974C16c380e9B822CD80Cc3a825"}},{"wait":{"ecaddress":"0x534dfB93c5e19974C16c380e9B822CD80Cc3a825"}}]</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-массива-tx_unid-транзакций"></a>
+<h3 >Получение массива tx_unid (транзакций)<a href="#Получение-массива-tx_unid-транзакций" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Запрос возвращает массив информации по транзакций которые должен утвердить (подписать) отправивший запрос пользователь (владелец ECAddress подписи запроса)</p>
+
+
+<pre>GET https://my.safina.pro/ece/tx_by_ec</pre>
+
+	<p>Ответ:<br /><pre>[{"token":"5010:::TRX###6F8B336576989FA246258909002D76E3","to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL","tx_value":"1,105","init_ts":1670190446,"unid":"AD9EAFA6DADCC3BE4625890E007795B3"}]</pre></p>
+
+
+<hr />
+
+
+	<a name="Подписание-транзакции"></a>
+<h3 >Подписание транзакции<a href="#Подписание-транзакции" class="wiki-anchor">&para;</a></h3>
+
+
+<pre>POST https://my.safina.pro/ece/tx_sign/:tx_unid</pre>
+
+	<p>Пример<br /><pre>POST https://my.safina.pro/ece/tx_sign/AD9EAFA6DADCC3BE4625890E007795B3</pre></p>
+
+
+	<p>Ответ<br /><pre>{}</pre></p>
+
+
+<hr />
+
+
+	<a name="Отклонение-транзакции"></a>
+<h3 >Отклонение транзакции<a href="#Отклонение-транзакции" class="wiki-anchor">&para;</a></h3>
+
+
+<pre>POST https://my.safina.pro/ece/tx_reject/:tx_unid</pre>
+
+	<p>Пример<br /><pre>POST https://my.safina.pro/ece/tx_reject/AD9EAFA6DADCC3BE4625890E007795B3</pre>
+{<br />  "ec_reject":"Это текст причины отклонения транзакции",<br />}</p>
+
+
+	<p>Ответ<br /><pre>{}</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-массива-токенов-пользователя-и-общего-баланса-по-ним"></a>
+<h3 >Получение массива токенов пользователя и общего баланса по ним<a href="#Получение-массива-токенов-пользователя-и-общего-баланса-по-ним" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Запрос возвращает массив с информацией о всех токенах пользователя и общий баланс по ним<br />Базовые токены возвращаются даже если баланс 0, производные только те, по которым были изменения баланса.</p>
+
+
+<pre>GET https://my.safina.pro/ece/user_tokens/</pre>
+
+	<p>Ответ:<br /><pre>
+[
+  {"network_name":"Tron Nile TestNet (TRX)","token":"TRX","value":100},
+  {"network_name":"Tron Nile TestNet (TRX)","token":"USDT","value":10}
+]
+
+</pre></p>
+
+
+<hr />
+
+
+	<a name="Получение-последних-50-ти-транзакций-которые-подписал-пользователь"></a>
+<h3 >Получение последних 50-ти транзакций, которые подписал пользователь<a href="#Получение-последних-50-ти-транзакций-которые-подписал-пользователь" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>Запрос возвращает массив с информацией о 50ти последних транзакциях, которые подписывал пользователь.</p>
+
+
+<pre>GET https://my.safina.pro/ece/tx_sign_signed/</pre>
+
+	<p>Ответ:<br /><pre>
+[
+  {"to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL","tx_value":"1,005","tx":null,"init_ts":1670758938,"info":null,"token":"5010:::TRX"},
+  {"to_addr":"TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL","tx_value":"1,005","tx":null,"init_ts":1670758133,"info":null,"token":"5010:::TRX"}
+]
+
+</pre></p>
+
+
+	<a name="Примеры"></a>
+<h3 >Примеры<a href="#Примеры" class="wiki-anchor">&para;</a></h3>
+
+
+	<p><a class="wiki-page" href="Exampls.html">Примеры</a></p>
+</body>
+</html>

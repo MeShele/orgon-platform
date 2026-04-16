@@ -1,0 +1,167 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+<title>H2K Pay</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<style>
+body { font:80% Verdana,Tahoma,Arial,sans-serif; }
+h1, h2, h3, h4 {  font-family: "Trebuchet MS",Georgia,"Times New Roman",serif; }
+ul.toc { padding: 4px; margin-left: 0; }
+ul.toc li { list-style-type:none; }
+ul.toc li.heading2 { margin-left: 1em; }
+ul.toc li.heading3 { margin-left: 2em; }
+a.wiki-anchor { display: none; margin-left: 6px; text-decoration: none; }
+a.wiki-anchor:hover { color: #aaa !important; text-decoration: none; }
+h1:hover a.wiki-anchor, h2:hover a.wiki-anchor, h3:hover a.wiki-anchor { display: inline; color: #ddd; }
+</style>
+</head>
+<body>
+<a name="H2K-Pay"></a>
+<h1 >H2K Pay<a href="#H2K-Pay" class="wiki-anchor">&para;</a></h1>
+
+
+	<a name="Встраивание-виджета-на-сайт"></a>
+<h3 >Встраивание виджета на сайт:<a href="#Встраивание-виджета-на-сайт" class="wiki-anchor">&para;</a></h3>
+
+
+	<p>HTML элемент:<br /><pre>
+&lt;crypto-oris
+    x-app-ec-from = '0xA285990a1Ce696d770d578Cf4473d80e0228DF95'
+    x-app-ec-sign-r = "0xd2ea09e71e309cb65100b0b82c2f886c0e627ad17788765d97d7de44288b505" 
+    x-app-ec-sign-s = "0x488ddfe42648c263ede6cbb88f80345343b364f9ac02401a365d9148f0742b73" 
+    x-app-ec-sign-v = "0x1c" 
+    x-app-ec-msg = "{&amp;#34;network&amp;#34;:5010,&amp;#34;id_client&amp;#34;:123123,&amp;#34;id_order&amp;#34;:1231324,&amp;#34;id_merchant&amp;#34;:&amp;#34;1&amp;#34;,&amp;#34;summ&amp;#34;:123,&amp;#34;type&amp;#34;:1,&amp;#34;token&amp;#34;:&amp;#34;usdt&amp;#34;}"&gt;&lt;/crypto-oris&gt;
+</pre></p>
+
+
+	<p>Все поля приведенные в примере обязательны.</p>
+
+
+	<ul>
+	<li><strong>x-app-ec-from</strong> - Публичный адрес подписи</li>
+		<li><strong>x-app-ec-sign-r</strong>, <strong>x-app-ec-sign-s</strong>, <strong>x-app-ec-sign-v</strong> - Компоненты подписи (HEX) с префиксом 0x</li>
+		<li><strong>x-app-ec-msg</strong> - Данные для подписи, объект приведенный в JSON-строковой формат.	<p>Данные из x-app-ec-msg:<br /><pre>
+    {        
+        id_merchant: '1',
+        id_client: 123123,
+        id_order: 1231324,
+        network: 5010,
+        token: 'usdt',
+        token_id: 59,
+        summ: 123,
+        type: 1,
+    }
+</pre></p>
+
+
+	<p><em>id_merchant</em> - ID мерчанта в системе виджета<br /> <em>id_client</em> - ID клиента в сторонней системе<br /> <em>id_order</em> - ID заказа/транзакции в сторонней системе<br /> <em>network</em> - Сеть блокчейна (на данный момент доступны сети 5010 - Tron Nile Testnet; 5000 - Tron Mainnet)<br /> <em>token</em> - Токен/Криптовалюта (на данный момент доступен USDT)<br /> <em>token_id</em> - ID Токена/Криптовалюты (к примеру для USDT на Tron - 47)<br /> <em>summ</em> - Сумма заказа/транзакции<br /> <em>type</em> - Тип платежа</p></li>
+	</ul>
+
+
+	<p>JS:<br /><pre>
+&lt;script src="https://my.h2k.me/widget/widget-scripts.js"&gt;&lt;/script&gt;
+</pre></p>
+
+
+	<p>Функция для запуска скрипта:<br /><pre>
+loadCryptoOrisWidget()
+</pre></p>
+
+
+	<p><b>Запрос на получение списка активных токенов</b></p>
+
+
+<pre>
+GET https://my.h2k.me/w/tokenlist
+</pre>
+
+	<p>Ответ:<br /><pre>
+[{
+  id: 59,
+  network_id: 5010,
+  network_name: 'Tron Nile TestNet (TRX)',
+  decimals: 6,
+  symbol: 'USDT',
+  name: 'Tether USD TRC20 Nile',
+  contract: 'TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj'
+},
+{
+  id: 0,
+  network_id: 5010,
+  network_name: 'Tron Nile TestNet (TRX)',
+  decimals: 6,
+  symbol: 'TRX',
+  name: 'TRX Nile',
+  contract: ''
+},
+{
+  id: 0,
+  network_id: 5000,
+  network_name: 'Tron (TRX)',
+  decimals: 6,
+  symbol: 'TRX',
+  name: 'TRX',
+  contract: ''
+},
+{
+  id: 47,
+  network_id: 5000,
+  network_name: 'Tron (TRX)',
+  decimals: 6,
+  symbol: 'USDT',
+  name: 'Tether USD TRC20',
+  contract: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+}]
+</pre></p>
+
+
+	<p>Для запроса нужно подписать пустое сообщение, а в заголовках передать:<br /><pre>
+{
+        'x-app-ec-from': [Публичный адрес подписи],
+        'x-app-ec-sign-r': [R компонента подписи],
+        'x-app-ec-sign-s': [S компонента подписи],
+        'x-app-ec-sign-v': [V компонента подписи]
+    }
+</pre></p>
+
+
+	<p><b>Запрос на получение временного адреса</b><br /><pre>
+POST https://my.h2k.me/w/gettmpaddress
+
+network, 
+id_client,
+id_order,
+id_merchant,
+type,
+summ,
+token_id
+</pre></p>
+
+
+	<p>Для запроса нужно подписать вышеперечисленные данные, а в заголовках передать:<br /><pre>
+{
+        'x-app-ec-from': [Публичный адрес подписи],
+        'x-app-ec-sign-r': [R компонента подписи],
+        'x-app-ec-sign-s': [S компонента подписи],
+        'x-app-ec-sign-v': [V компонента подписи]
+    }
+</pre></p>
+
+
+	<p>Ответ:</p>
+
+
+<pre>
+{[
+    {
+        "id": 1,
+        "wallet_name": "6E7FE844249A8D99462589D700689D90",
+        "network_id": 5010,
+        "address": "TXjUYewR4ByiLRzwjpUKsAba4AwU4mXeSt",
+        "wallet_group": 0,
+        "active": true
+    }
+]}
+</pre>
+</body>
+</html>

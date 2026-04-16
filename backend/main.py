@@ -182,6 +182,11 @@ async def lifespan(app: FastAPI):
     
     logger.info("Database initialized")
 
+    # Force eager pool creation (lazy pool starts as None)
+    if _async_db and _async_db._pool is None:
+        await _async_db.connect()
+        logger.info("PostgreSQL pool eagerly connected: %s", _async_db._pool)
+
     # Initialize Safina signer + client
     ec_key = config["safina"].get("ec_private_key", "")
     if ec_key:

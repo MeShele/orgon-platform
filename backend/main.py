@@ -187,18 +187,23 @@ async def lifespan(app: FastAPI):
         await _async_db.connect()
         logger.info("PostgreSQL pool eagerly connected: %s", _async_db._pool)
 
-    # Initialize Safina signer + client
+    # Initialize Safina signer + client (optional — auth/wallets work without it)
     ec_key = config["safina"].get("ec_private_key", "")
-    if ec_key:
-        _signer = SafinaSigner(ec_key)
-        _safina_client = SafinaPayClient(
-            signer=_signer,
-            base_url=config["safina"]["base_url"],
-            timeout=config["safina"]["timeout"],
-            max_retries=config["safina"]["max_retries"],
-            retry_backoff=config["safina"]["retry_backoff"],
-        )
-        logger.info("Safina client initialized for address %s", _signer.address)
+    if not ec_key:
+        logger.warning("No SAFINA_EC_PRIVATE_KEY configured. API routes will return errors. Set the key in .env to enable Safina integration.")
+    if True:  # Always initialize services (Safina is optional)
+        if ec_key:
+            _signer = SafinaSigner(ec_key)
+            _safina_client = SafinaPayClient(
+                signer=_signer,
+                base_url=config["safina"]["base_url"],
+                timeout=config["safina"]["timeout"],
+                max_retries=config["safina"]["max_retries"],
+                retry_backoff=config["safina"]["retry_backoff"],
+            )
+            logger.info("Safina client initialized for address %s", _signer.address)
+        else:
+            _safina_client = None
 
         # Initialize services
         _wallet_service = WalletService(_safina_client, db)

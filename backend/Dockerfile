@@ -10,13 +10,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Symlink so "from backend.xxx" imports resolve
 RUN ln -sf /app /app/backend
-
-# Default config + data dir
 RUN mkdir -p /app/config /app/data
+
 COPY config_default.yaml /app/config/orgon.yaml
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 EXPOSE 8890
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8890"]
+CMD ["/app/entrypoint.sh"]

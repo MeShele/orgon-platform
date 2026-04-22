@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS wallets (
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     synced_at TIMESTAMP,
-    created_by UUID REFERENCES users(id)
+    created_by INTEGER REFERENCES users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_wallets_network ON wallets(network);
@@ -61,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
 CREATE TABLE IF NOT EXISTS signatures (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     transaction_id UUID REFERENCES transactions(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id),
+    user_id INTEGER REFERENCES users(id),
     signature TEXT,
     status VARCHAR(50) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT NOW()
@@ -73,7 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_signatures_user ON signatures(user_id);
 -- Contacts (address book)
 CREATE TABLE IF NOT EXISTS contacts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     address VARCHAR(255) NOT NULL,
     network INTEGER,
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS scheduled_transactions (
     next_run_at TIMESTAMP,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT NOW(),
-    created_by UUID REFERENCES users(id)
+    created_by INTEGER REFERENCES users(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_scheduled_wallet ON scheduled_transactions(wallet_id);
@@ -107,7 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_scheduled_next_run ON scheduled_transactions(next
 -- Audit logs
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     action VARCHAR(100) NOT NULL,
     resource_type VARCHAR(100),
     resource_id UUID,

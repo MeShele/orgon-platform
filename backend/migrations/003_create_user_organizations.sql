@@ -5,16 +5,16 @@
 
 -- Create user_organizations table
 CREATE TABLE IF NOT EXISTS user_organizations (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
+
     -- Role-based access control
     role VARCHAR(20) NOT NULL DEFAULT 'viewer'
         CHECK (role IN ('admin', 'operator', 'viewer')),
-    
+
     -- Metadata
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by UUID REFERENCES users(id),
+    created_by INTEGER REFERENCES users(id),
     
     PRIMARY KEY (user_id, organization_id)
 );

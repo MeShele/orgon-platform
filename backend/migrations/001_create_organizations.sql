@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS organizations (
     -- Metadata
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Indexes

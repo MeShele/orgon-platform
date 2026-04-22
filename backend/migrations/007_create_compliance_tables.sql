@@ -11,7 +11,7 @@
 CREATE TABLE kyc_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     
     -- Customer info
     customer_name VARCHAR(255) NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE kyc_records (
     -- pending/in_review/approved/rejected/expired
     
     verification_method VARCHAR(50),  -- manual/automated/third_party
-    verified_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    verified_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     verified_at TIMESTAMPTZ,
     rejection_reason TEXT,
     
@@ -93,8 +93,8 @@ CREATE TABLE aml_alerts (
     status VARCHAR(20) DEFAULT 'open',  -- open/investigating/resolved/false_positive/reported
     
     -- Investigation
-    assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
-    investigated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    investigated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     investigated_at TIMESTAMPTZ,
     investigation_notes TEXT,
     resolution TEXT,
@@ -144,7 +144,7 @@ CREATE TABLE compliance_reports (
     
     -- Generated data
     generated_at TIMESTAMPTZ DEFAULT NOW(),
-    generated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    generated_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     
     -- Report content (JSONB for flexibility)
     report_data JSONB NOT NULL DEFAULT '{}',
@@ -203,7 +203,7 @@ CREATE TABLE sanctioned_addresses (
     
     -- Metadata
     added_at TIMESTAMPTZ DEFAULT NOW(),
-    added_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    added_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     expires_at TIMESTAMPTZ,
     
     -- Additional data
@@ -240,7 +240,7 @@ CREATE TABLE transaction_monitoring_rules (
     -- Metadata
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_monitoring_rules_org ON transaction_monitoring_rules(organization_id);

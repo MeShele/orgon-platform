@@ -11,7 +11,7 @@
 CREATE TABLE fiat_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     
     -- Transaction type
     transaction_type VARCHAR(20) NOT NULL,  -- onramp/offramp
@@ -62,7 +62,7 @@ CREATE INDEX idx_fiat_txn_created ON fiat_transactions(created_at DESC);
 CREATE TABLE bank_accounts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     
     -- Bank details
     account_holder_name VARCHAR(255) NOT NULL,

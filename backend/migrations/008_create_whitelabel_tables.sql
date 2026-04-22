@@ -92,7 +92,7 @@ CREATE TABLE email_templates (
     -- Metadata
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     
     -- Constraints
     UNIQUE(organization_id, template_type)
@@ -165,7 +165,7 @@ CREATE TABLE upload_assets (
     storage_key VARCHAR(255),  -- S3 key or R2 path
     
     -- Metadata
-    uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     uploaded_at TIMESTAMPTZ DEFAULT NOW(),
     
     -- Asset type

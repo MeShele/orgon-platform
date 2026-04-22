@@ -196,7 +196,9 @@ async def run_migrations(request: Request):
     for d in dirs:
         if d.exists():
             for f in sorted(d.glob("*.sql")):
-                if f.suffix == '.sql' and '.bak' not in f.name and f.name != 'README.md':
+                skip = ('.bak' in f.name or 'test' in f.name or 'seed' in f.name
+                        or f.name == 'README.md' or f.name.startswith('._'))
+                if f.suffix == '.sql' and not skip:
                     migration_files.append(f)
 
     for mf in migration_files:

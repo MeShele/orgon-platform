@@ -84,7 +84,7 @@ CREATE TRIGGER update_transactions_updated_at BEFORE UPDATE ON transactions
 CREATE TABLE IF NOT EXISTS signatures (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     transaction_id UUID REFERENCES transactions(id) ON DELETE CASCADE,
-    signer_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    signer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     status TEXT DEFAULT 'pending',  -- pending/approved/rejected
     signature_data TEXT,
     signed_at TIMESTAMPTZ,
@@ -141,7 +141,7 @@ CREATE TRIGGER update_scheduled_transactions_updated_at BEFORE UPDATE ON schedul
 -- 7. Audit Logs
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     action TEXT NOT NULL,
     resource_type TEXT,
     resource_id UUID,
@@ -160,7 +160,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
 -- 8. User Sessions (JWT refresh tokens)
 CREATE TABLE IF NOT EXISTS user_sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     refresh_token TEXT NOT NULL,
     ip_address TEXT,
     user_agent TEXT,

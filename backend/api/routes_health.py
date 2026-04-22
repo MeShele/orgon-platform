@@ -178,6 +178,40 @@ async def detailed_health():
     return health_status
 
 
+@router.get("/services")
+async def check_services():
+    """Check which services are initialized."""
+    from backend.main import (
+        _async_db, _safina_client, _wallet_service, _transaction_service,
+        _dashboard_service, _network_service, _signature_service,
+        _organization_service, _auth_service, _sync_service,
+        _balance_service, _scheduled_transaction_service,
+        _address_book_service, _analytics_service, _audit_service,
+        _user_service, _partner_service, _webhook_service,
+    )
+    return {
+        "async_db": _async_db is not None,
+        "async_db_pool": (_async_db._pool is not None) if _async_db else False,
+        "safina_client": _safina_client is not None,
+        "wallet_service": _wallet_service is not None,
+        "transaction_service": _transaction_service is not None,
+        "dashboard_service": _dashboard_service is not None,
+        "network_service": _network_service is not None,
+        "signature_service": _signature_service is not None,
+        "organization_service": _organization_service is not None,
+        "auth_service": _auth_service is not None,
+        "sync_service": _sync_service is not None,
+        "balance_service": _balance_service is not None,
+        "scheduled_tx_service": _scheduled_transaction_service is not None,
+        "address_book_service": _address_book_service is not None,
+        "analytics_service": _analytics_service is not None,
+        "audit_service": _audit_service is not None,
+        "user_service": _user_service is not None,
+        "partner_service": _partner_service is not None,
+        "webhook_service": _webhook_service is not None,
+    }
+
+
 @router.post("/run-migrations")
 async def run_migrations(request: Request):
     """Run PostgreSQL migrations manually."""

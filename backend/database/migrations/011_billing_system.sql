@@ -52,9 +52,9 @@ CREATE TABLE IF NOT EXISTS organization_subscriptions (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_org_subscriptions_org ON organization_subscriptions(organization_id);
-CREATE INDEX idx_org_subscriptions_status ON organization_subscriptions(status);
-CREATE INDEX idx_org_subscriptions_end_date ON organization_subscriptions(end_date);
+CREATE INDEX IF NOT EXISTS idx_org_subscriptions_org ON organization_subscriptions(organization_id);
+CREATE INDEX IF NOT EXISTS idx_org_subscriptions_status ON organization_subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_org_subscriptions_end_date ON organization_subscriptions(end_date);
 
 -- ============================================================================
 -- INVOICES TABLE
@@ -81,9 +81,9 @@ CREATE TABLE IF NOT EXISTS invoices (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_invoices_org ON invoices(organization_id);
-CREATE INDEX idx_invoices_status ON invoices(status);
-CREATE INDEX idx_invoices_due_date ON invoices(due_date);
+CREATE INDEX IF NOT EXISTS idx_invoices_org ON invoices(organization_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date);
 
 -- ============================================================================
 -- PAYMENTS TABLE
@@ -109,9 +109,9 @@ CREATE TABLE IF NOT EXISTS payments (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_payments_org ON payments(organization_id);
-CREATE INDEX idx_payments_invoice ON payments(invoice_id);
-CREATE INDEX idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_org ON payments(organization_id);
+CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
 
 -- ============================================================================
 -- TRANSACTION FEES TABLE (blockchain fees tracking for billing)
@@ -132,8 +132,8 @@ CREATE TABLE IF NOT EXISTS transaction_fees (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-CREATE INDEX idx_transaction_fees_org ON transaction_fees(organization_id);
-CREATE INDEX idx_transaction_fees_unbilled ON transaction_fees(organization_id, billable) WHERE billed_in_invoice_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_transaction_fees_org ON transaction_fees(organization_id);
+CREATE INDEX IF NOT EXISTS idx_transaction_fees_unbilled ON transaction_fees(organization_id, billable) WHERE billed_in_invoice_id IS NULL;
 
 -- ============================================================================
 -- SEED: Default subscription plans (A/B/C)

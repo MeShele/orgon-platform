@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS partners (
 );
 
 -- Indexes for partners
-CREATE INDEX idx_partners_status ON partners(status);
-CREATE INDEX idx_partners_tier ON partners(tier);
-CREATE INDEX idx_partners_ec_address ON partners(ec_address);
-CREATE INDEX idx_partners_created_at ON partners(created_at);
+CREATE INDEX IF NOT EXISTS idx_partners_status ON partners(status);
+CREATE INDEX IF NOT EXISTS idx_partners_tier ON partners(tier);
+CREATE INDEX IF NOT EXISTS idx_partners_ec_address ON partners(ec_address);
+CREATE INDEX IF NOT EXISTS idx_partners_created_at ON partners(created_at);
 
 -- ============================================================================
 -- PARTNER API KEYS TABLE
@@ -50,10 +50,10 @@ CREATE TABLE IF NOT EXISTS partner_api_keys (
 );
 
 -- Indexes for partner_api_keys
-CREATE INDEX idx_partner_api_keys_partner_id ON partner_api_keys(partner_id);
-CREATE INDEX idx_partner_api_keys_api_key ON partner_api_keys(api_key);
-CREATE INDEX idx_partner_api_keys_revoked ON partner_api_keys(revoked_at) WHERE revoked_at IS NULL;
-CREATE INDEX idx_partner_api_keys_expires ON partner_api_keys(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_partner_api_keys_partner_id ON partner_api_keys(partner_id);
+CREATE INDEX IF NOT EXISTS idx_partner_api_keys_api_key ON partner_api_keys(api_key);
+CREATE INDEX IF NOT EXISTS idx_partner_api_keys_revoked ON partner_api_keys(revoked_at) WHERE revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_partner_api_keys_expires ON partner_api_keys(expires_at) WHERE expires_at IS NOT NULL;
 
 -- ============================================================================
 -- AUDIT LOG TABLE
@@ -77,12 +77,12 @@ CREATE TABLE IF NOT EXISTS audit_log_b2b (
 );
 
 -- Indexes for audit_log_b2b
-CREATE INDEX idx_audit_log_b2b_partner_id ON audit_log_b2b(partner_id);
-CREATE INDEX idx_audit_log_b2b_user_id ON audit_log_b2b(user_id);
-CREATE INDEX idx_audit_log_b2b_action ON audit_log_b2b(action);
-CREATE INDEX idx_audit_log_b2b_resource ON audit_log_b2b(resource_type, resource_id);
-CREATE INDEX idx_audit_log_b2b_timestamp ON audit_log_b2b(timestamp DESC);
-CREATE INDEX idx_audit_log_b2b_result ON audit_log_b2b(result);
+CREATE INDEX IF NOT EXISTS idx_audit_log_b2b_partner_id ON audit_log_b2b(partner_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_b2b_user_id ON audit_log_b2b(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_b2b_action ON audit_log_b2b(action);
+CREATE INDEX IF NOT EXISTS idx_audit_log_b2b_resource ON audit_log_b2b(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_b2b_timestamp ON audit_log_b2b(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_log_b2b_result ON audit_log_b2b(result);
 
 -- ============================================================================
 -- RATE LIMIT TRACKING TABLE
@@ -99,8 +99,8 @@ CREATE TABLE IF NOT EXISTS rate_limit_tracking (
 );
 
 -- Indexes for rate_limit_tracking
-CREATE INDEX idx_rate_limit_tracking_partner ON rate_limit_tracking(partner_id);
-CREATE INDEX idx_rate_limit_tracking_window ON rate_limit_tracking(window_start);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_tracking_partner ON rate_limit_tracking(partner_id);
+CREATE INDEX IF NOT EXISTS idx_rate_limit_tracking_window ON rate_limit_tracking(window_start);
 
 -- ============================================================================
 -- WEBHOOK EVENTS TABLE
@@ -124,10 +124,10 @@ CREATE TABLE IF NOT EXISTS webhook_events (
 );
 
 -- Indexes for webhook_events
-CREATE INDEX idx_webhook_events_partner_id ON webhook_events(partner_id);
-CREATE INDEX idx_webhook_events_status ON webhook_events(status);
-CREATE INDEX idx_webhook_events_next_retry ON webhook_events(next_retry_at) WHERE status = 'pending';
-CREATE INDEX idx_webhook_events_created_at ON webhook_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_partner_id ON webhook_events(partner_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_status ON webhook_events(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_events_next_retry ON webhook_events(next_retry_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_webhook_events_created_at ON webhook_events(created_at DESC);
 
 -- ============================================================================
 -- TRANSACTION ANALYTICS TABLE
@@ -152,12 +152,12 @@ CREATE TABLE IF NOT EXISTS transaction_analytics (
 );
 
 -- Indexes for transaction_analytics
-CREATE INDEX idx_transaction_analytics_partner ON transaction_analytics(partner_id);
-CREATE INDEX idx_transaction_analytics_wallet ON transaction_analytics(wallet_name);
-CREATE INDEX idx_transaction_analytics_network ON transaction_analytics(network_id);
-CREATE INDEX idx_transaction_analytics_token ON transaction_analytics(token);
-CREATE INDEX idx_transaction_analytics_timestamp ON transaction_analytics(timestamp DESC);
-CREATE INDEX idx_transaction_analytics_status ON transaction_analytics(status);
+CREATE INDEX IF NOT EXISTS idx_transaction_analytics_partner ON transaction_analytics(partner_id);
+CREATE INDEX IF NOT EXISTS idx_transaction_analytics_wallet ON transaction_analytics(wallet_name);
+CREATE INDEX IF NOT EXISTS idx_transaction_analytics_network ON transaction_analytics(network_id);
+CREATE INDEX IF NOT EXISTS idx_transaction_analytics_token ON transaction_analytics(token);
+CREATE INDEX IF NOT EXISTS idx_transaction_analytics_timestamp ON transaction_analytics(timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_transaction_analytics_status ON transaction_analytics(status);
 
 -- ============================================================================
 -- ADDRESS BOOK (PER PARTNER)
@@ -179,9 +179,9 @@ CREATE TABLE IF NOT EXISTS address_book_b2b (
 );
 
 -- Indexes for address_book_b2b
-CREATE INDEX idx_address_book_b2b_partner ON address_book_b2b(partner_id);
-CREATE INDEX idx_address_book_b2b_network ON address_book_b2b(network_id);
-CREATE INDEX idx_address_book_b2b_favorite ON address_book_b2b(is_favorite) WHERE is_favorite = TRUE;
+CREATE INDEX IF NOT EXISTS idx_address_book_b2b_partner ON address_book_b2b(partner_id);
+CREATE INDEX IF NOT EXISTS idx_address_book_b2b_network ON address_book_b2b(network_id);
+CREATE INDEX IF NOT EXISTS idx_address_book_b2b_favorite ON address_book_b2b(is_favorite) WHERE is_favorite = TRUE;
 
 -- ============================================================================
 -- SCHEDULED TRANSACTIONS TABLE
@@ -210,10 +210,10 @@ CREATE TABLE IF NOT EXISTS scheduled_transactions_b2b (
 );
 
 -- Indexes for scheduled_transactions_b2b
-CREATE INDEX idx_scheduled_tx_b2b_partner ON scheduled_transactions_b2b(partner_id);
-CREATE INDEX idx_scheduled_tx_b2b_status ON scheduled_transactions_b2b(status);
-CREATE INDEX idx_scheduled_tx_b2b_next_exec ON scheduled_transactions_b2b(next_execution_at) WHERE status = 'pending';
-CREATE INDEX idx_scheduled_tx_b2b_wallet ON scheduled_transactions_b2b(wallet_name);
+CREATE INDEX IF NOT EXISTS idx_scheduled_tx_b2b_partner ON scheduled_transactions_b2b(partner_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_tx_b2b_status ON scheduled_transactions_b2b(status);
+CREATE INDEX IF NOT EXISTS idx_scheduled_tx_b2b_next_exec ON scheduled_transactions_b2b(next_execution_at) WHERE status = 'pending';
+CREATE INDEX IF NOT EXISTS idx_scheduled_tx_b2b_wallet ON scheduled_transactions_b2b(wallet_name);
 
 -- ============================================================================
 -- TRIGGER: Update updated_at on partners

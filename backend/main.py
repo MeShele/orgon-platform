@@ -185,27 +185,16 @@ async def lifespan(app: FastAPI):
                 logger.info("Running %d PostgreSQL migrations...", len(migration_files))
                 async with _async_db.get_connection() as conn:
                     for mf in migration_files:
-                        sql = mf.read_text()
-                        # Split by statements and execute each separately
-                        # to handle partial applies gracefully
-                        statements = [s.strip() for s in sql.split(';') if s.strip()]
-                        errors = 0
-                        for stmt in statements:
-                            if not stmt or stmt.startswith('--'):
-                                continue
-                            try:
-                                await conn.execute(stmt)
-                            except Exception as e:
-                                err_msg = str(e).lower()
-                                if "already exists" in err_msg or "duplicate" in err_msg:
-                                    pass  # Already applied
-                                else:
-                                    errors += 1
-                                    logger.debug("  %s: %s", mf.name, e)
-                        if errors == 0:
+                        try:
+                            sql = mf.read_text()
+                            await conn.execute(sql)
                             logger.info("  ✅ %s", mf.name)
-                        else:
-                            logger.info("  ⚠️ %s (%d warnings)", mf.name, errors)
+                        except Exception as e:
+                            err_msg = str(e).lower()
+                            if "already exists" in err_msg or "duplicate" in err_msg:
+                                logger.info("  ⏭️ %s (already applied)", mf.name)
+                            else:
+                                logger.warning("  ⚠️ %s: %s", mf.name, str(e)[:200])
                 logger.info("PostgreSQL migrations complete")
     else:
         logger.info("📂 Using SQLite database (fallback)")

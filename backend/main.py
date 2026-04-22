@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -175,6 +176,37 @@ async def lifespan(app: FastAPI):
         await _async_db.connect()
         db = _async_db  # Use async database directly
         logger.info("PostgreSQL connection pool created")
+
+        # Run PostgreSQL migrations
+        migrations_dir = Path(__file__).parent / "database" / "migrations"
+        if migrations_dir.exists():
+            migration_files = sorted(migrations_dir.glob("*.sql"))
+            if migration_files:
+                logger.info("Running %d PostgreSQL migrations...", len(migration_files))
+                async with _async_db.get_connection() as conn:
+                    for mf in migration_files:
+                        sql = mf.read_text()
+                        # Split by statements and execute each separately
+                        # to handle partial applies gracefully
+                        statements = [s.strip() for s in sql.split(';') if s.strip()]
+                        errors = 0
+                        for stmt in statements:
+                            if not stmt or stmt.startswith('--'):
+                                continue
+                            try:
+                                await conn.execute(stmt)
+                            except Exception as e:
+                                err_msg = str(e).lower()
+                                if "already exists" in err_msg or "duplicate" in err_msg:
+                                    pass  # Already applied
+                                else:
+                                    errors += 1
+                                    logger.debug("  %s: %s", mf.name, e)
+                        if errors == 0:
+                            logger.info("  ✅ %s", mf.name)
+                        else:
+                            logger.info("  ⚠️ %s (%d warnings)", mf.name, errors)
+                logger.info("PostgreSQL migrations complete")
     else:
         logger.info("📂 Using SQLite database (fallback)")
         db = init_sqlite_db(config["database"]["path"])

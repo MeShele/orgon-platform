@@ -2,59 +2,28 @@
 -- Date: 2026-02-06
 
 CREATE TABLE IF NOT EXISTS scheduled_transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    
-    -- Transaction details
+    id SERIAL PRIMARY KEY,
     token TEXT NOT NULL,
     to_address TEXT NOT NULL,
     value TEXT NOT NULL,
     info TEXT,
-    json_info TEXT,
-    
-    -- Scheduling
-    scheduled_at TIMESTAMP NOT NULL,           -- When to send
-    recurrence_rule TEXT,                       -- Cron-like: "0 10 * * MON" = every Monday 10:00
-    
-    -- Status
-    status TEXT NOT NULL DEFAULT 'pending',    -- pending, sent, failed, cancelled
-    sent_at TIMESTAMP,
-    tx_unid TEXT,                               -- Result transaction UNID
+    json_info JSONB,
+    scheduled_at TIMESTAMPTZ NOT NULL,
+    recurrence_rule TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    sent_at TIMESTAMPTZ,
+    tx_unid TEXT UNIQUE,
     error_message TEXT,
-    
-    -- Metadata
-    created_by TEXT,                            -- Future: user ID
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    next_run_at TIMESTAMP,                      -- For recurring: next execution time
-    
-    -- Constraints
-    UNIQUE(tx_unid)
+    created_by TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    next_run_at TIMESTAMPTZ
 );
 
 -- Index for scheduler queries
-CREATE INDEX IF NOT EXISTS idx_scheduled_tx_status_time 
+CREATE INDEX IF NOT EXISTS idx_scheduled_tx_status_time
 ON scheduled_transactions(status, scheduled_at);
 
 -- Index for recurring jobs
-CREATE INDEX IF NOT EXISTS idx_scheduled_tx_next_run 
+CREATE INDEX IF NOT EXISTS idx_scheduled_tx_next_run
 ON scheduled_transactions(status, next_run_at);
-
--- PostgreSQL version (when migrating)
--- CREATE TABLE scheduled_transactions (
---     id SERIAL PRIMARY KEY,
---     token TEXT NOT NULL,
---     to_address TEXT NOT NULL,
---     value TEXT NOT NULL,
---     info TEXT,
---     json_info JSONB,
---     scheduled_at TIMESTAMPTZ NOT NULL,
---     recurrence_rule TEXT,
---     status TEXT NOT NULL DEFAULT 'pending',
---     sent_at TIMESTAMPTZ,
---     tx_unid TEXT UNIQUE,
---     error_message TEXT,
---     created_by TEXT,
---     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
---     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
---     next_run_at TIMESTAMPTZ
--- );

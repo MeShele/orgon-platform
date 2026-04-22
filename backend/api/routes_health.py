@@ -187,12 +187,15 @@ async def run_migrations(request: Request):
     if not pool:
         return {"status": "error", "message": "No PostgreSQL pool in app.state"}
 
-    migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
-    if not migrations_dir.exists():
-        return {"status": "error", "message": f"Migrations dir not found: {migrations_dir}"}
+    # Two migration directories exist in the codebase
+    base = Path(__file__).parent.parent
+    dirs = [base / "migrations", base / "database" / "migrations"]
 
     results = []
-    migration_files = sorted(migrations_dir.glob("*.sql"))
+    migration_files = []
+    for d in dirs:
+        if d.exists():
+            migration_files.extend(sorted(d.glob("*.sql")))
 
     for mf in migration_files:
         sql = mf.read_text()

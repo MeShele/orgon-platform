@@ -1,6 +1,6 @@
 """Health check endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from datetime import datetime, timezone
 import logging
 
@@ -179,13 +179,13 @@ async def detailed_health():
 
 
 @router.post("/run-migrations")
-async def run_migrations():
+async def run_migrations(request: Request):
     """Run PostgreSQL migrations manually."""
     from pathlib import Path
-    from backend.main import _async_db
 
-    if not _async_db or not _async_db._pool:
-        return {"status": "error", "message": "No PostgreSQL connection"}
+    pool = getattr(request.app.state, 'db_pool', None)
+    if not pool:
+        return {"status": "error", "message": "No PostgreSQL pool in app.state"}
 
     migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
     if not migrations_dir.exists():
@@ -196,9 +196,8 @@ async def run_migrations():
 
     for mf in migration_files:
         sql = mf.read_text()
-        # Split into individual statements, respecting $$ blocks
         try:
-            async with _async_db._pool.acquire() as conn:
+            async with pool.acquire() as conn:
                 await conn.execute(sql)
             results.append({"file": mf.name, "status": "ok"})
         except Exception as e:
@@ -207,3 +206,8 @@ async def run_migrations():
                 results.append({"file": mf.name, "status": "already_applied"})
             else:
                 results.append({"file": mf.name, "status": "error", "error": err[:300]})
+
+    ok = sum(1 for r in results if r["status"] == "ok")
+    skip = sum(1 for r in results if r["status"] == "already_applied")
+    fail = sum(1 for r in results if r["status"] == "error")
+    return {"status": "done", "applied": ok, "skipped": skip, "errors": fail, "details": results}

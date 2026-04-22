@@ -195,10 +195,19 @@ async def run_migrations(request: Request):
     migration_files = []
     for d in dirs:
         if d.exists():
-            migration_files.extend(sorted(d.glob("*.sql")))
+            for f in sorted(d.glob("*.sql")):
+                if f.suffix == '.sql' and '.bak' not in f.name and f.name != 'README.md':
+                    migration_files.append(f)
 
     for mf in migration_files:
-        sql = mf.read_text()
+        try:
+            sql = mf.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            try:
+                sql = mf.read_text(encoding='latin-1')
+            except Exception:
+                results.append({"file": mf.name, "status": "error", "error": "encoding error"})
+                continue
         try:
             async with pool.acquire() as conn:
                 await conn.execute(sql)

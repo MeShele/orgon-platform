@@ -162,6 +162,8 @@ async def lifespan(app: FastAPI):
 
     config = get_config()
     logger.info("Starting ORGON backend...")
+    app.state.lifespan_started = True
+    app.state.lifespan_error = None
 
     # Initialize event manager
     event_manager = init_event_manager(history_size=200)
@@ -194,7 +196,7 @@ async def lifespan(app: FastAPI):
     ec_key = config["safina"].get("ec_private_key", "")
     if not ec_key:
         logger.warning("No SAFINA_EC_PRIVATE_KEY configured. API routes will return errors. Set the key in .env to enable Safina integration.")
-    if True:  # Always initialize services (Safina is optional)
+    try:  # Always initialize services (Safina is optional)
         if ec_key:
             _signer = SafinaSigner(ec_key)
             _safina_client = SafinaPayClient(
@@ -379,11 +381,9 @@ async def lifespan(app: FastAPI):
         )
         scheduler.start()
         logger.info("Scheduler started")
-    else:
-        logger.warning(
-            "No SAFINA_EC_PRIVATE_KEY configured. API routes will return errors. "
-            "Set the key in .env to enable Safina integration."
-        )
+    except Exception as e:
+        logger.error("❌ Service initialization FAILED: %s", e, exc_info=True)
+        app.state.lifespan_error = str(e)
 
     logger.info("ORGON backend ready on port %d", config["server"]["port"])
 

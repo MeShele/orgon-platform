@@ -179,7 +179,7 @@ async def detailed_health():
 
 
 @router.get("/services")
-async def check_services():
+async def check_services(request: Request):
     """Check which services are initialized."""
     from backend.main import (
         _async_db, _safina_client, _wallet_service, _transaction_service,
@@ -190,6 +190,9 @@ async def check_services():
         _user_service, _partner_service, _webhook_service,
     )
     return {
+        "lifespan_started": getattr(request.app.state, 'lifespan_started', False),
+        "lifespan_error": getattr(request.app.state, 'lifespan_error', None),
+        "db_pool_in_state": hasattr(request.app.state, 'db_pool'),
         "async_db": _async_db is not None,
         "async_db_pool": (_async_db._pool is not None) if _async_db else False,
         "safina_client": _safina_client is not None,

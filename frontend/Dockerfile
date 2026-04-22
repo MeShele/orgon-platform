@@ -10,7 +10,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NEXT_PUBLIC_API_URL=https://api.orgon.asystem.kg
+ENV NEXT_PUBLIC_API_URL=https://orgon-api.asystem.kg
 ENV NEXT_TELEMETRY_DISABLED=1
 
 RUN npm run build

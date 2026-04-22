@@ -38,13 +38,13 @@ services:
       - "8891:8890"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.orgon-api.rule=Host(`api.orgon.asystem.kg`)"
+      - "traefik.http.routers.orgon-api.rule=Host(`orgon-api.asystem.kg`)"
       - "traefik.http.routers.orgon-api.entrypoints=https"
       - "traefik.http.routers.orgon-api.tls=true"
       - "traefik.http.routers.orgon-api.tls.certresolver=letsencrypt"
       - "traefik.http.routers.orgon-api.priority=100"
       - "traefik.http.services.orgon-api.loadbalancer.server.port=8890"
-      - "traefik.http.routers.orgon-api-http.rule=Host(`api.orgon.asystem.kg`)"
+      - "traefik.http.routers.orgon-api-http.rule=Host(`orgon-api.asystem.kg`)"
       - "traefik.http.routers.orgon-api-http.entrypoints=http"
       - "traefik.http.routers.orgon-api-http.middlewares=redirect-to-https@file"
 
@@ -58,7 +58,7 @@ services:
     ports:
       - "3100:3000"
     environment:
-      NEXT_PUBLIC_API_URL: https://api.orgon.asystem.kg
+      NEXT_PUBLIC_API_URL: https://orgon-api.asystem.kg
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.orgon-front.rule=Host(`orgon.asystem.kg`)"

@@ -176,3 +176,34 @@ async def detailed_health():
         }
 
     return health_status
+
+
+@router.post("/run-migrations")
+async def run_migrations():
+    """Run PostgreSQL migrations manually."""
+    from pathlib import Path
+    from backend.main import _async_db
+
+    if not _async_db or not _async_db._pool:
+        return {"status": "error", "message": "No PostgreSQL connection"}
+
+    migrations_dir = Path(__file__).parent.parent / "database" / "migrations"
+    if not migrations_dir.exists():
+        return {"status": "error", "message": f"Migrations dir not found: {migrations_dir}"}
+
+    results = []
+    migration_files = sorted(migrations_dir.glob("*.sql"))
+
+    for mf in migration_files:
+        sql = mf.read_text()
+        # Split into individual statements, respecting $$ blocks
+        try:
+            async with _async_db._pool.acquire() as conn:
+                await conn.execute(sql)
+            results.append({"file": mf.name, "status": "ok"})
+        except Exception as e:
+            err = str(e)
+            if "already exists" in err.lower() or "duplicate" in err.lower():
+                results.append({"file": mf.name, "status": "already_applied"})
+            else:
+                results.append({"file": mf.name, "status": "error", "error": err[:300]})

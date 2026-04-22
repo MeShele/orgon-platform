@@ -177,25 +177,7 @@ async def lifespan(app: FastAPI):
         db = _async_db  # Use async database directly
         logger.info("PostgreSQL connection pool created")
 
-        # Run PostgreSQL migrations
-        migrations_dir = Path(__file__).parent / "database" / "migrations"
-        if migrations_dir.exists():
-            migration_files = sorted(migrations_dir.glob("*.sql"))
-            if migration_files:
-                logger.info("Running %d PostgreSQL migrations...", len(migration_files))
-                async with _async_db.get_connection() as conn:
-                    for mf in migration_files:
-                        try:
-                            sql = mf.read_text()
-                            await conn.execute(sql)
-                            logger.info("  ✅ %s", mf.name)
-                        except Exception as e:
-                            err_msg = str(e).lower()
-                            if "already exists" in err_msg or "duplicate" in err_msg:
-                                logger.info("  ⏭️ %s (already applied)", mf.name)
-                            else:
-                                logger.warning("  ⚠️ %s: %s", mf.name, str(e)[:200])
-                logger.info("PostgreSQL migrations complete")
+        # PostgreSQL migrations are applied via POST /api/health/run-migrations
     else:
         logger.info("📂 Using SQLite database (fallback)")
         db = init_sqlite_db(config["database"]["path"])

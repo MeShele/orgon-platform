@@ -50,7 +50,7 @@ async def get_transactions(
     service: FiatService = Depends(get_fiat_service)
 ):
     """Get fiat transactions."""
-    txns = await service.get_fiat_transactions(org_id, UUID(str(user['id'])), limit)
+    txns = await service.get_fiat_transactions(org_id, user['id'], limit)
     return txns
 
 @router.put("/transactions/{txn_id}/status")
@@ -88,7 +88,7 @@ async def get_bank_accounts(
     service: FiatService = Depends(get_fiat_service)
 ):
     """Get bank accounts."""
-    accounts = await service.get_bank_accounts(org_id, UUID(str(user['id'])))
+    accounts = await service.get_bank_accounts(org_id, user['id'])
     return accounts
 
 # ==================== Exchange Rates ====================

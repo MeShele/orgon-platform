@@ -144,7 +144,7 @@ class NetworkService:
                 return None
 
         # Fetch from cache
-        rows = await self._db.fetch("SELECT * FROM networks_cache WHERE status = $1 ORDER BY network_id", params=(status,)
+        rows = await self._db.fetch("SELECT * FROM networks_cache WHERE status = $1::integer ORDER BY network_id", params=(status,)
         )
 
         if not rows:
@@ -169,7 +169,7 @@ class NetworkService:
     async def _cache_networks(self, networks: list[Network], status: int):
         """Store networks in cache."""
         # Clear old cache for this status
-        await self._db.execute("DELETE FROM networks_cache WHERE status = $1", params=(status,))
+        await self._db.execute("DELETE FROM networks_cache WHERE status = $1::integer", params=(status,))
 
         # Insert new data
         now = datetime.now(timezone.utc)

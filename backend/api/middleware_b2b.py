@@ -391,16 +391,22 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 def get_partner_from_request(request: Request) -> Dict[str, Any]:
     """
     Extract partner context from request state (set by auth middleware).
-    
-    Use in route handlers:
-        partner = get_partner_from_request(request)
+    Falls back to JWT user context if no partner auth.
     """
     if not hasattr(request.state, "partner_id"):
+        # Check if JWT auth was used (frontend dashboard access)
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            return {
+                "partner_id": None,
+                "partner_tier": "internal",
+                "partner_name": "Dashboard User",
+            }
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Partner authentication required"
         )
-    
+
     return {
         "partner_id": request.state.partner_id,
         "partner_tier": request.state.partner_tier,

@@ -320,7 +320,7 @@ async def refresh_token(
     return TokenResponse(**result)
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/logout")
 async def logout(
     data: RefreshTokenRequest,
     auth_service: AuthService = Depends(get_auth_service_dependency)
@@ -329,14 +329,14 @@ async def logout(
     Logout by revoking refresh token session.
     """
     success = await auth_service.logout(data.refresh_token)
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found"
         )
-    
-    return None
+
+    return {"status": "ok"}
 
 
 @router.get("/me", response_model=UserResponse)

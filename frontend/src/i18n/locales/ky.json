@@ -505,6 +505,7 @@
   },
   "wallets": {
     "title": "Капчыктар",
+    "count": "{{count}} капчыктар",
     "exportButton": "Экспорт CSV",
     "exporting": "Экспорттолууда...",
     "table": {
@@ -520,6 +521,7 @@
   },
   "transactions": {
     "title": "Операциялар",
+    "count": "{{count}} операциялар",
     "filtered": "(чыпкаланган)",
     "exportButton": "Экспорт CSV",
     "exporting": "Экспорттолууда...",

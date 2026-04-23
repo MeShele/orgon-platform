@@ -26,15 +26,16 @@ class WalletService:
     ) -> list[dict]:
         """
         Get cached wallets with optional filtering and pagination.
-        
+
         Args:
             network_id: Optional network filter
             limit: Maximum number of wallets to return
             offset: Offset for pagination
-            
+
         Returns:
             List of wallet dictionaries
         """
+        # If no Safina client, only return cached data (no auto-sync)
         # Build query with optional filters
         conditions = []
         params = []
@@ -59,8 +60,8 @@ class WalletService:
         
         wallets = await self._db.fetch(query, params=tuple(params))
         
-        # If no wallets and no offset, try syncing
-        if not wallets and offset == 0:
+        # If no wallets and no offset, try syncing (only if client available)
+        if not wallets and offset == 0 and self._client is not None:
             await self.sync_wallets()
             wallets = await self._db.fetch(query, params=tuple(params))
         
@@ -105,11 +106,12 @@ class WalletService:
         """Get wallet details from Safina + local DB."""
         local = await self._db.fetchrow("SELECT * FROM wallets WHERE name = $1", params=(name,))
 
-        try:
-            detail = await self._client.get_wallet(name)
-        except Exception as e:
-            logger.warning("Safina get_wallet(%s) failed: %s", name, e)
-            detail = None
+        detail = None
+        if self._client is not None:
+            try:
+                detail = await self._client.get_wallet(name)
+            except Exception as e:
+                logger.warning("Safina get_wallet(%s) failed: %s", name, e)
 
         if detail:
             result = detail.model_dump()
@@ -127,6 +129,8 @@ class WalletService:
 
     async def get_wallet_tokens(self, wallet_name: str) -> list[dict]:
         """Get tokens for a wallet."""
+        if self._client is None:
+            return []
         tokens = await self._client.get_wallet_tokens(wallet_name)
         return [t.model_dump() for t in tokens]
 
@@ -162,7 +166,9 @@ class WalletService:
         # Handle Partner API call (with individual params)
         if name is None or network_id is None:
             raise ValueError("name and network_id are required for Partner API wallet creation")
-        
+        if self._client is None:
+            raise RuntimeError("Safina client is not configured")
+
         # Create wallet via Safina API (Partner API format)
         # Note: Safina API uses different format - need to build CreateWalletRequest
         # For now, create a simple wallet with defaults
@@ -212,6 +218,8 @@ class WalletService:
     
     async def _create_wallet_internal(self, request: CreateWalletRequest) -> str:
         """Create a new wallet via Safina API (internal format)."""
+        if self._client is None:
+            raise RuntimeError("Safina client is not configured")
         unid = await self._client.create_wallet(
             network=request.network,
             info=request.info,
@@ -241,6 +249,9 @@ class WalletService:
 
     async def sync_wallets(self):
         """Sync wallets from Safina API to local DB."""
+        if self._client is None:
+            logger.debug("Skipping wallet sync: Safina client not configured")
+            return
         wallets = await self._client.get_wallets()
         now = datetime.now(timezone.utc)
 

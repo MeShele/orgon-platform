@@ -106,13 +106,13 @@ class TransactionService:
             params.extend(org_ids)
             param_idx += len(org_ids)
 
-        query += f" ORDER BY init_ts DESC LIMIT ${param_idx} OFFSET ${param_idx + 1}"
+        query += f" ORDER BY created_at DESC LIMIT ${param_idx} OFFSET ${param_idx + 1}"
         params.extend([limit, offset])
 
         txs = await self._db.fetch(query, tuple(params))
 
-        # Auto-sync if empty and no filters applied
-        if not txs and not filters:
+        # Auto-sync if empty and no filters applied (only if client available)
+        if not txs and not filters and self._client is not None:
             await self.sync_transactions()
             txs = await self._db.fetch(query, tuple(params))
 
@@ -278,8 +278,8 @@ class TransactionService:
         except Exception as e:
             errors.append(f"Invalid amount format: {e}")
 
-        # Check balance if requested
-        if check_balance and not errors:
+        # Check balance if requested (skip if no client)
+        if check_balance and not errors and self._client is not None:
             try:
                 # Extract wallet_name from token
                 wallet_name = token.split("###")[1]
@@ -354,6 +354,9 @@ class TransactionService:
                     "; ".join(validation["warnings"])
                 )
 
+        if self._client is None:
+            raise RuntimeError("Safina client is not configured")
+
         # Convert decimal separator for Safina
         safina_value = self.convert_decimal_to_safina(request.value)
 
@@ -406,6 +409,8 @@ class TransactionService:
 
     async def sign_transaction(self, tx_unid: str) -> dict:
         """Sign (approve) a transaction."""
+        if self._client is None:
+            raise RuntimeError("Safina client is not configured")
         result = await self._client.sign_transaction(tx_unid)
 
         await self._db.execute(
@@ -426,6 +431,8 @@ class TransactionService:
 
     async def reject_transaction(self, tx_unid: str, reason: str = "") -> dict:
         """Reject a transaction."""
+        if self._client is None:
+            raise RuntimeError("Safina client is not configured")
         result = await self._client.reject_transaction(tx_unid, reason)
 
         await self._db.execute(

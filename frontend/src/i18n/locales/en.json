@@ -542,6 +542,7 @@
   },
   "wallets": {
     "title": "Wallets",
+    "count": "{{count}} wallets",
     "exportButton": "Export CSV",
     "exporting": "Exporting...",
     "table": {
@@ -557,6 +558,7 @@
   },
   "transactions": {
     "title": "Transactions",
+    "count": "{{count}} transactions",
     "filtered": "(filtered)",
     "exportButton": "Export CSV",
     "exporting": "Exporting...",

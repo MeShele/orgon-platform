@@ -9,14 +9,14 @@ type WSEvent = {
 
 function getWebSocketURL(): string {
   if (typeof window === "undefined") return "";
-  
+
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  // In production, always use current domain
-  // In development (localhost), use API URL if set
-  const host = window.location.hostname === 'localhost' && process.env.NEXT_PUBLIC_API_URL
-    ? new URL(process.env.NEXT_PUBLIC_API_URL).host 
+  // Always use API URL if set (backend serves the WebSocket endpoint)
+  // In development (localhost), also use API URL if set
+  const host = process.env.NEXT_PUBLIC_API_URL
+    ? new URL(process.env.NEXT_PUBLIC_API_URL).host
     : window.location.host;
-  
+
   return `${protocol}//${host}/ws/updates`;
 }
 

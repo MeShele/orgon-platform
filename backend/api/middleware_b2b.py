@@ -43,6 +43,10 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        # Allow CORS preflight requests through without auth
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         # Skip authentication for exempt paths
         if any(request.url.path.startswith(path) for path in self.exempt_paths):
             return await call_next(request)

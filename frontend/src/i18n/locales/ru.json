@@ -544,6 +544,7 @@
   },
   "wallets": {
     "title": "Кошельки",
+    "count": "{{count}} кошельков",
     "exportButton": "Экспорт CSV",
     "exporting": "Экспорт...",
     "table": {
@@ -559,6 +560,7 @@
   },
   "transactions": {
     "title": "Транзакции",
+    "count": "{{count}} транзакций",
     "filtered": "(отфильтровано)",
     "exportButton": "Экспорт CSV",
     "exporting": "Экспорт...",

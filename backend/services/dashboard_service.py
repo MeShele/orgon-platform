@@ -63,55 +63,67 @@ class DashboardService:
             - cache_stats: Cache performance statistics
             - last_sync: Last synchronization timestamp
         """
+        # Get wallet count
+        total_wallets = 0
         try:
-            # Get wallet count
             wallets = await self._wallet_service.list_wallets()
             total_wallets = len(wallets)
+        except Exception as e:
+            logger.warning("Failed to get wallet count: %s", e)
 
-            # Get balance summary
+        # Get balance summary
+        total_balance_usd = "0.00"  # TODO: Add USD conversion in future
+        try:
             balance_summary = await self._balance_service.get_summary()
-            total_balance_usd = "0.00"  # TODO: Add USD conversion in future
+        except Exception as e:
+            logger.warning("Failed to get balance summary: %s", e)
 
-            # Get transactions in last 24 hours
+        # Get transactions in last 24 hours
+        transactions_24h = 0
+        try:
             transactions_24h = await self._get_transactions_count_24h()
+        except Exception as e:
+            logger.warning("Failed to get 24h transactions: %s", e)
 
-            # Get pending signatures count
+        # Get pending signatures count
+        pending_signatures = 0
+        try:
             pending_sigs = await self._signature_service.get_pending_signatures()
             pending_signatures = len(pending_sigs)
+        except Exception as e:
+            logger.warning("Failed to get pending signatures: %s", e)
 
-            # Get active networks count
+        # Get active networks count
+        networks_active = 0
+        try:
             networks = await self._network_service.get_networks(status=1)
             networks_active = len(networks)
-
-            # Get cache statistics
-            cache_stats = await self._network_service.get_cache_stats()
-
-            # Get last sync timestamp
-            last_sync = await self._get_last_sync_timestamp()
-
-            return {
-                "total_wallets": total_wallets,
-                "total_balance_usd": total_balance_usd,
-                "transactions_24h": transactions_24h,
-                "pending_signatures": pending_signatures,
-                "networks_active": networks_active,
-                "cache_stats": cache_stats,
-                "last_sync": last_sync,
-            }
-
         except Exception as e:
-            logger.error("Failed to get dashboard stats: %s", e)
-            # Return empty/default stats on error
-            return {
-                "total_wallets": 0,
-                "total_balance_usd": "0.00",
-                "transactions_24h": 0,
-                "pending_signatures": 0,
-                "networks_active": 0,
-                "cache_stats": {},
-                "last_sync": None,
-                "error": str(e),
-            }
+            logger.warning("Failed to get active networks: %s", e)
+
+        # Get cache statistics
+        cache_stats = {}
+        try:
+            cache_stats = await self._network_service.get_cache_stats()
+        except Exception as e:
+            logger.warning("Failed to get cache stats: %s", e)
+
+        # Get last sync timestamp
+        last_sync = None
+        try:
+            last_sync = await self._get_last_sync_timestamp()
+        except Exception as e:
+            logger.warning("Failed to get last sync timestamp: %s", e)
+
+        return {
+            "total_wallets": total_wallets,
+            "total_balance_usd": total_balance_usd,
+            "transactions_24h": transactions_24h,
+            "pending_signatures": pending_signatures,
+            "networks_active": networks_active,
+            "cache_stats": cache_stats,
+            "last_sync": last_sync,
+        }
 
     async def get_recent_activity(self, limit: int = 20) -> list[dict]:
         """

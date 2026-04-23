@@ -69,10 +69,15 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
         partner_service = request.app.state.partner_service
         audit_service = request.app.state.audit_service_b2b
         
+        # Allow JWT Bearer token auth (for dashboard/frontend access to partner routes)
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            return await call_next(request)
+
         # Extract API credentials from headers
         api_key = request.headers.get("X-API-Key")
         api_secret = request.headers.get("X-API-Secret")
-        
+
         if not api_key or not api_secret:
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,

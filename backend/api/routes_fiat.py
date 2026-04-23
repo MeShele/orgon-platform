@@ -44,7 +44,7 @@ async def create_offramp(
 
 @router.get("/transactions")
 async def get_transactions(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     limit: int = Query(50, le=100),
     user: dict = Depends(require_roles("company_admin", "company_operator", "end_user")),
     service: FiatService = Depends(get_fiat_service)
@@ -83,7 +83,7 @@ async def add_bank_account(
 
 @router.get("/bank-accounts")
 async def get_bank_accounts(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     user: dict = Depends(require_roles("company_admin", "company_operator", "end_user")),
     service: FiatService = Depends(get_fiat_service)
 ):

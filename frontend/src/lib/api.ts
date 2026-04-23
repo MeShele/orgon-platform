@@ -1,8 +1,5 @@
-// Use relative URLs in production (browser uses current domain)
-// Use localhost only in development
-const API_BASE = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-  ? '' // Relative URLs in production (uses same domain)
-  : process.env.NEXT_PUBLIC_API_URL || "http://localhost:8890"; // Localhost in dev
+// API base URL: use NEXT_PUBLIC_API_URL if set, otherwise relative URLs
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = typeof window !== "undefined" ? localStorage.getItem("orgon_refresh_token") : null;

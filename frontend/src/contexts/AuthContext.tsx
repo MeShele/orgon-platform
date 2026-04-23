@@ -5,7 +5,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '@/lib/api';
+import { api, API_BASE } from '@/lib/api';
 
 interface User {
   id: number;
@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (typeof emailOrData === 'string' && password) {
       // Old signature: email + password
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: emailOrData, password }),
@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const register = async (email: string, password: string, fullName: string, role: string = 'viewer') => {
-    const response = await fetch('/api/auth/register', {
+    const response = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -162,11 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     if (refreshToken) {
       try {
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
+        await api.post('/api/auth/logout', { refresh_token: refreshToken });
       } catch (error) {
         console.error('Logout API call failed:', error);
       }
@@ -181,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await fetch('/api/auth/me', {
+      const response = await fetch(`${API_BASE}/api/auth/me`, {
         headers: { 
           'Authorization': `Bearer ${accessToken}` 
         },
@@ -193,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return true;
       } else if (response.status === 401 && refreshToken) {
         // Try to refresh token
-        const refreshResponse = await fetch('/api/auth/refresh', {
+        const refreshResponse = await fetch(`${API_BASE}/api/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refresh_token: refreshToken }),

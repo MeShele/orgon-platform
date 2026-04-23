@@ -1,5 +1,7 @@
 -- Fix: networks_cache.status should be INTEGER, not VARCHAR
-ALTER TABLE networks_cache ALTER COLUMN status TYPE INTEGER USING status::integer;
+ALTER TABLE networks_cache ALTER COLUMN status DROP DEFAULT;
+ALTER TABLE networks_cache ALTER COLUMN status TYPE INTEGER USING COALESCE(status::integer, 1);
+ALTER TABLE networks_cache ALTER COLUMN status SET DEFAULT 1;
 
 -- Add missing columns if needed
 ALTER TABLE networks_cache ADD COLUMN IF NOT EXISTS network_name VARCHAR(255);

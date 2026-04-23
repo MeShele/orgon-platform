@@ -85,7 +85,7 @@ class AnalyticsService:
         logger.info(f"Generated balance history: {len(filled_result)} days")
         return filled_result
 
-    async def get_transaction_volume(self, network: Optional[int] = None) -> List[Dict]:
+    async def get_transaction_volume(self, network: Optional[int] = None, days: int = 30) -> List[Dict]:
         """
         Get transaction volume grouped by network.
         

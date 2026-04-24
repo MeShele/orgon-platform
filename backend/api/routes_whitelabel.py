@@ -15,7 +15,7 @@ async def get_whitelabel_service(pool = Depends(get_db_pool)) -> WhiteLabelServi
 
 @router.get("/branding")
 async def get_branding(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     user: dict = Depends(require_roles("company_admin", "platform_admin")),
     service: WhiteLabelService = Depends(get_whitelabel_service)
 ):
@@ -57,7 +57,7 @@ async def update_branding(
 
 @router.get("/email-templates")
 async def list_email_templates(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     user: dict = Depends(require_roles("company_admin", "platform_admin")),
     service: WhiteLabelService = Depends(get_whitelabel_service)
 ):
@@ -67,7 +67,7 @@ async def list_email_templates(
 
 @router.get("/email-templates/{template_type}")
 async def get_email_template(
-    template_type: str, org_id: UUID = Query(...),
+    template_type: str, org_id: UUID = Query(None),
     user: dict = Depends(require_roles("company_admin", "platform_admin")),
     service: WhiteLabelService = Depends(get_whitelabel_service)
 ):
@@ -103,7 +103,7 @@ async def create_custom_domain(
 
 @router.get("/domains")
 async def list_custom_domains(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     user: dict = Depends(require_roles("company_admin", "platform_admin")),
     service: WhiteLabelService = Depends(get_whitelabel_service)
 ):
@@ -149,7 +149,7 @@ async def upload_asset(
 
 @router.get("/assets")
 async def list_assets(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     asset_type: Optional[str] = None,
     user: dict = Depends(require_roles("company_admin", "platform_admin")),
     service: WhiteLabelService = Depends(get_whitelabel_service)

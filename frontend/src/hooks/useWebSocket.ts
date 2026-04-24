@@ -10,14 +10,15 @@ type WSEvent = {
 function getWebSocketURL(): string {
   if (typeof window === "undefined") return "";
 
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  // Always use API URL if set (backend serves the WebSocket endpoint)
-  // In development (localhost), also use API URL if set
-  const host = process.env.NEXT_PUBLIC_API_URL
-    ? new URL(process.env.NEXT_PUBLIC_API_URL).host
-    : window.location.host;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    // Convert https://orgon-api.asystem.kg to wss://orgon-api.asystem.kg/ws/updates
+    return apiUrl.replace(/^https:/, "wss:").replace(/^http:/, "ws:") + "/ws/updates";
+  }
 
-  return `${protocol}//${host}/ws/updates`;
+  // Fallback: same host (dev mode)
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${window.location.host}/ws/updates`;
 }
 
 export function useWebSocket(url?: string) {

@@ -205,11 +205,25 @@ export default function PartnerPage() {
                 </div>
               </Card>
             </div>
-            {volume && (
+            {volume && volume.data && volume.data.length > 0 && (
               <Card>
                 <div className="p-4">
-                  <h4 className="mb-2 font-semibold text-slate-900 dark:text-white">Детали объёма</h4>
-                  <pre className="text-xs text-slate-600 dark:text-slate-400 overflow-auto">{JSON.stringify(volume, null, 2)}</pre>
+                  <h4 className="mb-3 font-semibold text-slate-900 dark:text-white">Детали объёма</h4>
+                  <div className="space-y-2">
+                    {volume.data.map((item: any, i: number) => (
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                        <span className="text-sm text-slate-600 dark:text-slate-400">{item.network_name || `Network ${item.network_id}`}</span>
+                        <div className="text-right">
+                          <span className="text-sm font-medium text-slate-900 dark:text-white">{item.tx_count} tx</span>
+                          <span className="text-xs text-slate-500 ml-2">{Number(item.total_value || 0).toFixed(4)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm">
+                    <span className="text-slate-500">Всего транзакций:</span>
+                    <span className="font-medium text-slate-900 dark:text-white">{volume.total_transactions}</span>
+                  </div>
                 </div>
               </Card>
             )}
@@ -476,7 +490,10 @@ export default function PartnerPage() {
                   <div className="space-y-2">
                     {pendingSigs.map((s: any, i: number) => (
                       <div key={i} className="rounded border border-slate-200 p-3 text-sm dark:border-slate-700">
-                        <pre className="text-xs overflow-auto">{JSON.stringify(s, null, 2)}</pre>
+                        <div className="text-xs">
+                          <span className="font-medium">{s.tx_unid || s.id}</span>
+                          <span className="text-slate-500 ml-2">{s.status || 'pending'}</span>
+                        </div>
                       </div>
                     ))}
                   </div>

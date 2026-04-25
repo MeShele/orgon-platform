@@ -28,32 +28,12 @@ export function OrganizationSwitcher() {
   const loadOrganizations = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with real API call when backend is ready
-      // const data = await api.get('/api/organizations');
-      
-      // Mock data for now
-      const mockOrgs: Organization[] = [
-        {
-          id: "123e4567-e89b-12d3-a456-426614174000",
-          name: "Safina Exchange KG",
-          display_name: "Safina Exchange",
-          license_type: "enterprise",
-          status: "active"
-        },
-        {
-          id: "234e5678-e89b-12d3-a456-426614174111",
-          name: "BitExchange KG",
-          display_name: "BitExchange",
-          license_type: "pro",
-          status: "active"
-        }
-      ];
-      
-      setOrganizations(mockOrgs);
-      
-      // Set first org as current if none selected
-      if (mockOrgs.length > 0 && !currentOrg) {
-        setCurrentOrg(mockOrgs[0]);
+      const data = await api.getOrganizations();
+      const orgs = Array.isArray(data) ? data : [];
+      setOrganizations(orgs);
+
+      if (orgs.length > 0 && !currentOrg) {
+        setCurrentOrg(orgs[0]);
       }
     } catch (error) {
       console.error('Failed to load organizations:', error);

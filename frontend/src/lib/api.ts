@@ -505,7 +505,7 @@ export const api = {
 
   /** Switch organization context */
   switchOrganization: (orgId: string) =>
-    fetchAPI("/api/organizations/switch", { method: "POST", body: JSON.stringify({ organization_id: orgId }) }),
+    fetchAPI("/api/organizations/tenant/switch", { method: "POST", body: JSON.stringify({ organization_id: orgId }) }),
 
 
   // Rates

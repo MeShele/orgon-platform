@@ -28,7 +28,7 @@ async def create_kyc(
 
 @router.get("/kyc")
 async def get_kyc_records(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     status: Optional[str] = None,
     limit: int = Query(50, le=100),
     user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
@@ -54,7 +54,7 @@ async def update_kyc_status(
 
 @router.get("/aml/alerts")
 async def get_aml_alerts(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     status: Optional[str] = None,
     limit: int = Query(50, le=100),
     user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
@@ -92,7 +92,7 @@ async def generate_monthly_report(
 
 @router.get("/reports")
 async def get_reports(
-    org_id: UUID = Query(...),
+    org_id: UUID = Query(None),
     limit: int = Query(50, le=100),
     user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
     service: ComplianceService = Depends(get_compliance_service)

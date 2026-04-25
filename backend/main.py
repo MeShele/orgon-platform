@@ -1,6 +1,7 @@
 """ORGON Backend - FastAPI Application (PostgreSQL version)."""
 
 import asyncio
+import bcrypt
 import json
 import logging
 import os
@@ -180,6 +181,27 @@ async def lifespan(app: FastAPI):
         logger.info("PostgreSQL connection pool created")
 
         # PostgreSQL migrations are applied via POST /api/health/run-migrations
+
+        # Seed default admin user if no users exist
+        try:
+            async with _async_db.get_connection() as conn:
+                user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
+                if user_count == 0:
+                    password_hash = bcrypt.hashpw("demo2026".encode(), bcrypt.gensalt()).decode()
+                    for email, name, role in [
+                        ("demo-admin@orgon.io", "Demo Admin", "admin"),
+                        ("demo-signer@orgon.io", "Demo Signer", "signer"),
+                        ("demo-viewer@orgon.io", "Demo Viewer", "viewer"),
+                    ]:
+                        await conn.execute(
+                            "INSERT INTO users (email, full_name, password_hash, role, is_active) VALUES ($1, $2, $3, $4, $5)",
+                            email, name, password_hash, role, True
+                        )
+                    logger.info("Seeded 3 demo users (admin/signer/viewer)")
+                else:
+                    logger.info("Users table has %d users, skipping seed", user_count)
+        except Exception as e:
+            logger.warning("User seeding skipped: %s", e)
     else:
         logger.info("📂 Using SQLite database (fallback)")
         db = init_sqlite_db(config["database"]["path"])

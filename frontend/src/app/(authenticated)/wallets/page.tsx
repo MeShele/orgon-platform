@@ -9,7 +9,7 @@ import { WalletTable } from "@/components/wallets/WalletTable";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Tooltip, HelpText } from "@/components/ui/Tooltip";
 import { Icon } from "@/lib/icons";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 import { pageLayout, buttonStyles } from "@/lib/page-layout";
 
 export default function WalletsPage() {
@@ -31,7 +31,7 @@ export default function WalletsPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8890"}/export/wallets/csv`;
+      const url = `${API_BASE}/export/wallets/csv`;
       window.open(url, "_blank");
     } catch (err) {
       console.error("Export failed:", err);

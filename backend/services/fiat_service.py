@@ -1,9 +1,22 @@
 """Fiat Service — On-ramp, Off-ramp, Payment Gateways."""
 import asyncpg
+import httpx
+import time
 from typing import Optional, List, Dict
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
+
+# In-memory cache for CoinGecko rates: {(crypto, fiat): (rate, timestamp)}
+_rate_cache: Dict[tuple, tuple] = {}
+_RATE_CACHE_TTL = 60  # seconds
+
+# CoinGecko ID mapping
+_COINGECKO_IDS = {
+    "BTC": "bitcoin",
+    "ETH": "ethereum",
+    "TRX": "tron",
+}
 
 class FiatService:
     def __init__(self, pool: asyncpg.Pool):
@@ -112,10 +125,24 @@ class FiatService:
     
     # ==================== Exchange Rates ====================
     
+    async def _fetch_coingecko_rates(self) -> Dict[str, float]:
+        """Fetch USD rates from CoinGecko free API. Returns {crypto_symbol: usd_rate}."""
+        ids = ",".join(_COINGECKO_IDS.values())
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={ids}&vs_currencies=usd"
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+        rates = {}
+        for symbol, cg_id in _COINGECKO_IDS.items():
+            if cg_id in data and "usd" in data[cg_id]:
+                rates[symbol] = float(data[cg_id]["usd"])
+        return rates
+
     async def get_exchange_rate(self, crypto: str, fiat: str) -> float:
         """Get cached exchange rate or fetch new one."""
-        # Mock rates (use CoinGecko API in production)
-        mock_rates = {
+        # Hardcoded fallback rates
+        fallback_rates = {
             ('BTC', 'USD'): 98000.0,
             ('ETH', 'USD'): 3500.0,
             ('USDT', 'USD'): 1.0,
@@ -126,25 +153,50 @@ class FiatService:
             ('BTC', 'KGS'): 8500000.0,
             ('USDT', 'KGS'): 87.0,
         }
-        
+
+        # Check in-memory cache first (60s TTL)
+        cache_key = (crypto, fiat)
+        cached = _rate_cache.get(cache_key)
+        if cached and (time.time() - cached[1]) < _RATE_CACHE_TTL:
+            return cached[0]
+
+        # Try DB cache (last 5 minutes)
         try:
             async with self.pool.acquire() as conn:
-                # Try cache (last 5 minutes)
                 row = await conn.fetchrow("""
                     SELECT rate FROM crypto_exchange_rates
                     WHERE crypto_currency = $1 AND fiat_currency = $2
                     AND fetched_at > NOW() - INTERVAL '5 minutes'
                     ORDER BY fetched_at DESC LIMIT 1
                 """, crypto, fiat)
-                
                 if row:
-                    return float(row['rate'])
+                    rate = float(row['rate'])
+                    _rate_cache[cache_key] = (rate, time.time())
+                    return rate
         except Exception:
-            pass  # DB read failure — fall through to mock
-        
-        rate = mock_rates.get((crypto, fiat), 1.0)
-        
-        # Try to cache (non-critical)
+            pass  # DB read failure — fall through
+
+        # Fetch live rates from CoinGecko (USD pairs)
+        rate = None
+        if fiat.upper() == "USD" and crypto.upper() in _COINGECKO_IDS:
+            try:
+                live_rates = await self._fetch_coingecko_rates()
+                if crypto.upper() in live_rates:
+                    rate = live_rates[crypto.upper()]
+            except Exception:
+                pass  # API failure — fall through to fallback
+        # Stablecoins always 1:1
+        if rate is None and crypto.upper() == "USDT" and fiat.upper() == "USD":
+            rate = 1.0
+
+        # Fallback to hardcoded rates
+        if rate is None:
+            rate = fallback_rates.get((crypto, fiat), 1.0)
+
+        # Update in-memory cache
+        _rate_cache[cache_key] = (rate, time.time())
+
+        # Try to persist to DB (non-critical)
         try:
             async with self.pool.acquire() as conn:
                 await conn.execute("""
@@ -153,5 +205,5 @@ class FiatService:
                 """, crypto, fiat, rate)
         except Exception:
             pass
-        
+
         return rate

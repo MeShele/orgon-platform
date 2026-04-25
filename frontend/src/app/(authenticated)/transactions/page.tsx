@@ -11,7 +11,7 @@ import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Tooltip, HelpText } from "@/components/ui/Tooltip";
 import { helpContent } from "@/lib/help-content";
 import { Icon } from "@/lib/icons";
-import { api } from "@/lib/api";
+import { api, API_BASE } from "@/lib/api";
 import { pageLayout, buttonStyles } from "@/lib/page-layout";
 
 interface Filters {
@@ -96,7 +96,7 @@ export default function TransactionsPage() {
       if (appliedFilters.to_date) params.append("to_date", appliedFilters.to_date);
 
       // Download CSV
-      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8890"}/export/transactions/csv?${params.toString()}`;
+      const url = `${API_BASE}/export/transactions/csv?${params.toString()}`;
       window.open(url, "_blank");
     } catch (err) {
       console.error("Export failed:", err);

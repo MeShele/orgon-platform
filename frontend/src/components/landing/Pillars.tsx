@@ -1,30 +1,34 @@
-// Pillars v2 — all-light in light theme; flagship outlined by double
-// crimson rule, not by colored background. Navy comes only in dark via
-// --surface-contrast.
+// Pillars v3 — light, scroll-revealed. Flagship gets a 2px crimson outline,
+// supporting cards have hover-border-strong; nothing navy.
+
+"use client";
 
 import { Eyebrow, Mono } from "@/components/ui/primitives";
+import { Reveal, RevealItem } from "./Reveal";
 
 export function Pillars() {
   return (
     <section className="border-b border-border">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-20 lg:py-24">
-        <div className="grid lg:grid-cols-[1.4fr_1fr] gap-10 lg:gap-16 items-end mb-12">
-          <div>
-            <Eyebrow dash>Платформа</Eyebrow>
-            <h2 className="mt-3 text-[32px] sm:text-[40px] lg:text-[48px] font-medium tracking-[-0.02em] text-foreground text-balance">
-              Три слоя одной операционной модели.
-            </h2>
+        <Reveal>
+          <div className="grid lg:grid-cols-[1.4fr_1fr] gap-10 lg:gap-16 items-end mb-12">
+            <div>
+              <Eyebrow dash>Платформа</Eyebrow>
+              <h2 className="mt-3 text-[32px] sm:text-[40px] lg:text-[48px] font-medium tracking-[-0.02em] text-foreground text-balance">
+                Три слоя одной операционной модели.
+              </h2>
+            </div>
+            <p className="text-[15px] leading-[1.55] text-muted-foreground max-w-md">
+              Мы не делаем кошелёк. Мы делаем периметр, в котором кошельки,
+              политики подписи и комплаенс остаются под контролем
+              оператора, а не пользователя.
+            </p>
           </div>
-          <p className="text-[15px] leading-[1.55] text-muted-foreground max-w-md">
-            Мы не делаем кошелёк. Мы делаем периметр, в котором кошельки,
-            политики подписи и комплаенс остаются под контролем
-            оператора, а не пользователя.
-          </p>
-        </div>
+        </Reveal>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-border border border-border">
+        <Reveal stagger={0.1} className="grid grid-cols-1 lg:grid-cols-2 gap-px bg-border border border-border">
           {/* FLAGSHIP — light, separated by double crimson outline + size */}
-          <article className="bg-card p-8 lg:p-12 lg:row-span-2 flex flex-col relative outline outline-2 outline-primary outline-offset-[-1px]">
+          <RevealItem as="article" className="bg-card p-8 lg:p-12 lg:row-span-2 flex flex-col relative outline outline-2 outline-primary outline-offset-[-1px] transition-colors hover:bg-muted/40">
             <div className="flex items-center justify-between">
               <Mono size="xs" className="text-primary tracking-[0.18em]">01 / КАСТОДИ</Mono>
               <Mono size="xs" className="text-faint">flagship</Mono>
@@ -49,9 +53,9 @@ export function Pillars() {
               <li className="flex justify-between"><span className="text-faint">› key storage</span><span className="text-foreground">HSM · cold · custodial</span></li>
               <li className="flex justify-between"><span className="text-faint">› networks</span><span className="text-foreground">7+ chains</span></li>
             </ul>
-          </article>
+          </RevealItem>
 
-          <article className="bg-card p-8 lg:p-10">
+          <RevealItem as="article" className="bg-card p-8 lg:p-10 transition-colors hover:border-strong border border-transparent hover:bg-muted/40">
             <Mono size="xs" className="text-faint tracking-[0.18em]">02 / COMPLIANCE</Mono>
             <h3 className="mt-5 text-[22px] lg:text-[26px] font-medium tracking-[-0.015em] text-foreground">
               KYC · KYB · AML
@@ -65,9 +69,9 @@ export function Pillars() {
               <li>· Travel Rule (Sumsub / Notabene)</li>
               <li>· Risk scoring + manual review</li>
             </ul>
-          </article>
+          </RevealItem>
 
-          <article className="bg-card p-8 lg:p-10">
+          <RevealItem as="article" className="bg-card p-8 lg:p-10 transition-colors hover:border-strong border border-transparent hover:bg-muted/40">
             <Mono size="xs" className="text-faint tracking-[0.18em]">03 / ИНТЕГРАЦИИ</Mono>
             <h3 className="mt-5 text-[22px] lg:text-[26px] font-medium tracking-[-0.015em] text-foreground">
               API & White-label
@@ -82,8 +86,8 @@ export function Pillars() {
               <li>· Webhook events (signed · broadcast · failed)</li>
               <li>· White-label · custom domain · SSO</li>
             </ul>
-          </article>
-        </div>
+          </RevealItem>
+        </Reveal>
       </div>
     </section>
   );

@@ -1,7 +1,10 @@
 // Numbers — KPI strip
 // 7-of-15 (concrete max policy), <2с broadcast latency, 5 tiles total.
 
+"use client";
+
 import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
+import { Reveal, RevealItem } from "./Reveal";
 
 const KPIS = [
   { label: "Сетей",     value: "7+",      caption: "EVM + TRON" },
@@ -20,15 +23,15 @@ export function Numbers() {
           <Mono size="xs" className="text-faint">метрики платформы · 04/2026</Mono>
         </div>
 
-        <ul className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-px bg-border border border-border">
+        <Reveal stagger={0.06} as="ul" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-px bg-border border border-border">
           {KPIS.map((k) => (
-            <li key={k.label} className="bg-card p-5 lg:p-6">
+            <RevealItem key={k.label} as="li" className="bg-card p-5 lg:p-6">
               <Eyebrow>{k.label}</Eyebrow>
               <BigNum size="xl" className="mt-2 block">{k.value}</BigNum>
               <Mono size="xs" className="mt-2 block text-faint">{k.caption}</Mono>
-            </li>
+            </RevealItem>
           ))}
-        </ul>
+        </Reveal>
       </div>
     </section>
   );

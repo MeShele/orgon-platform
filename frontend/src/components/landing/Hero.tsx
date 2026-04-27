@@ -1,31 +1,48 @@
-// Hero v2 — landing
-// Crimson Ledger v2: no AI-slop decorations, demo card is a static
-// live-snapshot with real policy / ETA / audit-tail.
+// Hero v3 — light, scroll-revealed copy + demo snapshot.
 
 "use client";
 
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow, BigNum, Mono, StatusPill } from "@/components/ui/primitives";
 
 export function Hero() {
+  const reduce = useReducedMotion();
+  const fadeUp = (delay = 0) =>
+    reduce
+      ? { initial: { opacity: 1 }, animate: { opacity: 1 } }
+      : {
+          initial: { opacity: 0, y: 24 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1], delay },
+        };
+
   return (
     <section className="border-b border-border">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-16 lg:py-24">
         <div className="grid lg:grid-cols-[1.2fr_1fr] gap-10 lg:gap-16 items-start">
           {/* Left — copy */}
           <div>
-            <Eyebrow dash>Институциональная кастоди-платформа</Eyebrow>
-            <h1 className="mt-5 text-[40px] sm:text-[56px] lg:text-[72px] font-medium leading-[1.02] tracking-[-0.025em] text-foreground text-balance">
+            <motion.div {...fadeUp(0)}>
+              <Eyebrow dash>Институциональная кастоди-платформа</Eyebrow>
+            </motion.div>
+            <motion.h1
+              {...fadeUp(0.05)}
+              className="mt-5 text-[40px] sm:text-[56px] lg:text-[72px] font-medium leading-[1.02] tracking-[-0.025em] text-foreground text-balance"
+            >
               Multi-signature кастоди<br />для регулируемых&nbsp;операторов.
-            </h1>
-            <p className="mt-6 max-w-[58ch] text-[16px] sm:text-[17px] leading-[1.55] text-muted-foreground text-pretty">
+            </motion.h1>
+            <motion.p
+              {...fadeUp(0.12)}
+              className="mt-6 max-w-[58ch] text-[16px] sm:text-[17px] leading-[1.55] text-muted-foreground text-pretty"
+            >
               ORGON — операционный слой между кошельком и блокчейном.
               Политики подписи, KYC/KYB/AML и журнал аудита в одном
               периметре, готовом к проверке регулятором.
-            </p>
+            </motion.p>
 
-            <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
+            <motion.div {...fadeUp(0.2)} className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
               <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
                 <Button variant="primary" size="lg">Запросить демо</Button>
               </a>
@@ -35,17 +52,19 @@ export function Hero() {
               >
                 Смотреть тарифы&nbsp;→
               </Link>
-            </div>
+            </motion.div>
 
-            <dl className="mt-12 grid grid-cols-3 max-w-md gap-px bg-border border border-border">
+            <motion.dl {...fadeUp(0.28)} className="mt-12 grid grid-cols-3 max-w-md gap-px bg-border border border-border">
               <Stat label="Сетей" value="7+" />
               <Stat label="Политика" value="7-of-15" />
               <Stat label="Broadcast" value="<2с" />
-            </dl>
+            </motion.dl>
           </div>
 
           {/* Right — live snapshot card */}
-          <DemoSnapshot />
+          <motion.div {...fadeUp(0.18)}>
+            <DemoSnapshot reduce={!!reduce} />
+          </motion.div>
         </div>
       </div>
     </section>
@@ -63,9 +82,15 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DemoSnapshot() {
+function DemoSnapshot({ reduce }: { reduce: boolean }) {
+  const auditItems = [
+    { sym: "✓", color: "text-success", text: "signed · 0x4f··21", time: "14:22" },
+    { sym: "✓", color: "text-success", text: "signed · 0xa8··0e", time: "14:21" },
+    { sym: "▢", color: "text-warning", text: "created · admin",   time: "14:18" },
+  ];
+
   return (
-    <article className="border border-border bg-card">
+    <article className="border border-border bg-card transition-shadow hover:shadow-lg">
       <header className="flex items-center justify-between px-5 py-3 border-b border-border">
         <Mono size="xs" className="text-faint">TX · pending signature</Mono>
         <StatusPill kind="pending" label="2/5 SIGNED" />
@@ -82,7 +107,6 @@ function DemoSnapshot() {
           <span className="text-foreground">TRON · Mainnet</span>
         </div>
 
-        {/* Amount */}
         <div className="border-t border-border pt-4">
           <Eyebrow>Сумма</Eyebrow>
           <div className="mt-1 flex items-baseline gap-3">
@@ -91,7 +115,6 @@ function DemoSnapshot() {
           </div>
         </div>
 
-        {/* Policy progress */}
         <div className="border-t border-border pt-4">
           <div className="flex items-baseline justify-between">
             <Eyebrow>Политика</Eyebrow>
@@ -99,8 +122,12 @@ function DemoSnapshot() {
           </div>
           <div className="mt-3 grid grid-cols-5 gap-1.5">
             {[1, 2, 0, 0, 0].map((s, i) => (
-              <div
+              <motion.div
                 key={i}
+                initial={reduce ? { scaleX: 1 } : { scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.5, delay: 0.5 + i * 0.07, ease: "easeOut" }}
+                style={{ transformOrigin: "left" }}
                 className={
                   "h-1.5 " +
                   (s === 2 ? "bg-primary" : s === 1 ? "bg-foreground" : "bg-muted")
@@ -114,22 +141,21 @@ function DemoSnapshot() {
           </div>
         </div>
 
-        {/* Audit tail */}
         <div className="border-t border-border pt-4">
           <Eyebrow>Audit tail</Eyebrow>
           <ul className="mt-2 space-y-1.5 font-mono text-[11px] text-muted-foreground">
-            <li className="flex justify-between gap-3">
-              <span><span className="text-success">✓</span> signed · 0x4f··21</span>
-              <span className="text-faint">14:22</span>
-            </li>
-            <li className="flex justify-between gap-3">
-              <span><span className="text-success">✓</span> signed · 0xa8··0e</span>
-              <span className="text-faint">14:21</span>
-            </li>
-            <li className="flex justify-between gap-3 text-foreground">
-              <span><span className="text-warning">▢</span> created · admin</span>
-              <span className="text-faint">14:18</span>
-            </li>
+            {auditItems.map((it, i) => (
+              <motion.li
+                key={i}
+                initial={reduce ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.7 + i * 0.1, ease: "easeOut" }}
+                className={"flex justify-between gap-3 " + (i === 2 ? "text-foreground" : "")}
+              >
+                <span><span className={it.color}>{it.sym}</span> {it.text}</span>
+                <span className="text-faint">{it.time}</span>
+              </motion.li>
+            ))}
           </ul>
         </div>
       </div>

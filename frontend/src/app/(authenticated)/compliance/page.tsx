@@ -21,13 +21,13 @@ export default function CompliancePage() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
 
   const { data: kyc } = useSWR<ComplianceData>(
-    "/api/compliance/kyc",
-    () => api.get("/api/compliance/kyc")
+    "/api/v1/compliance/kyc",
+    () => api.get("/api/v1/compliance/kyc")
   );
 
   const { data: kyb } = useSWR<ComplianceData>(
-    "/api/compliance/kyb",
-    () => api.get("/api/compliance/kyb")
+    "/api/v1/compliance/kyb",
+    () => api.get("/api/v1/compliance/kyb")
   );
 
   const tabs: { id: Tab; label: string; icon: string }[] = [

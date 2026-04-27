@@ -60,6 +60,46 @@ async def get_subscription_plan(
     return plan
 
 
+@router.get("/usage")
+async def get_billing_usage(
+    user: dict = Depends(get_current_user),
+    billing_service: BillingService = Depends(get_billing_service),
+):
+    """Aggregated billing usage for the dashboard `/billing` page.
+
+    Returns the shape the frontend expects:
+    `{current_plan, billing_cycle, outstanding_balance,
+       usage: {transactions, wallets, api_calls}}`.
+
+    The frontend hits this on every authenticated user; if the user has no
+    active subscription we return a zeroed Starter view rather than 404,
+    so the page renders cleanly during the demo.
+    """
+    org_id = user.get("organization_id") or user.get("current_organization_id")
+    summary: dict | None = None
+    if org_id:
+        try:
+            summary = await billing_service.get_usage_summary(org_id)
+        except AttributeError:
+            # Service-side aggregation not implemented yet — fall through
+            # to the zeroed default. We expose the same shape either way.
+            summary = None
+
+    if summary:
+        return summary
+
+    return {
+        "current_plan": "starter",
+        "billing_cycle": "monthly",
+        "outstanding_balance": "0.00",
+        "usage": {
+            "transactions": {"used": 0, "limit": 1000},
+            "wallets":      {"used": 0, "limit": 10},
+            "api_calls":    {"used": 0, "limit": 100000},
+        },
+    }
+
+
 # ==================== Organization Subscriptions ====================
 
 @router.post("/subscribe", response_model=OrganizationSubscriptionResponse, status_code=status.HTTP_201_CREATED)

@@ -368,10 +368,12 @@ class SignatureService:
                 event_manager = get_event_manager()
                 
                 for pending in new_pending:
+                    # Postgres ON CONFLICT (was SQLite "INSERT OR IGNORE").
                     await self._db.execute(
-                        """INSERT OR IGNORE INTO pending_signatures_checked
+                        """INSERT INTO pending_signatures_checked
                            (tx_unid, checked_at)
-                           VALUES ($1, $2)""",
+                           VALUES ($1, $2)
+                           ON CONFLICT (tx_unid) DO NOTHING""",
                         (pending.unid, now)
                     )
                     

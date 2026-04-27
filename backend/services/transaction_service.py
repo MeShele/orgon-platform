@@ -393,12 +393,13 @@ class TransactionService:
             network_token = parts[0]
             network = network_token.split(":::")[0] if ":::" in network_token else None
 
-        # Cache locally
+        # Cache locally — Postgres ON CONFLICT (unid was SQLite "INSERT OR IGNORE").
         now = datetime.now(timezone.utc)
         await self._db.execute(
-            """INSERT OR IGNORE INTO transactions
+            """INSERT INTO transactions
                (token, to_addr, value, unid, status, info, wallet_name, network, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)""",
+               VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)
+               ON CONFLICT (unid) DO NOTHING""",
             (request.token, request.to_address, safina_value, tx_unid,
              request.info, wallet_name, network, now, now),
         )

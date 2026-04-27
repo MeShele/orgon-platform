@@ -37,16 +37,16 @@ const planLabel: Record<string, string> = {
 
 export default function BillingPage() {
   const { data: plans } = useSWR<Plan[]>(
-    "/api/billing/plans",
+    "/api/v1/billing/plans",
     async () => {
-      const data = await api.get("/api/billing/plans");
+      const data = await api.get("/api/v1/billing/plans");
       return Array.isArray(data) ? data : data.plans || [];
     }
   );
 
   const { data: usage } = useSWR<Usage>(
-    "/api/billing/usage",
-    () => api.get("/api/billing/usage")
+    "/api/v1/billing/usage",
+    () => api.get("/api/v1/billing/usage")
   );
 
   const usagePercent = (used: number, limit: number) =>

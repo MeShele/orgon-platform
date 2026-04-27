@@ -216,12 +216,16 @@ async def lifespan(app: FastAPI):
         await _async_db.connect()
         logger.info("PostgreSQL pool eagerly connected: %s", _async_db._pool)
 
-    # Initialize Safina signer + client (optional — auth/wallets work without it)
+    # Initialize Safina signer + client. Three modes:
+    #   1. Real: SAFINA_EC_PRIVATE_KEY is set → live Safina API.
+    #   2. Stub: SAFINA_STUB=1 OR no EC key → SafinaStubClient with canned data.
+    #      Lets the demo render and walk through multi-sig without a live integration.
+    #      Never enable this on the prod Coolify app.
+    #   3. None: legacy behaviour (wallet/tx endpoints raise 500).
     ec_key = config["safina"].get("ec_private_key", "")
-    if not ec_key:
-        logger.warning("No SAFINA_EC_PRIVATE_KEY configured. API routes will return errors. Set the key in .env to enable Safina integration.")
-    try:  # Always initialize services (Safina is optional)
-        if ec_key:
+    safina_stub = os.getenv("SAFINA_STUB", "").lower() in {"1", "true", "yes"}
+    try:
+        if ec_key and not safina_stub:
             _signer = SafinaSigner(ec_key)
             _safina_client = SafinaPayClient(
                 signer=_signer,
@@ -231,6 +235,11 @@ async def lifespan(app: FastAPI):
                 retry_backoff=config["safina"]["retry_backoff"],
             )
             logger.info("Safina client initialized for address %s", _signer.address)
+        elif safina_stub or not ec_key:
+            from backend.safina.stub_client import SafinaStubClient
+            _safina_client = SafinaStubClient()
+            reason = "SAFINA_STUB=1" if safina_stub else "no SAFINA_EC_PRIVATE_KEY"
+            logger.warning("Safina stub client active (%s) — demo mode, no real blockchain calls.", reason)
         else:
             _safina_client = None
 

@@ -7,8 +7,16 @@ from fastapi import APIRouter, HTTPException, Query, Request, Depends
 from pydantic import BaseModel, Field
 
 from backend.services.scheduled_transaction_service import ScheduledTransactionService
+from backend.rbac import require_roles
 
 logger = logging.getLogger("orgon.api.scheduled")
+
+# Roles
+_AUTH_ANY = require_roles(
+    "platform_admin", "company_admin", "company_operator", "company_auditor", "end_user",
+)
+_AUTH_OPERATOR = require_roles("platform_admin", "company_admin", "company_operator")
+_AUTH_ADMIN = require_roles("platform_admin", "company_admin")
 
 router = APIRouter(prefix="/api/scheduled", tags=["scheduled"])
 
@@ -47,7 +55,11 @@ class CreateScheduledTransactionRequest(BaseModel):
 
 
 @router.post("")
-async def create_scheduled_transaction(request: CreateScheduledTransactionRequest, service: ScheduledTransactionService = Depends(get_scheduled_transaction_service)):
+async def create_scheduled_transaction(
+    request: CreateScheduledTransactionRequest,
+    user: dict = Depends(_AUTH_OPERATOR),
+    service: ScheduledTransactionService = Depends(get_scheduled_transaction_service),
+):
     """
     Create a new scheduled transaction.
     
@@ -96,9 +108,10 @@ async def create_scheduled_transaction(request: CreateScheduledTransactionReques
 
 @router.get("")
 async def list_scheduled_transactions(
+    user: dict = Depends(_AUTH_ANY),
     service: ScheduledTransactionService = Depends(get_scheduled_transaction_service),
     status: Optional[str] = Query(None, description="Filter by status"),
-    limit: int = Query(50, ge=1, le=200, description="Max results")
+    limit: int = Query(50, ge=1, le=200, description="Max results"),
 ):
     """
     List scheduled transactions.
@@ -117,8 +130,9 @@ async def list_scheduled_transactions(
 
 @router.get("/upcoming")
 async def get_upcoming_transactions(
+    user: dict = Depends(_AUTH_ANY),
     service: ScheduledTransactionService = Depends(get_scheduled_transaction_service),
-    hours: int = Query(24, ge=1, le=168, description="Look ahead N hours")
+    hours: int = Query(24, ge=1, le=168, description="Look ahead N hours"),
 ):
     """Get transactions scheduled in the next N hours (default 24)."""
     upcoming = await service.get_upcoming_transactions(hours=hours)
@@ -131,7 +145,11 @@ async def get_upcoming_transactions(
 
 
 @router.get("/{tx_id}")
-async def get_scheduled_transaction(tx_id: int, service: ScheduledTransactionService = Depends(get_scheduled_transaction_service)):
+async def get_scheduled_transaction(
+    tx_id: int,
+    user: dict = Depends(_AUTH_ANY),
+    service: ScheduledTransactionService = Depends(get_scheduled_transaction_service),
+):
     """Get scheduled transaction by ID."""
     tx = await service.get_scheduled_transaction(tx_id)
     
@@ -142,7 +160,11 @@ async def get_scheduled_transaction(tx_id: int, service: ScheduledTransactionSer
 
 
 @router.delete("/{tx_id}")
-async def cancel_scheduled_transaction(tx_id: int, service: ScheduledTransactionService = Depends(get_scheduled_transaction_service)):
+async def cancel_scheduled_transaction(
+    tx_id: int,
+    user: dict = Depends(_AUTH_OPERATOR),
+    service: ScheduledTransactionService = Depends(get_scheduled_transaction_service),
+):
     """Cancel a pending scheduled transaction."""
     
     # Check if exists and is pending
@@ -166,7 +188,10 @@ async def cancel_scheduled_transaction(tx_id: int, service: ScheduledTransaction
 
 
 @router.post("/process")
-async def process_due_transactions(service: ScheduledTransactionService = Depends(get_scheduled_transaction_service)):
+async def process_due_transactions(
+    user: dict = Depends(_AUTH_ADMIN),
+    service: ScheduledTransactionService = Depends(get_scheduled_transaction_service),
+):
     """
     Background endpoint: Process transactions that are due to be sent.
     

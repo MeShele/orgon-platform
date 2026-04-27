@@ -518,8 +518,8 @@ app.include_router(monitoring_router)  # Monitoring & Prometheus metrics
 app.include_router(documents_router)  # OnlyOffice document tokens
 app.include_router(reports_router)  # Reports
 app.include_router(support_router)  # Support tickets
-app.include_router(billing_compat_router)  # Billing compat (non-v1)
-app.include_router(compliance_compat_router)  # Compliance compat (non-v1)
+# app.include_router(billing_compat_router)  # disabled — returned fake mock plans
+# app.include_router(compliance_compat_router)  # disabled — returned fake mock KYC stats
 
 # B2B Platform routes
 app.include_router(partner_router)

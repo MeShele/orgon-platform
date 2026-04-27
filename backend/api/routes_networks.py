@@ -1,6 +1,10 @@
 """Network and token info endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+
+from backend.rbac import require_roles
+
+_AUTH_ADMIN = require_roles("platform_admin", "company_admin")
 
 from backend.safina.errors import SafinaError
 
@@ -148,7 +152,7 @@ async def cache_stats():
 
 
 @router.post("/cache/refresh")
-async def refresh_cache():
+async def refresh_cache(user: dict = Depends(_AUTH_ADMIN)):
     """
     Force refresh of all network caches.
 

@@ -403,17 +403,17 @@ async def request_password_reset(
     """
     token = await auth_service.create_password_reset_token(data.email)
     
-    # In production, send email here instead of returning token
-    # For development, we'll return it (remove this in production!)
     if not token:
         # Don't reveal if email exists (security best practice)
         return None
-    
-    # TODO: Send email with reset link
-    # For now, log the token (dev only!)
-    print(f"[DEV] Password reset token for {data.email}: {token}")
-    print(f"[DEV] Reset URL: http://localhost:3000/reset-password?token={token}")
-    
+
+    # TODO: send email with reset link via SES / SMTP / similar.
+    # NEVER log the raw token — anyone with log access can hijack the reset.
+    import logging
+    logging.getLogger("orgon.auth").info(
+        "Password reset token created for %s (token: %s…%s)",
+        data.email, token[:4], token[-4:],
+    )
     return None
 
 

@@ -79,28 +79,34 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     
     async def dispatch(self, request: Request, call_next):
-        # Get client IP
-        client_ip = request.client.host if request.client else "unknown"
-        
-        # Different limits for different endpoints
-        if request.url.path.startswith("/api/v1/auth/login"):
-            # Strict limit for login (prevent brute force)
+        # Get client IP — prefer X-Forwarded-For (we sit behind nginx + traefik)
+        fwd = request.headers.get("x-forwarded-for") or ""
+        client_ip = (fwd.split(",")[0].strip() if fwd else None) \
+                    or (request.client.host if request.client else "unknown")
+
+        path = request.url.path
+        # Strict limit for login + 2FA verify + password reset (brute-force critical)
+        if (
+            path == "/api/auth/login"
+            or path == "/api/auth/verify-2fa"
+            or path == "/api/auth/reset-password"
+            or path == "/api/auth/reset-password/confirm"
+        ):
             if rate_limiter.is_rate_limited(f"login:{client_ip}", max_requests=5, window_seconds=60):
                 return Response(
-                    content='{"error": "Too many login attempts. Try again in 1 minute."}',
+                    content='{"detail": "Too many attempts. Try again in 1 minute."}',
                     status_code=429,
                     media_type="application/json",
-                    headers={"Retry-After": "60"}
+                    headers={"Retry-After": "60"},
                 )
-        
-        elif request.url.path.startswith("/api/"):
-            # General API limit
+        # General API limit
+        elif path.startswith("/api/"):
             if rate_limiter.is_rate_limited(f"api:{client_ip}", max_requests=100, window_seconds=60):
                 return Response(
-                    content='{"error": "Rate limit exceeded. Maximum 100 requests per minute."}',
+                    content='{"detail": "Rate limit exceeded. Maximum 100 requests per minute."}',
                     status_code=429,
                     media_type="application/json",
-                    headers={"Retry-After": "60"}
+                    headers={"Retry-After": "60"},
                 )
         
         # Continue to endpoint

@@ -25,8 +25,10 @@ async def health():
 
 
 @router.get("/safina")
-async def safina_health():
-    """Check Safina API availability."""
+async def safina_health(
+    user: dict = Depends(require_roles("platform_admin", "company_admin")),
+):
+    """Check Safina API availability. Admin-only — not for liveness probes."""
     from backend.main import get_safina_client
     client = get_safina_client()
     try:
@@ -37,9 +39,12 @@ async def safina_health():
 
 
 @router.get("/detailed")
-async def detailed_health():
+async def detailed_health(
+    user: dict = Depends(require_roles("platform_admin", "company_admin")),
+):
     """
-    Detailed health check with all service statuses.
+    Detailed health check with all service statuses. Admin-only — leaks
+    integration tokens and error traces.
 
     Returns comprehensive health information including:
     - Database status
@@ -181,8 +186,11 @@ async def detailed_health():
 
 
 @router.get("/services")
-async def check_services(request: Request):
-    """Check which services are initialized."""
+async def check_services(
+    request: Request,
+    user: dict = Depends(require_roles("platform_admin")),
+):
+    """Internal service initialization dump. Platform-admin only."""
     from backend.main import (
         _async_db, _safina_client, _wallet_service, _transaction_service,
         _dashboard_service, _network_service, _signature_service,

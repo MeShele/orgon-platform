@@ -4,12 +4,16 @@ import os
 import time
 import logging
 from datetime import datetime, timezone
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 import httpx
+
+from backend.rbac import require_roles
 
 logger = logging.getLogger("orgon.monitoring")
 
 router = APIRouter(prefix="/api/monitoring", tags=["monitoring"])
+
+_AUTH_ADMIN = require_roles("platform_admin", "company_admin")
 
 START_TIME = time.time()
 
@@ -39,8 +43,8 @@ async def get_count(pool, table: str, where: str = None) -> int:
 
 
 @router.get("/health")
-async def detailed_health(request: Request):
-    """Extended health check with service statuses and metrics."""
+async def detailed_health(request: Request, user: dict = Depends(_AUTH_ADMIN)):
+    """Extended health check with service statuses and metrics. Admin-only."""
     from backend.websocket_manager import ws_manager
 
     pool = request.app.state.db_pool
@@ -91,8 +95,8 @@ async def detailed_health(request: Request):
 
 
 @router.get("/metrics")
-async def prometheus_metrics(request: Request):
-    """Prometheus-compatible metrics endpoint."""
+async def prometheus_metrics(request: Request, user: dict = Depends(_AUTH_ADMIN)):
+    """Prometheus-compatible metrics endpoint. Admin-only — leaks counts."""
     from fastapi.responses import PlainTextResponse
     from backend.websocket_manager import ws_manager
 

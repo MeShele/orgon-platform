@@ -195,21 +195,35 @@ def setup_middleware(app):
     preflight and add headers to error responses.
     """
     config = get_config()
-    origins = config["server"].get("cors_origins", ["*"])
+    # Safe fallback: explicit known prod / preview / dev origins.
+    # Override via CORS_ORIGINS env / config to extend.
+    DEFAULT_ORIGINS = [
+        "https://orgon.asystem.kg",
+        "https://orgon-preview.asystem.kg",
+        "http://localhost:3000",
+        "http://localhost:3100",
+        "http://localhost:3200",
+    ]
+    origins = config["server"].get("cors_origins") or DEFAULT_ORIGINS
+    if origins == ["*"]:
+        # Refuse to keep wildcard with credentials — collapse to safe default.
+        logger.warning("CORS_ORIGINS=['*'] is unsafe with credentials; falling back to whitelist")
+        origins = DEFAULT_ORIGINS
 
-    # Global exception handler: ensures CORS headers on unhandled 500s
-    # (Starlette's ServerErrorMiddleware can bypass CORSMiddleware)
+    # Global exception handler: log full stacktrace server-side, return only
+    # generic error to client (no stacktrace, no exception type leak).
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        import traceback
-        logger.error("Unhandled exception on %s %s: %s", request.method, request.url.path, exc)
+        import traceback, uuid
+        error_id = uuid.uuid4().hex[:12]
+        logger.error("Unhandled [%s] on %s %s: %s", error_id, request.method, request.url.path, exc)
         logger.error(traceback.format_exc())
         response = JSONResponse(
             status_code=500,
-            content={"detail": "Internal server error", "error": str(exc), "type": type(exc).__name__},
+            content={"detail": "Internal server error", "error_id": error_id},
         )
         origin = request.headers.get("origin", "")
-        if origin and (origins == ["*"] or origin in origins):
+        if origin and origin in origins:
             response.headers["access-control-allow-origin"] = origin
             response.headers["access-control-allow-credentials"] = "true"
         return response

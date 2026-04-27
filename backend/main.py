@@ -47,9 +47,10 @@ from backend.email_service import email_service
 from backend.services.notification_service import init_notification_service, get_notification_service
 from backend.api.middleware_b2b import (
     APIKeyAuthMiddleware,
-    RateLimitMiddleware,
-    AuditLoggingMiddleware
+    RateLimitMiddleware as PartnerRateLimitMiddleware,
+    AuditLoggingMiddleware,
 )
+from backend.middleware.security import LoginRateLimitMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -529,11 +530,14 @@ app.include_router(partner_scheduled_router)
 app.include_router(partner_addresses_router)
 app.include_router(safina_integration_router)  # Safina API gap closure
 
-# B2B Middleware (uses app.state for services)
-# Order: Audit (outer) → RateLimit → Auth (inner)
+# B2B Partner-API middleware stack (tier-based rate limit + API-key auth)
 app.add_middleware(AuditLoggingMiddleware)
-app.add_middleware(RateLimitMiddleware)
+app.add_middleware(PartnerRateLimitMiddleware)
 app.add_middleware(APIKeyAuthMiddleware)
+
+# General-API rate limit (login brute-force, 100 req/min/IP). Last-added so
+# Starlette runs it outermost — bouncers hit before partner-tier check.
+app.add_middleware(LoginRateLimitMiddleware)
 
 
 # Swagger UI at /api/docs for Cloudflare Tunnel compatibility

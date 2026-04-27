@@ -69,7 +69,7 @@ class RateLimiter:
 rate_limiter = RateLimiter()
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
+class LoginRateLimitMiddleware(BaseHTTPMiddleware):
     """
     Rate limiting middleware for API endpoints
     
@@ -318,7 +318,7 @@ async def log_security_event(
 # ============================================
 
 __all__ = [
-    "RateLimitMiddleware",
+    "LoginRateLimitMiddleware",
     "SecurityHeadersMiddleware",
     "HTTPSRedirectMiddleware",
     "login_tracker",

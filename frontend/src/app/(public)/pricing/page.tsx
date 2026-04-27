@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { SafeIcon as Icon } from "@/components/SafeIcon";
 import { Button } from "@/components/ui/Button";
+import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
+import { Icon } from "@/lib/icons";
 import { API_BASE } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 interface Plan {
   id: string;
@@ -20,27 +21,6 @@ interface Plan {
   is_active: boolean;
   margin_min?: string | null;
 }
-
-const PLAN_VISUALS: Record<string, { gradient: string; iconBg: string; icon: string; tagline: string }> = {
-  start: {
-    gradient: "from-blue-500 to-cyan-500",
-    iconBg: "from-blue-500/10 to-cyan-500/10",
-    icon: "solar:rocket-2-bold",
-    tagline: "Для малых обменников и финтех",
-  },
-  business: {
-    gradient: "from-emerald-500 to-teal-500",
-    iconBg: "from-emerald-500/10 to-teal-500/10",
-    icon: "solar:buildings-2-bold",
-    tagline: "Для средних бирж и брокеров",
-  },
-  enterprise: {
-    gradient: "from-amber-500 to-orange-500",
-    iconBg: "from-amber-500/10 to-orange-500/10",
-    icon: "solar:crown-star-bold",
-    tagline: "Для банков и крупных бирж",
-  },
-};
 
 const FEATURE_LABELS: Record<string, string> = {
   max_wallets: "Кошельков",
@@ -62,7 +42,7 @@ const FEATURE_LABELS: Record<string, string> = {
 function formatPrice(amount: string, currency: string): string {
   const n = Number(amount);
   if (Number.isNaN(n)) return amount;
-  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n) + " " + currency;
+  return `${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(n)} ${currency}`;
 }
 
 function describeFeature(key: string, value: unknown): string {
@@ -99,7 +79,7 @@ export default function PricingPage() {
 
   const yearlySavings = useMemo(() => {
     if (!plans) return null;
-    const start = plans.find((p) => p.slug === "start");
+    const start = plans.find((p) => p.slug === "start") ?? plans[0];
     if (!start) return null;
     const monthly12 = Number(start.monthly_price) * 12;
     const yearly = Number(start.yearly_price);
@@ -109,185 +89,210 @@ export default function PricingPage() {
   }, [plans]);
 
   return (
-    <div className="py-24 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/5 to-transparent pointer-events-none z-0" />
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12"
-        >
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display font-bold text-slate-900 dark:text-white mb-6 tracking-tight">
-            Тарифы{" "}
-            <span className="bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 bg-clip-text text-transparent">
-              ORGON
-            </span>
+    <>
+      {/* HERO */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 pt-20 pb-12 text-center">
+          <Eyebrow dash tone="primary" className="!justify-center">Тарифы</Eyebrow>
+          <h1 className="mt-6 text-[44px] sm:text-[56px] lg:text-[64px] font-medium tracking-[-0.025em] leading-[1.05] text-foreground">
+            Прозрачные тарифы<br />для команд любого масштаба
           </h1>
-          <p className="mx-auto max-w-2xl text-xl text-slate-600 dark:text-slate-400 font-light leading-relaxed">
-            Прозрачное ценообразование. Без скрытых комиссий. Подходит обменникам, брокерам, банкам.
+          <p className="mt-6 max-w-2xl mx-auto text-[15px] sm:text-[16px] leading-[1.6] text-muted-foreground">
+            Цены в KGS. Меняйте план в любой момент. Скидка 10% при годовой
+            оплате. Enterprise — индивидуальные условия по договору.
           </p>
-        </motion.div>
 
-        {/* Billing toggle */}
-        <div className="flex justify-center mb-16">
-          <div className="inline-flex rounded-full border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] p-1">
-            <button
-              type="button"
-              onClick={() => setBilling("monthly")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-                billing === "monthly"
-                  ? "bg-emerald-500 text-white shadow"
-                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              Помесячно
-            </button>
-            <button
-              type="button"
-              onClick={() => setBilling("yearly")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-colors flex items-center gap-2 ${
-                billing === "yearly"
-                  ? "bg-emerald-500 text-white shadow"
-                  : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
-              }`}
-            >
-              За год
-              {yearlySavings !== null && (
-                <span className="text-[10px] uppercase tracking-wide rounded-full bg-emerald-100 dark:bg-emerald-500/20 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">
-                  −{yearlySavings}%
-                </span>
-              )}
-            </button>
+          <div className="mt-10 inline-flex border border-strong p-0.5">
+            {(["monthly", "yearly"] as const).map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setBilling(opt)}
+                className={cn(
+                  "px-6 h-9 text-[13px] font-medium transition-colors flex items-center gap-2",
+                  billing === opt ? "bg-foreground text-background" : "text-foreground hover:bg-muted",
+                )}
+              >
+                {opt === "monthly" ? "Помесячно" : "За год"}
+                {opt === "yearly" && yearlySavings !== null && (
+                  <span className={cn("font-mono text-[10px] tracking-wider", billing === opt ? "text-background" : "text-primary")}>
+                    −{yearlySavings}%
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* Loading / error state */}
-        {!plans && !error && (
-          <div className="text-center text-slate-500 dark:text-slate-400">Загрузка тарифов…</div>
-        )}
-        {error && (
-          <div className="mx-auto max-w-md rounded-2xl border border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-6 text-center text-red-700 dark:text-red-300">
-            {error}
-          </div>
-        )}
-
-        {/* Plans grid */}
-        {plans && (
-          <div className="grid gap-6 lg:grid-cols-3">
-            {plans.map((plan, index) => {
-              const visual = PLAN_VISUALS[plan.slug] ?? {
-                gradient: "from-slate-500 to-slate-700",
-                iconBg: "from-slate-500/10 to-slate-700/10",
-                icon: "solar:tag-bold",
-                tagline: "",
-              };
-              const featured = plan.slug === "business";
-              const price =
-                billing === "monthly" ? plan.monthly_price : plan.yearly_price;
-              const featureItems = Object.entries(plan.features ?? {}).map(([k, v]) =>
-                describeFeature(k, v),
-              );
-
-              return (
-                <motion.div
-                  key={plan.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: index * 0.08 }}
-                  className={`relative rounded-3xl border p-8 backdrop-blur-sm flex flex-col ${
-                    featured
-                      ? "border-emerald-500/40 bg-gradient-to-b from-emerald-500/[0.06] to-transparent shadow-xl shadow-emerald-500/10"
-                      : "border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02]"
-                  }`}
-                >
-                  {featured && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
-                      Популярный
-                    </div>
-                  )}
-
-                  <div
-                    className={`inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br ${visual.iconBg} border border-white/10 mb-6`}
+      {/* PLAN GRID */}
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-14">
+          {!plans && !error && (
+            <div className="text-center text-muted-foreground py-20">Загрузка тарифов…</div>
+          )}
+          {error && (
+            <div className="mx-auto max-w-md border border-destructive/40 bg-destructive/5 p-6 text-center text-destructive">
+              {error}
+            </div>
+          )}
+          {plans && (
+            <div className="grid lg:grid-cols-3 gap-px bg-border border border-border">
+              {plans.map((plan, i) => {
+                const featured = plan.slug === "business";
+                const price = billing === "monthly" ? plan.monthly_price : plan.yearly_price;
+                const features = Object.entries(plan.features ?? {}).map(([k, v]) => describeFeature(k, v));
+                return (
+                  <article
+                    key={plan.id}
+                    className={cn(
+                      "p-8 lg:p-10 relative flex flex-col",
+                      featured ? "bg-navy text-navy-foreground" : "bg-card text-card-foreground",
+                    )}
                   >
-                    <Icon icon={visual.icon} className="text-3xl text-slate-900 dark:text-white" />
-                  </div>
-
-                  <div className="mb-6">
-                    <div className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                      {visual.tagline || plan.description}
+                    {featured && (
+                      <div className="absolute top-6 right-6 font-mono text-[10px] tracking-[0.16em] uppercase text-primary border border-primary px-2 py-0.5">
+                        Популярный
+                      </div>
+                    )}
+                    <div
+                      className={cn(
+                        "font-mono text-[11px] tracking-[0.12em] uppercase",
+                        featured ? "text-primary" : "text-primary",
+                      )}
+                    >
+                      0{i + 1} / {plan.name.toUpperCase()}
                     </div>
-                    <h2 className="text-3xl font-display font-bold text-slate-900 dark:text-white">
+                    <h2
+                      className={cn(
+                        "mt-6 text-[32px] font-medium tracking-[-0.02em]",
+                        featured ? "text-white" : "text-foreground",
+                      )}
+                    >
                       {plan.name}
                     </h2>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+                    <p
+                      className={cn(
+                        "mt-2 text-[13px] leading-[1.5]",
+                        featured ? "text-white/65" : "text-muted-foreground",
+                      )}
+                    >
                       {plan.description}
                     </p>
-                  </div>
 
-                  <div className="mb-8">
-                    <div className="text-4xl font-bold text-slate-900 dark:text-white">
-                      {formatPrice(price, plan.currency)}
+                    <div className="mt-7">
+                      <div className="flex items-baseline gap-2">
+                        <BigNum size="xxl" className={featured ? "text-white" : "text-foreground"}>
+                          {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Number(price))}
+                        </BigNum>
+                        <span
+                          className={cn(
+                            "font-mono text-[12px]",
+                            featured ? "text-white/55" : "text-muted-foreground",
+                          )}
+                        >
+                          {plan.currency}
+                        </span>
+                      </div>
+                      <Mono
+                        size="sm"
+                        className={cn("mt-1 block", featured ? "text-white/55" : "text-muted-foreground")}
+                      >
+                        {billing === "monthly" ? "/ месяц" : "/ год"}
+                        {plan.margin_min ? ` · комиссия от ${plan.margin_min}%` : ""}
+                      </Mono>
                     </div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                      {billing === "monthly" ? "за месяц" : "за год"}
-                      {plan.margin_min ? ` · комиссия от ${plan.margin_min}%` : ""}
-                    </div>
-                  </div>
 
-                  <ul className="space-y-3 mb-8 flex-1">
-                    {featureItems.length === 0 && (
-                      <li className="text-sm text-slate-500 dark:text-slate-400">
-                        Свяжитесь с нами для деталей
-                      </li>
+                    {plan.slug === "enterprise" ? (
+                      <a
+                        href="mailto:sales@orgon.asystem.kg?subject=ORGON%20Enterprise%20enquiry"
+                        className="mt-8"
+                      >
+                        <Button variant="primary" fullWidth size="md">
+                          Связаться с продажами
+                          <Icon icon="solar:arrow-right-linear" className="text-[14px]" />
+                        </Button>
+                      </a>
+                    ) : (
+                      <Link href="/register" className="mt-8">
+                        <Button
+                          variant={featured ? "primary" : "secondary"}
+                          fullWidth
+                          size="md"
+                          className={featured ? "" : ""}
+                        >
+                          Выбрать план
+                          <Icon icon="solar:arrow-right-linear" className="text-[14px]" />
+                        </Button>
+                      </Link>
                     )}
-                    {featureItems.map((label) => (
-                      <li key={label} className="flex items-start gap-3">
-                        <Icon
-                          icon="solar:check-circle-bold"
-                          className="text-emerald-500 mt-0.5 flex-shrink-0 text-lg"
-                        />
-                        <span className="text-sm text-slate-700 dark:text-slate-300">{label}</span>
-                      </li>
-                    ))}
-                  </ul>
 
-                  <Link href="/register">
-                    <Button variant={featured ? "primary" : "secondary"} fullWidth>
-                      {plan.slug === "enterprise" ? "Связаться с продажами" : "Начать работу"}
-                    </Button>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+                    <ul
+                      className={cn(
+                        "mt-8 pt-7 border-t space-y-3",
+                        featured ? "border-white/15" : "border-border",
+                      )}
+                    >
+                      {features.length === 0 && (
+                        <li
+                          className={cn(
+                            "text-[13px]",
+                            featured ? "text-white/55" : "text-muted-foreground",
+                          )}
+                        >
+                          Свяжитесь с нами для подробностей
+                        </li>
+                      )}
+                      {features.map((f) => (
+                        <li key={f} className="flex items-start gap-2.5">
+                          <Icon
+                            icon="solar:check-circle-bold"
+                            className={cn(
+                              "text-[16px] shrink-0 mt-0.5",
+                              featured ? "text-primary" : "text-success",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "text-[13px] leading-[1.5]",
+                              featured ? "text-white/85" : "text-foreground",
+                            )}
+                          >
+                            {f}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
 
-        {/* CTA bottom */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="mt-20 text-center"
-        >
-          <h3 className="text-2xl font-display font-semibold text-slate-900 dark:text-white mb-3">
-            Не уверены какой тариф подойдёт?
-          </h3>
-          <p className="text-slate-600 dark:text-slate-400 mb-6 max-w-xl mx-auto">
-            Расскажите про объёмы и специфику — подберём план или соберём индивидуальный пакет.
+      {/* CTA */}
+      <section className="border-b border-border bg-muted/40">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-20 text-center">
+          <Eyebrow dash tone="primary" className="!justify-center">Не уверены</Eyebrow>
+          <h2 className="mt-5 text-[28px] sm:text-[36px] font-medium tracking-[-0.025em] leading-[1.1] text-foreground">
+            Подберём план под ваши объёмы
+          </h2>
+          <p className="mt-4 max-w-xl mx-auto text-[15px] text-muted-foreground leading-[1.6]">
+            Расскажите про ваш кейс — биржа, обменник, банк или fintech — и
+            покажем, как ORGON встраивается в вашу инфраструктуру.
           </p>
-          <Link href="mailto:sales@orgon.asystem.kg">
+          <a
+            href="mailto:sales@orgon.asystem.kg?subject=ORGON%20pricing%20enquiry"
+            className="inline-block mt-8"
+          >
             <Button variant="primary" size="lg">
-              <Icon icon="solar:letter-bold" className="text-xl mr-2" />
+              <Icon icon="solar:letter-bold" className="text-[16px]" />
               Написать в продажи
             </Button>
-          </Link>
-        </motion.div>
-      </div>
-    </div>
+          </a>
+        </div>
+      </section>
+    </>
   );
 }

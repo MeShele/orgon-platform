@@ -1,21 +1,47 @@
 "use client";
-import { OnboardingTip } from "@/components/common/OnboardingTip";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "@/hooks/useTranslations";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
-import { WalletTable } from "@/components/wallets/WalletTable";
-import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { Tooltip, HelpText } from "@/components/ui/Tooltip";
+import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/lib/icons";
 import { api, API_BASE } from "@/lib/api";
-import { pageLayout, buttonStyles } from "@/lib/page-layout";
+
+interface Wallet {
+  id?: number;
+  name?: string;
+  label?: string | null;
+  network?: number;
+  my_unid?: string;
+  is_favorite?: boolean;
+  addr?: string;
+  organization_id?: string | null;
+  wallet_type?: number;
+  token_short_names?: string;
+  created_at?: string;
+}
+
+const NETWORK_LABEL: Record<number, string> = {
+  5000: "BSC",
+  5010: "TRX",
+  5020: "ETH",
+  5030: "POL",
+  5040: "BTC",
+};
+
+function networkLabel(n?: number): string {
+  if (!n) return "—";
+  return NETWORK_LABEL[n] ?? `NET-${n}`;
+}
 
 export default function WalletsPage() {
-  const t = useTranslations('wallets');
+  const t = useTranslations("wallets");
   const router = useRouter();
-  const [wallets, setWallets] = useState<Record<string, unknown>[]>([]);
+  const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -23,87 +49,147 @@ export default function WalletsPage() {
   useEffect(() => {
     api
       .getWallets()
-      .then(setWallets)
-      .catch((err) => setError(err.message))
+      .then((data) => setWallets(Array.isArray(data) ? data : []))
+      .catch((err) => setError(err.message ?? "Не удалось загрузить кошельки"))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleExport = async () => {
+  function handleExport() {
     setExporting(true);
     try {
-      const url = `${API_BASE}/export/wallets/csv`;
-      window.open(url, "_blank");
-    } catch (err) {
-      console.error("Export failed:", err);
+      window.open(`${API_BASE}/export/wallets/csv`, "_blank");
     } finally {
-      setExporting(false);
+      setTimeout(() => setExporting(false), 600);
     }
-  };
+  }
+
+  const totalCount = wallets.length;
+  const favCount = wallets.filter((w) => w.is_favorite).length;
 
   return (
     <>
-      <Header title={t('title')} />
-      <div className={pageLayout.container}>
-        {/* Action Bar */}
-        <div className={pageLayout.actionBar}>
-          <p className={pageLayout.header.subtitle}>
-            {t('count', { count: wallets.length })}
-          </p>
+      <Header title={t("title")} />
+
+      <div className="px-4 sm:px-6 lg:px-10 py-8 space-y-6">
+        {/* Top bar */}
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <Eyebrow dash>Кошельки</Eyebrow>
+            <h2 className="mt-2 text-[24px] sm:text-[28px] font-medium tracking-[-0.02em] text-foreground">
+              {totalCount > 0 ? `${totalCount} ${pluralize(totalCount, ["кошелёк", "кошелька", "кошельков"])}` : "Нет кошельков"}
+              {favCount > 0 && (
+                <span className="ml-3 text-[14px] text-muted-foreground font-normal">
+                  · {favCount} в избранном
+                </span>
+              )}
+            </h2>
+          </div>
           <div className="flex gap-2">
-          <button
-            onClick={() => router.push('/wallets/new')}
-            className={buttonStyles.primary || "px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"}
-          >
-            <Icon icon="solar:add-circle-linear" />
-            Создать кошелёк
-          </button>
-          <Tooltip
-            content={
-              <HelpText
-                title="Экспорт кошельков"
-                description="Сохраните список ваших кошельков в формате CSV для учета или анализа в Excel/Google Sheets."
-                example="Экспорт → Открыть в Excel → Анализ балансов"
-                tips={[
-                  "Файл содержит: имя кошелька, адрес, баланс, дату создания",
-                  "Используйте для бухгалтерского учета или отчетности",
-                  "CSV можно открыть в любой программе для работы с таблицами"
-                ]}
-              />
-            }
-            position="bottom"
-            maxWidth="320px"
-          >
-            <button
-              onClick={handleExport}
-              disabled={exporting || loading || wallets.length === 0}
-              className={buttonStyles.secondary}
-            >
-              <Icon 
-                icon={exporting ? "solar:loader-linear" : "solar:download-linear"} 
-                className={exporting ? "animate-spin" : ""} 
-              />
-              {exporting ? t('exporting') : t('exportButton')}
-            </button>
-          </Tooltip>
+            <Button variant="secondary" size="md" onClick={handleExport} disabled={exporting || loading || totalCount === 0} loading={exporting}>
+              <Icon icon="solar:download-linear" className="text-[15px]" />
+              {t("exportButton")}
+            </Button>
+            <Button variant="primary" size="md" onClick={() => router.push("/wallets/new")}>
+              <Icon icon="solar:add-circle-linear" className="text-[15px]" />
+              Создать кошелёк
+            </Button>
           </div>
         </div>
 
-        {/* Error Message */}
         {error && (
-          <div className={pageLayout.error}>
+          <div className="border border-destructive/40 bg-destructive/5 p-4 text-[13px] text-destructive">
             {error}
           </div>
         )}
 
-        {/* Content */}
-        {loading ? (
-          <div className={pageLayout.loading}>
-            <LoadingSpinner />
-          </div>
-        ) : (
-          <WalletTable wallets={wallets as Parameters<typeof WalletTable>[0]["wallets"]} />
-        )}
+        {/* Wallet table */}
+        <div className="border border-border bg-card overflow-x-auto">
+          <table className="w-full text-[13px] border-collapse">
+            <thead>
+              <tr className="border-b border-border text-left">
+                <Th className="px-5">Название</Th>
+                <Th>Сеть</Th>
+                <Th>Тип</Th>
+                <Th>Адрес</Th>
+                <Th>Токены</Th>
+                <Th className="text-right pr-5">UNID</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-12 text-center text-muted-foreground">
+                    Загрузка…
+                  </td>
+                </tr>
+              ) : wallets.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-5 py-16 text-center">
+                    <Icon icon="solar:wallet-linear" className="text-[48px] text-faint" />
+                    <p className="mt-3 text-[14px] text-muted-foreground">Кошельков пока нет</p>
+                    <Link href="/wallets/new" className="inline-block mt-4">
+                      <Button variant="primary" size="sm">Создать первый</Button>
+                    </Link>
+                  </td>
+                </tr>
+              ) : (
+                wallets.map((w) => {
+                  const displayName = w.label?.trim() || w.name || "—";
+                  return (
+                    <tr key={w.id ?? w.my_unid} className="border-b border-border last:border-b-0 hover:bg-muted/40">
+                      <td className="px-5 py-3.5">
+                        <Link
+                          href={`/wallets/${encodeURIComponent(w.name ?? "")}`}
+                          className="flex items-center gap-2 text-foreground hover:text-primary"
+                        >
+                          {w.is_favorite && (
+                            <Icon icon="solar:star-bold" className="text-warning text-[14px] shrink-0" />
+                          )}
+                          <span className="font-medium truncate max-w-xs">{displayName}</span>
+                        </Link>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <Badge variant="outline">{networkLabel(w.network)}</Badge>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <Mono size="xs" className="text-muted-foreground">
+                          {w.wallet_type === 1 ? "MULTI-SIG" : "STANDARD"}
+                        </Mono>
+                      </td>
+                      <td className="px-3 py-3.5">
+                        <Mono truncate>{w.addr ?? "—"}</Mono>
+                      </td>
+                      <td className="px-3 py-3.5 text-muted-foreground">
+                        <Mono size="xs" truncate startChars={20} endChars={0}>{w.token_short_names ?? "—"}</Mono>
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <Mono truncate>{w.my_unid ?? "—"}</Mono>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
+}
+
+function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th className={`px-3 py-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint font-normal ${className}`}>
+      {children}
+    </th>
+  );
+}
+
+function pluralize(n: number, forms: [string, string, string]): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 19) return forms[2];
+  if (mod10 === 1) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4) return forms[1];
+  return forms[2];
 }

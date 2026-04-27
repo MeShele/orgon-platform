@@ -6,145 +6,185 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useTranslations } from '@/hooks/useTranslations';
+import { useTranslations } from "@/hooks/useTranslations";
 import { Icon } from "@/lib/icons";
-import {
-  SidebarBody,
-  SidebarLink,
-  useSidebar,
-} from "@/components/aceternity/sidebar";
-import { ProfileCard } from "./ProfileCard";
+import { useSidebar } from "@/components/aceternity/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
+import { ProfileCard } from "./ProfileCard";
 
-const navItems = [
-  // Основное
-  { href: "/dashboard", label: "dashboard", icon: "solar:widget-linear", activeIcon: "solar:widget-bold", roles: ["all"] },
-  { href: "/wallets", label: "wallets", icon: "solar:wallet-linear", activeIcon: "solar:wallet-bold", roles: ["all"] },
-  { href: "/transactions", label: "transactions", icon: "solar:transfer-horizontal-linear", activeIcon: "solar:transfer-horizontal-bold", roles: ["all"] },
-  { href: "/signatures", label: "signatures", icon: "solar:pen-linear", activeIcon: "solar:pen-bold", roles: ["admin", "signer"] },
-  { href: "/scheduled", label: "scheduled", icon: "solar:calendar-linear", activeIcon: "solar:calendar-bold", roles: ["admin", "signer"] },
-  { href: "/contacts", label: "contacts", icon: "solar:user-linear", activeIcon: "solar:user-bold", roles: ["admin", "signer"] },
-  { href: "/fiat", label: "fiat", icon: "solar:banknote-linear", activeIcon: "solar:banknote-bold", roles: ["admin", "signer"] },
-  { href: "/analytics", label: "analytics", icon: "solar:chart-linear", activeIcon: "solar:chart-bold", roles: ["all"] },
-  // Управление (admin)
-  { href: "/organizations", label: "organizations", icon: "solar:buildings-linear", activeIcon: "solar:buildings-bold", roles: ["admin"] },
-  { href: "/partner", label: "partner", icon: "solar:hand-shake-linear", activeIcon: "solar:hand-shake-bold", roles: ["admin"] },
-  { href: "/users", label: "users", icon: "solar:users-group-rounded-linear", activeIcon: "solar:users-group-rounded-bold", roles: ["admin"] },
-  { href: "/networks", label: "networks", icon: "solar:global-linear", activeIcon: "solar:global-bold", roles: ["admin"] },
-  { href: "/compliance", label: "compliance", icon: "solar:shield-check-linear", activeIcon: "solar:shield-check-bold", roles: ["admin"] },
-  { href: "/audit", label: "audit", icon: "solar:history-linear", activeIcon: "solar:history-bold", roles: ["admin", "viewer"] },
-  { href: "/reports", label: "reports", icon: "solar:document-text-linear", activeIcon: "solar:document-text-bold", roles: ["admin", "viewer"] },
-  { href: "/billing", label: "billing", icon: "solar:card-linear", activeIcon: "solar:card-bold", roles: ["admin"] },
-  // Прочее
-  { href: "/documents", label: "documents", icon: "solar:document-linear", activeIcon: "solar:document-bold", roles: ["all"] },
-  { href: "/support", label: "support", icon: "solar:chat-round-linear", activeIcon: "solar:chat-round-bold", roles: ["all"] },
-  { href: "/settings", label: "settings", icon: "solar:settings-linear", activeIcon: "solar:settings-bold", roles: ["all"] },
-  { href: "/help", label: "help", icon: "solar:question-circle-linear", activeIcon: "solar:question-circle-bold", roles: ["all"] },
+type Role = "all" | "admin" | "signer" | "viewer";
+
+interface NavItem {
+  href: string;
+  /** i18n key under `navigation.*` namespace */
+  label: string;
+  icon: string;
+  activeIcon: string;
+  roles: Role[];
+}
+
+interface NavGroup {
+  /** i18n key under `navigation.groups.*`; falls back to literal */
+  label: string;
+  items: NavItem[];
+}
+
+const NAV: NavGroup[] = [
+  {
+    label: "workspace",
+    items: [
+      { href: "/dashboard",    label: "dashboard",    icon: "solar:widget-linear",                  activeIcon: "solar:widget-bold",                  roles: ["all"] },
+      { href: "/wallets",      label: "wallets",      icon: "solar:wallet-linear",                  activeIcon: "solar:wallet-bold",                  roles: ["all"] },
+      { href: "/transactions", label: "transactions", icon: "solar:transfer-horizontal-linear",     activeIcon: "solar:transfer-horizontal-bold",     roles: ["all"] },
+      { href: "/signatures",   label: "signatures",   icon: "solar:pen-linear",                     activeIcon: "solar:pen-bold",                     roles: ["admin", "signer"] },
+      { href: "/scheduled",    label: "scheduled",    icon: "solar:calendar-linear",                activeIcon: "solar:calendar-bold",                roles: ["admin", "signer"] },
+      { href: "/contacts",     label: "contacts",     icon: "solar:user-linear",                    activeIcon: "solar:user-bold",                    roles: ["admin", "signer"] },
+      { href: "/fiat",         label: "fiat",         icon: "solar:banknote-linear",                activeIcon: "solar:banknote-bold",                roles: ["admin", "signer"] },
+    ],
+  },
+  {
+    label: "organization",
+    items: [
+      { href: "/organizations", label: "organizations", icon: "solar:buildings-linear",     activeIcon: "solar:buildings-bold",     roles: ["all"] },
+      { href: "/partner",       label: "partner",       icon: "solar:hand-shake-linear",    activeIcon: "solar:hand-shake-bold",    roles: ["admin"] },
+      { href: "/billing",       label: "billing",       icon: "solar:card-linear",          activeIcon: "solar:card-bold",          roles: ["admin"] },
+      { href: "/compliance",    label: "compliance",    icon: "solar:shield-check-linear",  activeIcon: "solar:shield-check-bold",  roles: ["admin"] },
+    ],
+  },
+  {
+    label: "insights",
+    items: [
+      { href: "/analytics", label: "analytics", icon: "solar:chart-linear",         activeIcon: "solar:chart-bold",         roles: ["all"] },
+      { href: "/audit",     label: "audit",     icon: "solar:history-linear",       activeIcon: "solar:history-bold",       roles: ["admin", "viewer"] },
+      { href: "/reports",   label: "reports",   icon: "solar:document-text-linear", activeIcon: "solar:document-text-bold", roles: ["admin", "viewer"] },
+    ],
+  },
+  {
+    label: "platform",
+    items: [
+      { href: "/users",                   label: "users",     icon: "solar:users-group-rounded-linear", activeIcon: "solar:users-group-rounded-bold", roles: ["admin"] },
+      { href: "/networks",                label: "networks",  icon: "solar:global-linear",              activeIcon: "solar:global-bold",              roles: ["admin"] },
+      { href: "/settings/keys",           label: "apiKeys",   icon: "solar:key-linear",                 activeIcon: "solar:key-bold",                 roles: ["admin"] },
+      { href: "/settings/webhooks",       label: "webhooks",  icon: "solar:bolt-linear",                activeIcon: "solar:bolt-bold",                roles: ["admin"] },
+      { href: "/settings/system",         label: "system",    icon: "solar:server-linear",              activeIcon: "solar:server-bold",              roles: ["admin"] },
+      { href: "/documents",               label: "documents", icon: "solar:document-linear",            activeIcon: "solar:document-bold",            roles: ["all"] },
+    ],
+  },
+  {
+    label: "account",
+    items: [
+      { href: "/profile",  label: "profile",  icon: "solar:user-id-linear",          activeIcon: "solar:user-id-bold",          roles: ["all"] },
+      { href: "/settings", label: "settings", icon: "solar:settings-linear",         activeIcon: "solar:settings-bold",         roles: ["all"] },
+      { href: "/support",  label: "support",  icon: "solar:chat-round-linear",       activeIcon: "solar:chat-round-bold",       roles: ["all"] },
+      { href: "/help",     label: "help",     icon: "solar:question-circle-linear",  activeIcon: "solar:question-circle-bold",  roles: ["all"] },
+    ],
+  },
 ];
 
+const COLLAPSED_W = 64;
+const EXPANDED_W = 240;
+
 export function AceternitySidebar() {
-  const t = useTranslations('navigation');
+  const t = useTranslations("navigation");
   const pathname = usePathname();
-  const { open, hovered } = useSidebar();
+  const { open, hovered, setHovered } = useSidebar();
   const { user } = useAuth();
-  
+
   const isExpanded = hovered || open;
-  const userRole = user?.role || "viewer";
+  const userRole = (user?.role || "viewer") as Role;
 
-  const filteredItems = navItems.filter(item =>
-    item.roles.includes("all") || item.roles.includes(userRole)
-  );
-
-  const links = filteredItems.map((item) => ({
-    label: t(item.label),
-    href: item.href,
-    icon: <Icon icon={item.icon} className="text-lg" />,
-    activeIcon: <Icon icon={item.activeIcon} className="text-lg" />,
-  }));
+  const groups = NAV.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => i.roles.includes("all") || i.roles.includes(userRole)),
+  })).filter((g) => g.items.length > 0);
 
   return (
-    <SidebarBody className="justify-between gap-10">
-        <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-          <Logo />
-          <div className="mt-8 flex flex-col gap-2">
-            {links.map((link, idx) => {
-              const isActive =
-                pathname === link.href ||
-                (link.href !== "/" && pathname.startsWith(link.href));
-              
-              return (
-                <SidebarLink
-                  key={idx}
-                  link={link}
-                  isActive={isActive}
-                />
-              );
-            })}
+    <motion.aside
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      animate={{ width: isExpanded ? EXPANDED_W : COLLAPSED_W }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+      className="hidden md:flex shrink-0 flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border"
+    >
+      <SidebarLogo isExpanded={isExpanded} />
+
+      <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2">
+        {groups.map((group, gi) => (
+          <div key={gi} className="px-3 pt-3 pb-1">
+            {isExpanded && (
+              <div className="px-2 pb-2 font-mono text-[10px] tracking-[0.16em] uppercase text-faint">
+                {t(`groups.${group.label}`)}
+              </div>
+            )}
+            <ul className="flex flex-col gap-px">
+              {group.items.map((item) => {
+                const isActive =
+                  pathname === item.href ||
+                  (item.href !== "/" && pathname.startsWith(item.href + "/")) ||
+                  (item.href !== "/" && pathname === item.href);
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      title={!isExpanded ? t(item.label) : undefined}
+                      className={cn(
+                        "group flex items-center gap-3 h-9 px-2",
+                        "border-l-2 transition-colors",
+                        isActive
+                          ? "border-primary bg-sidebar-accent text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                      )}
+                    >
+                      <Icon
+                        icon={isActive ? item.activeIcon : item.icon}
+                        className={cn("text-[18px] shrink-0", isActive && "text-primary")}
+                      />
+                      {isExpanded && (
+                        <span className="text-[13px] font-medium tracking-tight whitespace-nowrap overflow-hidden">
+                          {t(item.label)}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-        </div>
-        <div>
-          <ProfileCard collapsed={!isExpanded} />
-        </div>
-      </SidebarBody>
+        ))}
+      </nav>
+
+      <div className="border-t border-sidebar-border">
+        <ProfileCard collapsed={!isExpanded} />
+      </div>
+    </motion.aside>
   );
 }
 
-export const Logo = () => {
-  const { hovered, open } = useSidebar();
-  const isExpanded = hovered || open;
-  
+function SidebarLogo({ isExpanded }: { isExpanded: boolean }) {
   return (
     <Link
       href="/dashboard"
-      className="font-normal flex space-x-2 items-center text-sm text-black dark:text-white py-1 relative z-20"
+      className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border text-foreground"
     >
       <Image
         src="/orgon-icon.png"
         alt="ORGON"
-        width={40}
-        height={40}
-        className="rounded-full shrink-0"
+        width={32}
+        height={32}
+        className="shrink-0"
         priority
       />
       <motion.div
-        initial={{ opacity: 0, width: 0 }}
-        animate={{
-          opacity: isExpanded ? 1 : 0,
-          width: isExpanded ? "auto" : 0,
-        }}
-        transition={{
-          duration: 0.2,
-          ease: "easeInOut",
-        }}
-        className="flex flex-col gap-0.5 overflow-hidden"
+        initial={false}
+        animate={{ opacity: isExpanded ? 1 : 0, width: isExpanded ? "auto" : 0 }}
+        transition={{ duration: 0.18, ease: "easeOut" }}
+        className="overflow-hidden whitespace-nowrap"
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/orgon-logo.svg"
-          alt="ASYSTEM"
-          className="h-3 invert dark:invert-0 whitespace-nowrap"
-        />
-        <span className="text-[10px] font-semibold tracking-[0.2em] text-slate-500 dark:text-slate-400 whitespace-nowrap">
-          ORGON
-        </span>
+        <div className="font-mono text-[10px] tracking-[0.18em] text-faint leading-tight">ASYSTEM</div>
+        <div className="font-medium text-[14px] tracking-[0.06em] leading-tight">ORGON</div>
       </motion.div>
     </Link>
   );
-};
+}
 
-export const LogoIcon = () => {
-  return (
-    <Link
-      href="/dashboard"
-      className="font-normal flex space-x-2 items-center text-sm text-black py-1 relative z-20"
-    >
-      <Image
-        src="/orgon-icon.png"
-        alt="ORGON"
-        width={36}
-        height={36}
-        className="rounded-full shrink-0"
-      />
-    </Link>
-  );
-};
+export { SidebarLogo };

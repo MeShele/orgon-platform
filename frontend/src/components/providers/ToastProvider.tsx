@@ -1,5 +1,10 @@
 "use client";
 
+/**
+ * ToastProvider — react-hot-toast wired to Crimson Ledger CSS tokens.
+ * Uses CSS variables so light/dark switch automatically without a re-mount.
+ */
+
 import { Toaster } from "react-hot-toast";
 
 export function ToastProvider() {
@@ -9,41 +14,31 @@ export function ToastProvider() {
       toastOptions={{
         duration: 4000,
         style: {
-          background: "#fff",
-          color: "#0f172a",
-          border: "1px solid #e2e8f0",
+          background: "var(--card)",
+          color: "var(--card-foreground)",
+          border: "1px solid var(--border)",
           padding: "12px 16px",
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+          borderRadius: "0",
+          boxShadow: "var(--shadow-md)",
+          fontSize: "13px",
+          fontFamily: "var(--font-sans)",
         },
         success: {
           iconTheme: {
-            primary: "#10b981",
-            secondary: "#fff",
-          },
-          style: {
-            background: "#f0fdf4",
-            borderColor: "#86efac",
+            primary: "var(--success)",
+            secondary: "var(--success-foreground)",
           },
         },
         error: {
           iconTheme: {
-            primary: "#ef4444",
-            secondary: "#fff",
-          },
-          style: {
-            background: "#fef2f2",
-            borderColor: "#fca5a5",
+            primary: "var(--destructive)",
+            secondary: "var(--destructive-foreground)",
           },
         },
         loading: {
           iconTheme: {
-            primary: "#3b82f6",
-            secondary: "#fff",
-          },
-          style: {
-            background: "#eff6ff",
-            borderColor: "#93c5fd",
+            primary: "var(--primary)",
+            secondary: "var(--primary-foreground)",
           },
         },
       }}

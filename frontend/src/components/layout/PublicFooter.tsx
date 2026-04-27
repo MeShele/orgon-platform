@@ -1,140 +1,88 @@
-"use client";
+import Link from "next/link";
+import Image from "next/image";
 
-import Link from 'next/link';
-import { SafeIcon as Icon } from '@/components/SafeIcon';
+const PRODUCT = [
+  { href: "/features", label: "Возможности" },
+  { href: "/pricing", label: "Тарифы" },
+  { href: "https://orgon-preview-api.asystem.kg/api/redoc", label: "Документация", external: true },
+  { href: "/dashboard", label: "Панель управления" },
+];
+
+const COMPANY = [
+  { href: "/about", label: "О компании" },
+  { href: "https://asystem.ai", label: "ASYSTEM", external: true },
+  { href: "mailto:sales@orgon.asystem.kg", label: "sales@orgon.asystem.kg" },
+];
+
+const LEGAL = [
+  { href: "/privacy", label: "Конфиденциальность" },
+  { href: "/terms", label: "Условия" },
+];
 
 export function PublicFooter() {
-  const currentYear = new Date().getFullYear();
-
+  const year = new Date().getFullYear();
   return (
-    <footer className="border-t border-white/5 bg-slate-950">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* Brand */}
-          <div className="col-span-1 md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <img
-                src="/orgon-icon.png"
-                alt="ORGON"
-                className="h-10 w-10 rounded-full"
-              />
-              <div className="flex flex-col gap-0.5">
-                <img
-                  src="/orgon-logo.svg"
-                  alt="ASYSTEM"
-                  className="h-3 invert-0"
-                />
-                <span className="text-[10px] font-semibold tracking-[0.2em] text-slate-400">
-                  ORGON
-                </span>
+    <footer className="border-t border-border bg-muted/40">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="col-span-2">
+            <Link href="/" className="inline-flex items-center gap-3 text-foreground">
+              <Image src="/orgon-icon.png" alt="ORGON" width={32} height={32} />
+              <div className="flex flex-col leading-tight">
+                <span className="font-mono text-[10px] tracking-[0.18em] text-faint">ASYSTEM</span>
+                <span className="font-medium text-[15px] tracking-[0.06em]">ORGON</span>
               </div>
-            </div>
-            <p className="text-sm text-slate-400 max-w-md">
-              Защитите ваши криптоактивы с корпоративным уровнем безопасности. 
-              Мультиподписные кошельки для команд и организаций.
+            </Link>
+            <p className="mt-5 text-[13px] text-muted-foreground max-w-md leading-relaxed">
+              Институциональное мульти-подписное хранение криптоактивов. Для бирж,
+              брокеров, банков и финтех-компаний.
             </p>
           </div>
 
-          {/* Product */}
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-4">
-              Продукт
-            </h3>
-            <ul className="space-y-3">
-              <li>
-                <Link
-                  href="/features"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  Возможности
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/pricing"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  Тарифы
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/dashboard"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  Панель управления
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/register"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  Начать работу
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Company */}
-          <div>
-            <h3 className="text-sm font-semibold text-white mb-4">
-              Компания
-            </h3>
-            <ul className="space-y-3">
-              <li>
-                <Link
-                  href="/about"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  О нас
-                </Link>
-              </li>
-              <li>
-                <a
-                  href="https://asystem.ai"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  ASYSTEM
-                </a>
-              </li>
-              <li>
-                <Link
-                  href="/login"
-                  className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-                >
-                  Войти
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <FooterCol title="Продукт" items={PRODUCT} />
+          <FooterCol title="Компания" items={COMPANY} />
         </div>
 
-        {/* Bottom Bar */}
-        <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-slate-400">
-              © {currentYear} ASYSTEM. Все права защищены.
-            </p>
-            <div className="flex items-center gap-6">
-              <Link
-                href="/privacy"
-                className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-              >
-                Конфиденциальность
-              </Link>
-              <Link
-                href="/terms"
-                className="text-sm text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
-              >
-                Условия
-              </Link>
-            </div>
+        <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="font-mono text-[11px] tracking-[0.08em] text-faint">
+            © {year} ASYSTEM · ORGON. Все права защищены.
           </div>
+          <ul className="flex gap-5">
+            {LEGAL.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="font-mono text-[11px] tracking-[0.08em] text-muted-foreground hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterCol({ title, items }: { title: string; items: { href: string; label: string; external?: boolean }[] }) {
+  return (
+    <div>
+      <div className="font-mono text-[10px] tracking-[0.16em] uppercase text-faint mb-4">{title}</div>
+      <ul className="space-y-2.5">
+        {items.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              target={item.external ? "_blank" : undefined}
+              rel={item.external ? "noopener noreferrer" : undefined}
+              className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

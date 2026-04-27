@@ -1,219 +1,175 @@
-"use client";
+import Link from "next/link";
+import { Button } from "@/components/ui/Button";
+import { Eyebrow } from "@/components/ui/primitives";
+import { Icon } from "@/lib/icons";
 
-import { SafeIcon as Icon } from '@/components/SafeIcon';
-import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { motion } from 'framer-motion';
+interface Feature {
+  tag: string;
+  icon: string;
+  title: string;
+  description: string;
+  details: string[];
+}
 
-const features = [
+const FEATURES: Feature[] = [
   {
-    icon: 'solar:shield-network-bold',
-    title: 'Мультиподписная безопасность',
-    description: 'Требуйте несколько подтверждений для каждой транзакции. Настраиваемые пороги (2-из-3, 3-из-5, etc). Исключите единую точку отказа.',
+    tag: "01 / Кастоди",
+    icon: "solar:shield-network-bold",
+    title: "Мульти-подписная безопасность",
+    description:
+      "Требуйте несколько подтверждений на каждую исходящую транзакцию. Настраиваемые пороги M-of-N исключают единую точку отказа.",
     details: [
-      'Настраиваемые пороги подписей',
-      'Поддержка до 20 подписантов',
-      'Иерархические права доступа',
-      'Аппаратные кошельки (Ledger, Trezor)',
+      "Пороги до 7-of-15",
+      "Поддержка аппаратных кошельков (Ledger, Trezor)",
+      "Иерархические права и роли",
+      "Географически распределённые подписанты",
     ],
-    gradient: 'from-blue-500 to-cyan-500',
-    iconBg: 'from-blue-500/10 to-cyan-500/10',
   },
   {
-    icon: 'solar:calendar-mark-bold',
-    title: 'Планирование транзакций',
-    description: 'Запланируйте регулярные платежи и автоматические переводы. Настройте повторяющиеся операции с уверенностью.',
+    tag: "02 / Расписание",
+    icon: "solar:calendar-mark-bold",
+    title: "Планирование транзакций",
+    description:
+      "Регулярные платежи и автоматические переводы. Cron-выражения с пред-проверкой подписей до момента исполнения.",
     details: [
-      'Cron-выражения для гибкого планирования',
-      'Повторяющиеся платежи (ежедневно, еженедельно, ежемесячно)',
-      'Отложенное исполнение транзакций',
-      'Автоматическая отмена просроченных задач',
+      "Cron-выражения для гибкости",
+      "Повторяющиеся платежи",
+      "Отложенное исполнение",
+      "Автоматическая отмена просроченного",
     ],
-    gradient: 'from-teal-500 to-cyan-500',
-    iconBg: 'from-teal-500/10 to-cyan-500/10',
   },
   {
-    icon: 'solar:chart-2-bold',
-    title: 'Аналитика в реальном времени',
-    description: 'Отслеживайте производительность кошельков, мониторьте историю транзакций и генерируйте пользовательские отчеты.',
+    tag: "03 / Аналитика",
+    icon: "solar:chart-2-bold",
+    title: "Аналитика и метрики",
+    description:
+      "Отслеживайте балансы, объёмы транзакций и активность подписантов. Экспорт под регулятора и собственная BI.",
     details: [
-      'Графики баланса и объема транзакций',
-      'Статистика по подписям',
-      'Распределение токенов',
-      'Экспорт данных в CSV/JSON',
+      "Графики баланса и объёма",
+      "Статистика по подписям",
+      "Распределение токенов и сетей",
+      "Экспорт CSV и JSON",
     ],
-    gradient: 'from-emerald-500 to-teal-500',
-    iconBg: 'from-emerald-500/10 to-teal-500/10',
   },
   {
-    icon: 'solar:book-2-bold',
-    title: 'Адресная книга',
-    description: 'Сохраняйте проверенные контакты, организуйте частых получателей и уменьшайте ошибки с верифицированными адресами.',
+    tag: "04 / Адресная книга",
+    icon: "solar:book-2-bold",
+    title: "Контакты и адреса",
+    description:
+      "Сохраняйте проверенные адреса контрагентов, помечайте избранное, ведите категории — меньше человеческих ошибок при отправках.",
     details: [
-      'Быстрый доступ к частым получателям',
-      'Метки и категории контактов',
-      'Проверка адресов перед отправкой',
-      'Импорт/экспорт контактов',
+      "Категории и избранное",
+      "Поиск по имени и адресу",
+      "Проверка checksum перед отправкой",
+      "Импорт / экспорт списка",
     ],
-    gradient: 'from-orange-500 to-amber-500',
-    iconBg: 'from-orange-500/10 to-amber-500/10',
   },
   {
-    icon: 'solar:document-text-bold',
-    title: 'Комплексный журнал аудита',
-    description: 'Отслеживайте каждое действие, смотрите кто что одобрил и экспортируйте данные для соответствия требованиям.',
+    tag: "05 / Аудит",
+    icon: "solar:document-text-bold",
+    title: "Журнал аудита",
+    description:
+      "Полная история всех действий: кто, что, когда. Неизменяемый лог под FATF Travel Rule и внутренний контроль.",
     details: [
-      'Полная история всех действий',
-      'Фильтрация по пользователям и типам событий',
-      'Временные метки с точностью до секунды',
-      'Неизменяемый журнал для соответствия требованиям',
+      "Полный history по каждому ресурсу",
+      "Фильтрация по пользователям и действиям",
+      "Точные timestamps",
+      "Экспорт CSV для регулятора",
     ],
-    gradient: 'from-slate-500 to-cyan-500',
-    iconBg: 'from-slate-500/10 to-cyan-500/10',
   },
   {
-    icon: 'solar:global-bold',
-    title: 'Поддержка сетей',
-    description: 'Интеграция с Safina Pay, кросс-чейн совместимость и быстрые надежные транзакции.',
+    tag: "06 / Сети",
+    icon: "solar:global-bold",
+    title: "Поддержка сетей",
+    description:
+      "Tron, BNB Chain, Ethereum, Polygon, BTC. Кросс-чейн совместимость через Safina Pay интеграцию.",
     details: [
-      'Safina Pay интеграция',
-      'Поддержка EVM-совместимых сетей',
-      'Кросс-чейн переводы',
-      'Автоматическое определение комиссий',
+      "Tron (TRC-20, USDT)",
+      "EVM-сети: ETH, BSC, Polygon",
+      "Bitcoin (BIP-32 кошельки)",
+      "Автоматическая комиссия",
     ],
-    gradient: 'from-cyan-500 to-blue-500',
-    iconBg: 'from-cyan-500/10 to-blue-500/10',
   },
 ];
 
 export default function FeaturesPage() {
   return (
-    <div className="py-24 bg-slate-50 dark:bg-slate-950 relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent pointer-events-none z-0" />
-      
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-[20]">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-20"
-        >
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-display font-bold text-slate-900 dark:text-white mb-6 tracking-tight">
-            Возможности{' '}
-            <span className="bg-gradient-to-r from-cyan-500 via-emerald-500 to-teal-500 bg-clip-text text-transparent">
-              ORGON
-            </span>
+    <>
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-20 lg:py-24 text-center">
+          <Eyebrow dash tone="primary" className="!justify-center">Возможности платформы</Eyebrow>
+          <h1 className="mt-6 text-[44px] sm:text-[56px] lg:text-[64px] font-medium tracking-[-0.025em] leading-[1.05] text-foreground">
+            Всё что нужно<br />для институциональной кастоди
           </h1>
-          <p className="mx-auto max-w-2xl text-xl text-slate-600 dark:text-slate-400 font-light leading-relaxed">
-            Все инструменты для профессионального управления криптоактивами в одном месте
+          <p className="mt-6 max-w-2xl mx-auto text-[15px] leading-[1.6] text-muted-foreground">
+            Шесть областей, которые мы выстроили под требования бирж, банков и финтех-команд.
           </p>
-        </motion.div>
-
-        {/* Features List */}
-        <div className="space-y-24">
-          {features.map((feature, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 40 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              className={`flex flex-col ${
-                index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'
-              } gap-12 items-center`}
-            >
-              {/* Content */}
-              <div className="lg:w-1/2 space-y-6">
-                {/* Icon */}
-                <div className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br ${feature.iconBg} border border-white/10 backdrop-blur-sm`}>
-                  <Icon icon={feature.icon} className="text-4xl text-slate-900 dark:text-white" />
-                </div>
-                
-                {/* Title */}
-                <h2 className="text-3xl sm:text-4xl font-display font-bold text-slate-900 dark:text-white">
-                  {feature.title}
-                </h2>
-                
-                {/* Description */}
-                <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {feature.description}
-                </p>
-                
-                {/* Details List */}
-                <ul className="space-y-3">
-                  {feature.details.map((detail, i) => (
-                    <motion.li
-                      key={i}
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.4, delay: i * 0.1 }}
-                      className="flex items-start gap-3"
-                    >
-                      <Icon
-                        icon="solar:check-circle-bold"
-                        className="text-emerald-500 mt-1 flex-shrink-0 text-xl"
-                      />
-                      <span className="text-slate-700 dark:text-slate-300">{detail}</span>
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Illustration */}
-              <div className="lg:w-1/2">
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  transition={{ duration: 0.3 }}
-                  className="relative rounded-3xl border border-slate-200 dark:border-white/10 bg-white/60 dark:bg-white/[0.02] backdrop-blur-sm p-12 flex items-center justify-center aspect-video overflow-hidden group"
-                >
-                  {/* Background Gradient */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-5 group-hover:opacity-10 transition-opacity`} />
-                  
-                  {/* Icon */}
-                  <Icon
-                    icon={feature.icon}
-                    className="text-[12rem] text-slate-200 dark:text-slate-800 relative z-10 group-hover:scale-110 transition-transform duration-500"
-                  />
-                  
-                  {/* Decorative Elements */}
-                  <div className="absolute top-4 right-4 w-24 h-24 bg-gradient-to-br from-cyan-500/20 to-emerald-500/20 rounded-full blur-2xl" />
-                  <div className="absolute bottom-4 left-4 w-32 h-32 bg-gradient-to-tl from-emerald-500/20 to-teal-500/20 rounded-full blur-2xl" />
-                </motion.div>
-              </div>
-            </motion.div>
-          ))}
         </div>
+      </section>
 
-        {/* CTA Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="mt-32 text-center relative"
-        >
-          {/* Background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-3xl blur-3xl opacity-10" />
-          
-          <div className="relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-3xl p-12 md:p-16">
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-slate-900 dark:text-white mb-6">
-              Готовы начать?
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto">
-              Создайте бесплатный аккаунт и начните управлять своими активами безопасно
-            </p>
-            <Link href="/register">
-              <Button variant="primary" size="lg" className="px-12 py-6 text-lg font-semibold">
-                Начать бесплатно
-                <Icon icon="solar:arrow-right-linear" className="ml-2" />
+      <section className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-12 lg:py-16">
+          <div className="space-y-px bg-border border border-border">
+            {FEATURES.map((feature, i) => {
+              const reversed = i % 2 === 1;
+              return (
+                <article
+                  key={feature.tag}
+                  className="bg-card grid lg:grid-cols-2 gap-px"
+                >
+                  <div className={`p-10 lg:p-14 ${reversed ? "lg:order-2" : ""}`}>
+                    <Eyebrow tone="primary">{feature.tag}</Eyebrow>
+                    <h2 className="mt-5 text-[28px] sm:text-[32px] font-medium tracking-tight text-foreground">
+                      {feature.title}
+                    </h2>
+                    <p className="mt-4 text-[15px] leading-[1.6] text-muted-foreground">
+                      {feature.description}
+                    </p>
+                    <ul className="mt-6 space-y-2.5">
+                      {feature.details.map((d) => (
+                        <li key={d} className="flex items-start gap-3 text-[14px]">
+                          <Icon icon="solar:check-circle-bold" className="text-success text-[16px] shrink-0 mt-0.5" />
+                          <span className="text-foreground">{d}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div
+                    className={`p-10 lg:p-14 flex items-center justify-center bg-muted/40 min-h-[280px] ${
+                      reversed ? "lg:order-1" : ""
+                    }`}
+                  >
+                    <Icon icon={feature.icon} className="text-[160px] text-foreground/20" />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-muted/40">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-20 text-center">
+          <Eyebrow dash tone="primary" className="!justify-center">Готовы попробовать</Eyebrow>
+          <h2 className="mt-5 text-[32px] sm:text-[40px] font-medium tracking-[-0.025em] leading-[1.1] text-foreground">
+            Покажем платформу за 30 минут
+          </h2>
+          <p className="mt-4 max-w-xl mx-auto text-[15px] text-muted-foreground leading-[1.6]">
+            Демо под ваш кейс — обменник, биржа, банк или fintech.
+          </p>
+          <div className="mt-8 flex justify-center gap-3 flex-wrap">
+            <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
+              <Button variant="primary" size="lg">
+                Запросить демо
+                <Icon icon="solar:arrow-right-linear" className="text-[15px]" />
               </Button>
+            </a>
+            <Link href="/pricing">
+              <Button variant="secondary" size="lg">Смотреть тарифы</Button>
             </Link>
           </div>
-        </motion.div>
-      </div>
-    </div>
+        </div>
+      </section>
+    </>
   );
 }

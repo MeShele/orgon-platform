@@ -1,233 +1,213 @@
 "use client";
-import { OnboardingTip } from "@/components/common/OnboardingTip";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import Link from "next/link";
 import useSWR from "swr";
-import { useTranslations } from '@/hooks/useTranslations';
+import { useRouter } from "next/navigation";
+import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
-import { TransactionTable } from "@/components/transactions/TransactionTable";
-import { TransactionFilters } from "@/components/transactions/TransactionFilters";
-import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { Tooltip, HelpText } from "@/components/ui/Tooltip";
-import { helpContent } from "@/lib/help-content";
+import { Eyebrow, Mono, StatusPill } from "@/components/ui/primitives";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Icon } from "@/lib/icons";
 import { api, API_BASE } from "@/lib/api";
-import { pageLayout, buttonStyles } from "@/lib/page-layout";
+import { cn } from "@/lib/utils";
 
-interface Filters {
-  wallet?: string;
+interface Tx {
+  id?: number;
+  tx_unid?: string;
+  tx_hash?: string | null;
+  wallet_name?: string;
   status?: string;
-  network?: string;
-  from_date?: string;
-  to_date?: string;
+  amount_decimal?: string | number;
+  value?: string | number;
+  token?: string | null;
+  to_address?: string;
+  to_addr?: string;
+  network?: number;
+  fee?: string | number;
+  created_at?: string;
+  info?: string;
+}
+
+const STATUS_OPTIONS = [
+  { value: "", label: "Все" },
+  { value: "confirmed", label: "Подтверждены" },
+  { value: "pending", label: "В обработке" },
+  { value: "sent", label: "Отправлены" },
+  { value: "rejected", label: "Отклонены" },
+];
+
+function formatTime(iso?: string): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return iso;
+  }
 }
 
 export default function TransactionsPage() {
-  const t = useTranslations('transactions');
-  const [filters, setFilters] = useState<Filters>({});
-  const [appliedFilters, setAppliedFilters] = useState<Filters>({});
+  const t = useTranslations("transactions");
+  const router = useRouter();
+
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const [exporting, setExporting] = useState(false);
-  const [showBatch, setShowBatch] = useState(false);
-  const [batchRows, setBatchRows] = useState([{ to_address: "", value: "", token: "" }]);
-  const [batchSending, setBatchSending] = useState(false);
-  const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  // Fetch wallets and networks for filter dropdowns
-  const { data: wallets } = useSWR("/api/wallets", api.getWallets);
-  const { data: networks } = useSWR("/api/networks", api.getNetworks);
-
-  // Fetch transactions with applied filters
-  const {
-    data: transactions,
-    error,
-    isLoading,
-  } = useSWR(
-    ["/api/transactions/filtered", appliedFilters],
+  const { data: transactions, error, isLoading } = useSWR<Tx[]>(
+    ["/api/transactions/filtered", statusFilter],
     () =>
       api.getTransactionsFiltered({
         limit: 100,
         offset: 0,
-        ...appliedFilters,
+        status: statusFilter || undefined,
       }),
-    {
-      refreshInterval: 30000, // 30 seconds
-    }
+    { refreshInterval: 30000 },
   );
 
-  const handleFilterChange = (newFilters: Filters) => {
-    setAppliedFilters(newFilters);
-  };
+  const txs: Tx[] = Array.isArray(transactions) ? transactions : [];
 
-  const addBatchRow = () => setBatchRows([...batchRows, { to_address: "", value: "", token: "" }]);
-  const removeBatchRow = (i: number) => setBatchRows(batchRows.filter((_, idx) => idx !== i));
-  const updateBatchRow = (i: number, field: string, val: string) => {
-    const rows = [...batchRows];
-    (rows[i] as any)[field] = val;
-    setBatchRows(rows);
-  };
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { "": txs.length, confirmed: 0, pending: 0, sent: 0, rejected: 0 };
+    txs.forEach((tx) => {
+      const s = (tx.status ?? "").toLowerCase();
+      if (s in map) map[s]++;
+    });
+    return map;
+  }, [txs]);
 
-  const handleBatchSend = async () => {
-    const valid = batchRows.filter((r) => r.to_address && r.value && r.token);
-    if (valid.length === 0) return;
-    setBatchSending(true);
-    try {
-      await api.batchSend({ transactions: valid });
-      setNotification({ type: "success", message: `Отправлено ${valid.length} транзакций` });
-      setShowBatch(false);
-      setBatchRows([{ to_address: "", value: "", token: "" }]);
-      setTimeout(() => setNotification(null), 5000);
-    } catch (e: any) {
-      setNotification({ type: "error", message: e.message || "Ошибка пакетной отправки" });
-      setTimeout(() => setNotification(null), 5000);
-    } finally {
-      setBatchSending(false);
-    }
-  };
-
-  const handleExport = async () => {
+  function handleExport() {
     setExporting(true);
     try {
-      // Build query params
       const params = new URLSearchParams();
-      if (appliedFilters.wallet) params.append("wallet", appliedFilters.wallet);
-      if (appliedFilters.status) params.append("status", appliedFilters.status);
-      if (appliedFilters.network) params.append("network", appliedFilters.network);
-      if (appliedFilters.from_date) params.append("from_date", appliedFilters.from_date);
-      if (appliedFilters.to_date) params.append("to_date", appliedFilters.to_date);
-
-      // Download CSV
-      const url = `${API_BASE}/export/transactions/csv?${params.toString()}`;
-      window.open(url, "_blank");
-    } catch (err) {
-      console.error("Export failed:", err);
+      if (statusFilter) params.set("status", statusFilter);
+      window.open(`${API_BASE}/export/transactions/csv?${params}`, "_blank");
     } finally {
-      setExporting(false);
+      setTimeout(() => setExporting(false), 600);
     }
-  };
+  }
 
   return (
     <>
-      <Header title={t('title')} />
-      <div className={pageLayout.container}>
-        {/* Filters */}
-        {wallets && networks && (
-          <TransactionFilters
-            onFilterChange={handleFilterChange}
-            wallets={wallets}
-            networks={networks}
-          />
-        )}
+      <Header title={t("title")} />
 
-        {notification && (
-          <div className={notification.type === "success" ? pageLayout.success : pageLayout.error}>
-            {notification.message}
+      <div className="px-4 sm:px-6 lg:px-10 py-8 space-y-6">
+        {/* Top bar */}
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <Eyebrow dash>Транзакции</Eyebrow>
+            <h2 className="mt-2 text-[24px] sm:text-[28px] font-medium tracking-[-0.02em] text-foreground">
+              {txs.length > 0 ? `${txs.length} записей` : "Нет записей"}
+            </h2>
           </div>
-        )}
-
-        {/* Transaction Count & Export */}
-        <div className={pageLayout.actionBar}>
-          <p className={pageLayout.header.subtitle}>
-            {t('count', { count: transactions?.length || 0 })}
-            {Object.keys(appliedFilters).length > 0 && ` ${t('filtered')}`}
-          </p>
-          <button onClick={() => setShowBatch(true)} className={buttonStyles.primary}>
-            <Icon icon="solar:layers-linear" />
-            Пакетная отправка
-          </button>
-          <Tooltip
-            content={
-              <HelpText
-                title={helpContent.transactionTable.exportButton.text.split('.')[0]}
-                description={helpContent.transactionTable.exportButton.text}
-                example={helpContent.transactionTable.exportButton.example}
-                tips={helpContent.transactionTable.exportButton.tips}
-              />
-            }
-            position="bottom"
-            maxWidth="320px"
-          >
-            <button
-              onClick={handleExport}
-              disabled={exporting || !transactions || transactions.length === 0}
-              className={buttonStyles.secondary}
-            >
-              <Icon 
-                icon={exporting ? "solar:loader-linear" : "solar:download-linear"} 
-                className={exporting ? "animate-spin" : ""} 
-              />
-              {exporting ? t('exporting') : t('exportButton')}
-            </button>
-          </Tooltip>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="secondary" size="md" onClick={handleExport} disabled={exporting || isLoading || txs.length === 0} loading={exporting}>
+              <Icon icon="solar:download-linear" className="text-[15px]" />
+              Экспорт CSV
+            </Button>
+            <Button variant="primary" size="md" onClick={() => router.push("/transactions/new")}>
+              <Icon icon="solar:add-circle-linear" className="text-[15px]" />
+              Новая транзакция
+            </Button>
+          </div>
         </div>
 
-        {/* Error State */}
-        {error && (
-          <div className={pageLayout.error}>
-            {error.message || t('failedToLoad')}
-          </div>
-        )}
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className={pageLayout.loading}>
-            <LoadingSpinner />
-          </div>
-        )}
-
-        {/* Transactions Table */}
-        {transactions && (
-          <TransactionTable
-            transactions={transactions as Parameters<typeof TransactionTable>[0]["transactions"]}
-          />
-        )}
-      </div>
-
-      {/* Batch Modal */}
-      {showBatch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900 max-h-[80vh] overflow-y-auto">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Пакетная отправка</h2>
-            <div className="space-y-3">
-              {batchRows.map((row, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <input
-                    placeholder="Адрес"
-                    value={row.to_address}
-                    onChange={(e) => updateBatchRow(i, "to_address", e.target.value)}
-                    className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                  />
-                  <input
-                    placeholder="Сумма"
-                    value={row.value}
-                    onChange={(e) => updateBatchRow(i, "value", e.target.value)}
-                    className="w-28 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                  />
-                  <input
-                    placeholder="Токен"
-                    value={row.token}
-                    onChange={(e) => updateBatchRow(i, "token", e.target.value)}
-                    className="w-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
-                  />
-                  {batchRows.length > 1 && (
-                    <button onClick={() => removeBatchRow(i)} className="text-red-500 hover:text-red-700">
-                      <Icon icon="solar:close-circle-linear" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            <button onClick={addBatchRow} className={buttonStyles.ghost + " mt-3 text-xs"}>
-              <Icon icon="solar:add-circle-linear" /> Добавить получателя
-            </button>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowBatch(false)} className={buttonStyles.secondary}>Отмена</button>
-              <button onClick={handleBatchSend} disabled={batchSending} className={buttonStyles.primary}>
-                {batchSending ? "Отправка..." : `Отправить (${batchRows.filter(r => r.to_address && r.value && r.token).length})`}
+        {/* Filter chips */}
+        <div className="flex gap-1.5 flex-wrap">
+          {STATUS_OPTIONS.map((opt) => {
+            const active = statusFilter === opt.value;
+            const count = counts[opt.value] ?? 0;
+            return (
+              <button
+                key={opt.value || "all"}
+                type="button"
+                onClick={() => setStatusFilter(opt.value)}
+                className={cn(
+                  "h-8 inline-flex items-center gap-2 px-3 border font-mono text-[11px] tracking-[0.04em] transition-colors",
+                  active
+                    ? "bg-foreground text-background border-foreground"
+                    : "bg-card text-muted-foreground border-border hover:border-strong hover:text-foreground",
+                )}
+              >
+                {opt.label}
+                <span className={cn("text-[10px]", active ? "text-background/60" : "text-faint")}>
+                  · {count}
+                </span>
               </button>
-            </div>
-          </div>
+            );
+          })}
         </div>
-      )}
+
+        {error && (
+          <div className="border border-destructive/40 bg-destructive/5 p-4 text-[13px] text-destructive">
+            Не удалось загрузить транзакции.
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="border border-border bg-card overflow-x-auto">
+          <table className="w-full text-[12px] border-collapse">
+            <thead>
+              <tr className="border-b border-border text-left">
+                <Th className="pl-5">Hash</Th>
+                <Th>Статус</Th>
+                <Th>Кошелёк</Th>
+                <Th>Получатель</Th>
+                <Th>Токен</Th>
+                <Th className="text-right">Сумма</Th>
+                <Th className="text-right pr-5">Время</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">Загрузка…</td></tr>
+              ) : txs.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-16 text-center">
+                    <Icon icon="solar:transfer-horizontal-linear" className="text-[48px] text-faint" />
+                    <p className="mt-3 text-[14px] text-muted-foreground">Транзакций не найдено</p>
+                  </td>
+                </tr>
+              ) : (
+                txs.map((tx) => {
+                  const kind = (tx.status ?? "").toLowerCase() as any;
+                  const dest = tx.to_address || tx.to_addr || "—";
+                  const amount = tx.amount_decimal ?? tx.value ?? "—";
+                  return (
+                    <tr key={tx.tx_unid ?? tx.id} className="border-b border-border last:border-b-0 hover:bg-muted/40">
+                      <td className="pl-5 py-3">
+                        <Link href={`/transactions/${tx.tx_unid ?? ""}`} className="text-foreground hover:text-primary">
+                          <Mono>{tx.tx_hash ?? tx.tx_unid ?? "—"}</Mono>
+                        </Link>
+                      </td>
+                      <td className="px-3 py-3"><StatusPill kind={kind} label={tx.status ?? "—"} /></td>
+                      <td className="px-3 py-3 text-foreground"><Mono truncate startChars={10} endChars={4}>{tx.wallet_name ?? "—"}</Mono></td>
+                      <td className="px-3 py-3"><Mono truncate>{dest}</Mono></td>
+                      <td className="px-3 py-3"><Badge variant="outline">{tx.token ?? "—"}</Badge></td>
+                      <td className="px-3 py-3 text-right text-foreground tabular">{String(amount)}</td>
+                      <td className="pr-5 py-3 text-right"><Mono size="xs" className="text-faint">{formatTime(tx.created_at)}</Mono></td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </>
+  );
+}
+
+function Th({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <th className={`px-3 py-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint font-normal ${className}`}>
+      {children}
+    </th>
   );
 }

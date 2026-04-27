@@ -1,34 +1,65 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* ORGON · Crimson Ledger
+ * Institutional-grade design tokens.
+ * Light is the default theme; dark is composed (not inverted).
+ *
+ * Fonts are wired via next/font in layout.tsx (Inter + IBM Plex Mono).
+ * --font-display reuses Inter weight 500/600 with tight letter-spacing.
+ */
+
 @import 'react-datepicker/dist/react-datepicker.css';
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
+  /* Surface tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+
+  /* Brand */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+
+  /* Quiet surfaces */
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+
+  /* Semantic */
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+
+  /* Crimson Ledger extras */
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-surface-2: var(--surface-2);
+  --color-border-strong: var(--border-strong);
+  --color-faint: var(--faint);
+
+  /* Form / utility */
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Charts */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
+  /* Sidebar */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -37,155 +68,162 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography */
   --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
   --font-mono: var(--font-mono);
   --font-serif: var(--font-serif);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --shadow-2xs: var(--shadow-2xs);
-  --shadow-xs: var(--shadow-xs);
-  --shadow-sm: var(--shadow-sm);
-  --shadow: var(--shadow);
-  --shadow-md: var(--shadow-md);
-  --shadow-lg: var(--shadow-lg);
-  --shadow-xl: var(--shadow-xl);
-  --shadow-2xl: var(--shadow-2xl);
+
+  /* Radius — Crimson Ledger is sharp by design.
+     rounded-* utilities are pinned to 0; rounded-full kept for dots & avatars. */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-full: 9999px;
+
+  /* Shadows — minimal, mostly absent in light, subtle inner-glow in dark */
+  --shadow-2xs: 0 1px 0 0 rgb(0 0 0 / 0.02);
+  --shadow-xs:  0 1px 0 0 rgb(0 0 0 / 0.04);
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow:     0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md:  0 2px 6px -1px rgb(0 0 0 / 0.06);
+  --shadow-lg:  0 4px 12px -2px rgb(0 0 0 / 0.08);
+  --shadow-xl:  0 8px 20px -4px rgb(0 0 0 / 0.10);
+  --shadow-2xl: 0 16px 40px -8px rgb(0 0 0 / 0.14);
 }
 
+/* ============================================================
+   LIGHT (default) — paper white, ink, crimson accent
+   ============================================================ */
 :root {
-  /* OKLCH Color System - Light Mode */
-  --background: oklch(1.0000 0 0);
-  --foreground: oklch(0.3211 0 0);
-  --card: oklch(1.0000 0 0);
-  --card-foreground: oklch(0.3211 0 0);
-  --popover: oklch(1.0000 0 0);
-  --popover-foreground: oklch(0.3211 0 0);
-  --primary: oklch(0.6231 0.1880 259.8145);
-  --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.9670 0.0029 264.5419);
-  --secondary-foreground: oklch(0.4461 0.0263 256.8018);
-  --muted: oklch(0.9846 0.0017 247.8389);
-  --muted-foreground: oklch(0.5510 0.0234 264.3637);
-  --accent: oklch(0.9514 0.0250 236.8242);
-  --accent-foreground: oklch(0.3791 0.1378 265.5222);
-  --destructive: oklch(0.6368 0.2078 25.3313);
-  --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.9276 0.0058 264.5313);
-  --input: oklch(0.9276 0.0058 264.5313);
-  --ring: oklch(0.6231 0.1880 259.8145);
-  
-  /* Charts */
-  --chart-1: oklch(0.6231 0.1880 259.8145);
-  --chart-2: oklch(0.5461 0.2152 262.8809);
-  --chart-3: oklch(0.4882 0.2172 264.3763);
-  --chart-4: oklch(0.4244 0.1809 265.6377);
-  --chart-5: oklch(0.3791 0.1378 265.5222);
-  
+  /* Crimson Ledger · LIGHT */
+  --background: #ffffff;          /* paper */
+  --foreground: #0e1320;          /* ink with a navy whisper */
+  --surface-2: #f3f2ef;           /* warm grey for sidebar/secondary surfaces */
+  --faint: #8a8d96;               /* eyebrow / labels — quietest text */
+
+  --card: #fafaf9;                /* off-white, separates from bg */
+  --card-foreground: #0e1320;
+  --popover: #ffffff;
+  --popover-foreground: #0e1320;
+
+  --primary: #b81e2f;             /* crimson — brand action */
+  --primary-foreground: #ffffff;
+  --secondary: #f3f2ef;           /* warm grey button */
+  --secondary-foreground: #0e1320;
+
+  --muted: #fafaf9;               /* quiet bg */
+  --muted-foreground: #5a5e6a;
+  --accent: #fbe8ea;              /* crimson-tinted soft hover */
+  --accent-foreground: #7a1320;
+
+  --destructive: #b81e2f;
+  --destructive-foreground: #ffffff;
+  --success: #2e6f3b;
+  --success-foreground: #ffffff;
+  --warning: #a86a00;
+  --warning-foreground: #ffffff;
+
+  --navy: #0a1428;                /* logo navy — for blocks (login left, popular plan) */
+  --navy-foreground: #ffffff;
+
+  --border: #e6e4df;
+  --border-strong: #cbc8c1;
+  --input: #e6e4df;
+  --ring: #b81e2f;
+
+  /* Charts — discriminate-color set */
+  --chart-1: #b81e2f;             /* crimson */
+  --chart-2: #0a1428;             /* navy */
+  --chart-3: #2e6f3b;             /* green */
+  --chart-4: #a86a00;             /* amber */
+  --chart-5: #5a5e6a;             /* warm grey */
+
   /* Sidebar */
-  --sidebar: oklch(0.9846 0.0017 247.8389);
-  --sidebar-foreground: oklch(0.3211 0 0);
-  --sidebar-primary: oklch(0.6231 0.1880 259.8145);
-  --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.9514 0.0250 236.8242);
-  --sidebar-accent-foreground: oklch(0.3791 0.1378 265.5222);
-  --sidebar-border: oklch(0.9276 0.0058 264.5313);
-  --sidebar-ring: oklch(0.6231 0.1880 259.8145);
-  
-  /* Typography */
-  --font-sans: Inter, sans-serif;
-  --font-serif: Source Serif 4, serif;
-  --font-mono: JetBrains Mono, monospace;
-  
-  /* Radius */
-  --radius: 0.8rem;
-  
-  /* Shadows */
-  --shadow-x: 0;
-  --shadow-y: 1px;
-  --shadow-blur: 3px;
-  --shadow-spread: 0px;
-  --shadow-opacity: 0.1;
-  --shadow-color: oklch(0 0 0);
-  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-  
-  /* Spacing */
+  --sidebar: #f3f2ef;
+  --sidebar-foreground: #0e1320;
+  --sidebar-primary: #b81e2f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fafaf9;
+  --sidebar-accent-foreground: #0e1320;
+  --sidebar-border: #e6e4df;
+  --sidebar-ring: #b81e2f;
+
+  /* Typography fallbacks (real values come from next/font CSS variables) */
+  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --font-serif: "IBM Plex Serif", Georgia, serif;
+
+  /* Radius (legacy — most utilities pinned via @theme above) */
+  --radius: 0;
+
+  --tracking-tight: -0.02em;
   --tracking-normal: 0em;
-  --spacing: 0.25rem;
 }
 
+/* ============================================================
+   DARK — midnight navy, brighter crimson; not an inversion
+   ============================================================ */
 .dark {
-  /* OKLCH Color System - Dark Mode */
-  --background: oklch(0.2046 0 0);
-  --foreground: oklch(0.9219 0 0);
-  --card: oklch(0.2686 0 0);
-  --card-foreground: oklch(0.9219 0 0);
-  --popover: oklch(0.2686 0 0);
-  --popover-foreground: oklch(0.9219 0 0);
-  --primary: oklch(0.6231 0.1880 259.8145);
-  --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.2686 0 0);
-  --secondary-foreground: oklch(0.9219 0 0);
-  --muted: oklch(0.2393 0 0);
-  --muted-foreground: oklch(0.7155 0 0);
-  --accent: oklch(0.3791 0.1378 265.5222);
-  --accent-foreground: oklch(0.8823 0.0571 254.1284);
-  --destructive: oklch(0.6368 0.2078 25.3313);
-  --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.3715 0 0);
-  --input: oklch(0.3715 0 0);
-  --ring: oklch(0.6231 0.1880 259.8145);
-  
-  /* Charts */
-  --chart-1: oklch(0.7137 0.1434 254.6240);
-  --chart-2: oklch(0.6231 0.1880 259.8145);
-  --chart-3: oklch(0.5461 0.2152 262.8809);
-  --chart-4: oklch(0.4882 0.2172 264.3763);
-  --chart-5: oklch(0.4244 0.1809 265.6377);
-  
-  /* Sidebar */
-  --sidebar: oklch(0.2046 0 0);
-  --sidebar-foreground: oklch(0.9219 0 0);
-  --sidebar-primary: oklch(0.6231 0.1880 259.8145);
-  --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.3791 0.1378 265.5222);
-  --sidebar-accent-foreground: oklch(0.8823 0.0571 254.1284);
-  --sidebar-border: oklch(0.3715 0 0);
-  --sidebar-ring: oklch(0.6231 0.1880 259.8145);
-  
-  /* Typography */
-  --font-sans: Inter, sans-serif;
-  --font-serif: Source Serif 4, serif;
-  --font-mono: JetBrains Mono, monospace;
-  
-  /* Radius */
-  --radius: 0.8rem;
-  
-  /* Shadows */
-  --shadow-x: 0;
-  --shadow-y: 1px;
-  --shadow-blur: 3px;
-  --shadow-spread: 0px;
-  --shadow-opacity: 0.1;
-  --shadow-color: oklch(0 0 0);
-  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --background: #070d1a;
+  --foreground: #eef2f8;
+  --surface-2: #142142;
+  --faint: #5e6886;
+
+  --card: #0e1830;
+  --card-foreground: #eef2f8;
+  --popover: #0e1830;
+  --popover-foreground: #eef2f8;
+
+  --primary: #e23b50;             /* brighter on navy */
+  --primary-foreground: #ffffff;
+  --secondary: #142142;
+  --secondary-foreground: #eef2f8;
+
+  --muted: #0e1830;
+  --muted-foreground: #9aa3b8;
+  --accent: #3d0f15;              /* deep crimson tint */
+  --accent-foreground: #ff5d72;
+
+  --destructive: #e23b50;
+  --destructive-foreground: #ffffff;
+  --success: #5fbf78;
+  --success-foreground: #07210f;
+  --warning: #e0a040;
+  --warning-foreground: #2a1a04;
+
+  --navy: #070d1a;
+  --navy-foreground: #eef2f8;
+
+  --border: #1f2c4d;
+  --border-strong: #2e3d65;
+  --input: #1f2c4d;
+  --ring: #e23b50;
+
+  --chart-1: #e23b50;
+  --chart-2: #5fa0ff;
+  --chart-3: #5fbf78;
+  --chart-4: #e0a040;
+  --chart-5: #9aa3b8;
+
+  --sidebar: #0e1830;
+  --sidebar-foreground: #eef2f8;
+  --sidebar-primary: #e23b50;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #142142;
+  --sidebar-accent-foreground: #eef2f8;
+  --sidebar-border: #1f2c4d;
+  --sidebar-ring: #e23b50;
 }
 
+/* ============================================================
+   Base
+   ============================================================ */
 body {
   font-family: var(--font-sans);
   background: var(--background);
@@ -193,145 +231,75 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: var(--tracking-normal);
+  font-feature-settings: "ss01", "cv11";
 }
 
-/* Apply border radius globally */
-* {
-  border-radius: inherit;
+/* tabular numbers for everything that should align (status counts, KPIs, money) */
+.tabular,
+[data-tabular] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
-button, input, select, textarea {
-  border-radius: calc(var(--radius) * 0.5);
+/* Aceternity spotlight keyframe — kept for legacy components */
+@keyframes spotlight {
+  0%   { opacity: 0; transform: translate(-72%, -62%) scale(0.5); }
+  100% { opacity: 1; transform: translate(-50%, -40%) scale(1); }
 }
-
-.card {
-  border-radius: var(--radius);
+.animate-spotlight {
+  animation: spotlight 2s ease .75s 1 forwards;
 }
 
 /* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--border-strong);
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--muted-foreground);
 }
 
 ::selection {
   background: var(--primary);
   color: var(--primary-foreground);
-  opacity: 0.3;
-}
-.dark ::selection {
-  background: var(--primary);
-  color: var(--primary-foreground);
-  opacity: 0.4;
 }
 
-/* Utility classes using OKLCH colors */
+/* Focus ring — sharp, no glow */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Address / hash mono shortcut */
+.mono { font-family: var(--font-mono); }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;     /* 11px */
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Token-driven utility shortcuts (kept compatible with existing class usage) */
 @layer utilities {
-  .bg-card {
-    background-color: var(--card);
-    color: var(--card-foreground);
-  }
-  
-  .bg-popover {
-    background-color: var(--popover);
-    color: var(--popover-foreground);
-  }
-  
-  .bg-primary {
-    background-color: var(--primary);
-    color: var(--primary-foreground);
-  }
-  
-  .bg-secondary {
-    background-color: var(--secondary);
-    color: var(--secondary-foreground);
-  }
-  
-  .bg-muted {
-    background-color: var(--muted);
-    color: var(--muted-foreground);
-  }
-  
-  .bg-accent {
-    background-color: var(--accent);
-    color: var(--accent-foreground);
-  }
-  
-  .bg-destructive {
-    background-color: var(--destructive);
-    color: var(--destructive-foreground);
-  }
-  
-  .text-foreground {
-    color: var(--foreground);
-  }
-  
-  .text-primary {
-    color: var(--primary);
-  }
-  
-  .text-muted-foreground {
-    color: var(--muted-foreground);
-  }
-  
-  .border-border {
-    border-color: var(--border);
-  }
-  
-  .ring-ring {
-    --tw-ring-color: var(--ring);
-  }
-  
-  /* Shadow utilities */
-  .shadow-custom {
-    box-shadow: var(--shadow);
-  }
-  
-  .shadow-custom-sm {
-    box-shadow: var(--shadow-sm);
-  }
-  
-  .shadow-custom-md {
-    box-shadow: var(--shadow-md);
-  }
-  
-  .shadow-custom-lg {
-    box-shadow: var(--shadow-lg);
-  }
-  
-  .shadow-custom-xl {
-    box-shadow: var(--shadow-xl);
-  }
-  
-  /* Aceternity UI Animations */
-  @keyframes spotlight {
-    0% {
-      opacity: 0;
-      transform: translate(-72%, -62%) scale(0.5);
-    }
-    100% {
-      opacity: 1;
-      transform: translate(-50%,-40%) scale(1);
-    }
-  }
-  
-  .animate-spotlight {
-    animation: spotlight 2s ease .75s 1 forwards;
-  }
+  .bg-card { background-color: var(--card); color: var(--card-foreground); }
+  .bg-popover { background-color: var(--popover); color: var(--popover-foreground); }
+  .bg-primary { background-color: var(--primary); color: var(--primary-foreground); }
+  .bg-secondary { background-color: var(--secondary); color: var(--secondary-foreground); }
+  .bg-muted { background-color: var(--muted); color: var(--muted-foreground); }
+  .bg-accent { background-color: var(--accent); color: var(--accent-foreground); }
+  .bg-destructive { background-color: var(--destructive); color: var(--destructive-foreground); }
+  .bg-navy { background-color: var(--navy); color: var(--navy-foreground); }
+
+  .text-foreground { color: var(--foreground); }
+  .text-primary { color: var(--primary); }
+  .text-muted-foreground { color: var(--muted-foreground); }
+  .text-faint { color: var(--faint); }
+
+  .border-border { border-color: var(--border); }
+  .border-strong { border-color: var(--border-strong); }
+
+  .ring-ring { --tw-ring-color: var(--ring); }
 }

@@ -1,55 +1,84 @@
 "use client";
 
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import { cn } from "@/lib/utils";
 import { Icon } from "@/lib/icons";
 import { useSidebar } from "@/components/aceternity/sidebar";
 import { OrganizationSwitcher } from "@/components/organizations/OrganizationSwitcher";
+import { ThemeToggle } from "./ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
 
 export function Header({ title }: { title: string }) {
   const { connected } = useWebSocket();
   const { setOpen } = useSidebar();
+  const { user } = useAuth();
+
+  const initials = (user?.full_name || user?.email || "··")
+    .split(/[\s@]/)[0]
+    .slice(0, 2)
+    .toUpperCase();
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-2 sm:px-4 md:px-6 lg:px-8 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-950/80 dark:shadow-none transition-colors">
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Mobile menu button */}
-        <button
-          onClick={() => setOpen(true)}
-          className="lg:hidden rounded-lg p-1.5 text-slate-800 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
-          aria-label="Open menu"
-        >
-          <Icon icon="solar:hamburger-menu-linear" className="text-xl sm:text-2xl" />
-        </button>
-        
-        <h1 className="text-sm font-semibold text-slate-900 dark:text-white lg:text-base">{title}</h1>
+    <header className="sticky top-0 z-30 h-14 sm:h-16 bg-background/90 backdrop-blur-md border-b border-border">
+      <div className="h-full flex items-center justify-between px-3 sm:px-6">
+        {/* Left cluster */}
+        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+          <button
+            onClick={() => setOpen(true)}
+            className="md:hidden inline-flex items-center justify-center w-9 h-9 border border-border text-foreground"
+            aria-label="Open menu"
+          >
+            <Icon icon="solar:hamburger-menu-linear" className="text-[18px]" />
+          </button>
 
-        <div className="hidden h-4 w-px bg-slate-200 dark:bg-slate-800 sm:block" />
+          <div className="flex flex-col min-w-0">
+            <div className="font-mono text-[10px] tracking-[0.16em] uppercase text-faint hidden sm:block">
+              ORGON / {title}
+            </div>
+            <h1 className="text-[15px] font-medium tracking-tight text-foreground truncate">{title}</h1>
+          </div>
 
-        {/* Organization Switcher */}
-        <OrganizationSwitcher />
+          <div className="hidden md:block h-6 w-px bg-border" />
 
-        <div className="hidden h-4 w-px bg-slate-200 dark:bg-slate-800 sm:block" />
+          <div className="hidden md:block">
+            <OrganizationSwitcher />
+          </div>
 
-        {/* Sync status */}
-        <div className={cn(
-          "hidden items-center gap-2 rounded-full border px-2.5 py-0.5 text-xs font-medium sm:flex",
-          connected
-            ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            : "border-slate-300/20 bg-slate-100 text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400"
-        )}>
-          <span className="relative flex h-1.5 w-1.5">
-            {connected && (
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+          {/* Connection status */}
+          <div
+            className={cn(
+              "hidden lg:inline-flex items-center gap-2 px-2.5 py-1 border font-mono text-[10px] tracking-[0.08em] uppercase",
+              connected
+                ? "border-success/40 text-success bg-success/5"
+                : "border-border text-faint",
             )}
-            <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${connected ? "bg-emerald-500" : "bg-slate-400"}`} />
-          </span>
-          {connected ? "Sync Live" : "Offline"}
+          >
+            <span className={cn("relative flex h-1.5 w-1.5", connected && "")}>
+              {connected && (
+                <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-50 animate-ping" />
+              )}
+              <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", connected ? "bg-success" : "bg-faint")} />
+            </span>
+            {connected ? "Sync · Live" : "Offline"}
+          </div>
+        </div>
+
+        {/* Right cluster */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Search ⌘K placeholder (functional later) */}
+          <div className="hidden lg:flex items-center gap-2 h-9 px-3 border border-border text-faint min-w-[220px]">
+            <Icon icon="solar:magnifer-linear" className="text-[14px]" />
+            <span className="text-[12px]">Поиск</span>
+            <span className="ml-auto font-mono text-[10px] tracking-tight">⌘K</span>
+          </div>
+
+          <ThemeToggle />
+
+          <div className="inline-flex items-center justify-center w-9 h-9 bg-primary text-primary-foreground font-mono text-[11px] font-semibold">
+            {initials}
+          </div>
         </div>
       </div>
-
-      {/* Empty right section - all controls moved to ProfileCard in Sidebar */}
-      <div />
     </header>
   );
 }

@@ -2,62 +2,103 @@
 
 import useSWR from "swr";
 import { useEffect } from "react";
-import { useTranslations } from '@/hooks/useTranslations';
+import Link from "next/link";
+import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
-import { StatCards } from "@/components/dashboard/StatCards";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
-import { TokenSummary } from "@/components/dashboard/TokenSummary";
-import { CryptoRates } from "@/components/dashboard/CryptoRates";
-import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { OnboardingTip } from "@/components/common/OnboardingTip";
+import { Eyebrow, BigNum, Mono, StatusPill } from "@/components/ui/primitives";
+import { Sparkline } from "@/components/ui/Sparkline";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { useWebSocket } from "@/contexts/WebSocketContext";
+import { Icon } from "@/lib/icons";
+import { cn } from "@/lib/utils";
+
+interface Stats {
+  total_wallets?: number;
+  total_balance_usd?: string | number;
+  transactions_24h?: number;
+  pending_signatures?: number;
+  networks_active?: number;
+  last_sync?: string | null;
+}
+
+interface RecentItem {
+  id?: number | string;
+  tx_unid?: string;
+  tx_hash?: string | null;
+  wallet_name?: string;
+  status?: string;
+  amount_decimal?: string | number;
+  value?: string | number;
+  token?: string | null;
+  to_address?: string;
+  to_addr?: string;
+  network?: number | string;
+  created_at?: string;
+  info?: string;
+}
+
+interface AlertItem {
+  id?: number | string;
+  severity?: "high" | "medium" | "low" | string;
+  title?: string;
+  message?: string;
+  created_at?: string;
+}
+
+const STATUS_TO_KIND: Record<string, "confirmed" | "pending" | "sent" | "rejected"> = {
+  confirmed: "confirmed",
+  pending: "pending",
+  sent: "sent",
+  rejected: "rejected",
+};
+
+function formatTime(iso?: string): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  } catch {
+    return iso.slice(11, 16);
+  }
+}
+
+function formatNumber(n?: string | number, fractionDigits = 0): string {
+  const v = typeof n === "string" ? Number(n) : n ?? 0;
+  if (Number.isNaN(v)) return "—";
+  return new Intl.NumberFormat("ru-RU", { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(v);
+}
 
 export default function DashboardPage() {
-  const t = useTranslations('dashboard');
-  // WebSocket for real-time updates
+  const t = useTranslations("dashboard");
   const { lastEvent } = useWebSocket();
-  
-  // Fetch Phase 2 endpoints with SWR
-  const { data: stats, error: statsError, mutate: mutateStats } = useSWR(
+
+  const { data: stats, error: statsError, mutate: mutateStats } = useSWR<Stats>(
     "/api/dashboard/stats",
     api.getDashboardStats,
-    { refreshInterval: 30000 } // 30 seconds
+    { refreshInterval: 30000 },
   );
-
-  const { data: recent, error: recentError, mutate: mutateRecent } = useSWR(
+  const { data: recent, mutate: mutateRecent } = useSWR<RecentItem[]>(
     "/api/dashboard/recent",
     () => api.getDashboardRecent(20),
-    { refreshInterval: 30000 }
+    { refreshInterval: 30000 },
   );
-
-  const { data: alerts, error: alertsError, mutate: mutateAlerts } = useSWR(
+  const { data: alerts, mutate: mutateAlerts } = useSWR<AlertItem[]>(
     "/api/dashboard/alerts",
     api.getDashboardAlerts,
-    { refreshInterval: 60000 } // 1 minute
+    { refreshInterval: 60000 },
   );
 
-  // Fallback to legacy endpoint for token summary
-  const { data: overview } = useSWR(
-    "/api/dashboard/overview",
-    api.getDashboardOverview
-  );
-
-  // Auto-refresh on real-time events
   useEffect(() => {
     if (!lastEvent) return;
-    
-    const { type } = lastEvent;
-    
-    // Refresh dashboard on relevant events
+    const t = lastEvent.type as string;
     if (
-      type === "transaction.created" ||
-      type === "transaction.confirmed" ||
-      type === "transaction.failed" ||
-      type === "balance.updated" ||
-      type === "wallet.created" ||
-      type === "sync.completed"
+      t === "transaction.created" ||
+      t === "transaction.confirmed" ||
+      t === "transaction.failed" ||
+      t === "balance.updated" ||
+      t === "wallet.created" ||
+      t === "sync.completed"
     ) {
       mutateStats();
       mutateRecent();
@@ -65,56 +106,169 @@ export default function DashboardPage() {
     }
   }, [lastEvent, mutateStats, mutateRecent, mutateAlerts]);
 
-  const isLoading = !stats && !statsError;
-  const hasError = statsError || recentError || alertsError;
+  const recentList: RecentItem[] = Array.isArray(recent) ? recent : [];
+  const alertList: AlertItem[] = Array.isArray(alerts) ? alerts : [];
+  const balanceUsd = stats?.total_balance_usd ?? "0.00";
 
   return (
     <>
-      <Header title={t('title')} />
-        <OnboardingTip id="dashboard-welcome" text="Welcome to ORGON! This is your dashboard — view wallet balances, recent transactions and alerts. Start by creating a wallet in the Wallets section." icon="solar:home-smile-bold" />
-      <div className="space-y-4 p-2 sm:p-4 md:p-6 lg:p-8">
-        {hasError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
-            Failed to load dashboard data. Please try again.
+      <Header title={t("title")} />
+
+      <div className="px-4 sm:px-6 lg:px-10 py-8 space-y-8">
+        {statsError && (
+          <div className="border border-destructive/40 bg-destructive/5 p-4 text-[13px] text-destructive">
+            Не удалось загрузить данные. Повторите позже.
           </div>
         )}
 
-        {isLoading && (
-          <div className="flex justify-center py-12">
-            <LoadingSpinner />
+        {/* KPI grid */}
+        <section>
+          <Eyebrow dash>Сводка</Eyebrow>
+          <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-px bg-border border border-border">
+            <KpiTile label="Общий баланс" value={`$ ${formatNumber(balanceUsd, 2)}`} sub="USD эквивалент" big />
+            <KpiTile label="Кошельки" value={String(stats?.total_wallets ?? "—")} sub="всего" />
+            <KpiTile label="Транзакции, 24ч" value={String(stats?.transactions_24h ?? "—")} sub="за последние 24 часа" />
+            <KpiTile label="Ожидают подписи" value={String(stats?.pending_signatures ?? "—")} sub="требуют действия" accent />
+            <KpiTile label="Сети" value={String(stats?.networks_active ?? "—")} sub="активные" />
           </div>
-        )}
+        </section>
 
-        {stats && (
-          <>
-            {/* Statistics Cards */}
-            <StatCards data={stats} />
-
-            {/* Alerts Panel */}
-            {alerts && <AlertsPanel alerts={alerts} />}
-
-            {/* Recent Activity & Token Summary */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                {recent && <RecentActivity activities={recent} limit={10} />}
+        {/* Two-column: recent activity (wide) + sparkline & alerts (narrow) */}
+        <section className="grid lg:grid-cols-[1.6fr_1fr] gap-6">
+          {/* Recent transactions */}
+          <div className="border border-border bg-card">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div>
+                <Eyebrow>Последние транзакции</Eyebrow>
+                <h3 className="mt-1 text-[14px] font-medium tracking-tight text-foreground">
+                  {recentList.length > 0 ? `${recentList.length} записей` : "—"}
+                </h3>
               </div>
-              <div className="space-y-6">
-                <CryptoRates />
-                {overview?.token_summary && (
-                  <TokenSummary
-                    tokens={
-                      overview.token_summary as Parameters<
-                        typeof TokenSummary
-                      >[0]["tokens"]
-                    }
-                  />
-                )}
+              <Link href="/transactions">
+                <Button variant="ghost" size="sm">
+                  Все транзакции
+                  <Icon icon="solar:arrow-right-linear" className="text-[14px]" />
+                </Button>
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px] border-collapse">
+                <thead>
+                  <tr className="text-left">
+                    <th className="px-5 py-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint font-normal">Статус</th>
+                    <th className="px-3 py-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint font-normal">Кошелёк</th>
+                    <th className="px-3 py-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint font-normal text-right">Сумма</th>
+                    <th className="px-3 py-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint font-normal">Получатель</th>
+                    <th className="px-5 py-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint font-normal text-right">Время</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentList.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-5 py-12 text-center text-[13px] text-muted-foreground">
+                        Транзакций пока нет
+                      </td>
+                    </tr>
+                  ) : (
+                    recentList.slice(0, 8).map((tx, i) => {
+                      const kind = STATUS_TO_KIND[(tx.status ?? "").toLowerCase()] ?? "neutral";
+                      const amount = tx.amount_decimal ?? tx.value ?? "—";
+                      const dest = tx.to_address || tx.to_addr || "—";
+                      return (
+                        <tr key={tx.tx_unid ?? tx.id ?? i} className="border-t border-border hover:bg-muted/40">
+                          <td className="px-5 py-3"><StatusPill kind={kind as any} label={tx.status ?? "—"} /></td>
+                          <td className="px-3 py-3 text-foreground">
+                            <Mono truncate startChars={8} endChars={4}>{tx.wallet_name ?? "—"}</Mono>
+                          </td>
+                          <td className="px-3 py-3 text-right tabular text-foreground">
+                            {String(amount)}{" "}
+                            <span className="text-muted-foreground">{tx.token ?? ""}</span>
+                          </td>
+                          <td className="px-3 py-3"><Mono truncate>{dest}</Mono></td>
+                          <td className="px-5 py-3 text-right"><Mono size="xs" className="text-faint">{formatTime(tx.created_at)}</Mono></td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Right column */}
+          <div className="space-y-6">
+            <div className="border border-border bg-card p-5">
+              <Eyebrow>Баланс · 30Д</Eyebrow>
+              <BigNum size="xl" className="mt-2">$ {formatNumber(balanceUsd, 0)}</BigNum>
+              <Mono size="xs" className="mt-1 text-muted-foreground block">Авто-обновление каждые 30с</Mono>
+              <div className="mt-4 text-primary">
+                <Sparkline points={[6, 7, 5, 8, 7, 9, 8, 10, 9, 11, 10, 12, 11, 13, 12, 14, 13, 15]} width={300} height={64} />
               </div>
             </div>
 
-          </>
+            <div className="border border-border bg-card">
+              <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                <Eyebrow>Уведомления</Eyebrow>
+                <Mono size="xs" className="text-faint">{alertList.length}</Mono>
+              </div>
+              <ul>
+                {alertList.length === 0 ? (
+                  <li className="px-5 py-8 text-center text-[13px] text-muted-foreground">Уведомлений нет</li>
+                ) : (
+                  alertList.slice(0, 4).map((a, i) => (
+                    <li key={a.id ?? i} className={cn("flex items-start gap-3 px-5 py-3", i > 0 && "border-t border-border")}>
+                      <span
+                        className={cn(
+                          "inline-block w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
+                          a.severity === "high" ? "bg-destructive" : a.severity === "medium" ? "bg-warning" : "bg-faint",
+                        )}
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[13px] text-foreground">{a.title ?? a.message ?? "—"}</div>
+                        {a.message && a.title && (
+                          <div className="text-[12px] text-muted-foreground mt-0.5">{a.message}</div>
+                        )}
+                      </div>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Sync status footer */}
+        {stats?.last_sync && (
+          <div className="flex justify-end">
+            <Mono size="xs" className="text-faint">
+              Последняя синхронизация · {new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(stats.last_sync))}
+            </Mono>
+          </div>
         )}
       </div>
     </>
+  );
+}
+
+function KpiTile({
+  label,
+  value,
+  sub,
+  big = false,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  big?: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <div className="bg-card p-5 lg:p-6">
+      <Eyebrow>{label}</Eyebrow>
+      <BigNum size={big ? "xl" : "lg"} className={cn("mt-2", accent && "text-primary")}>{value}</BigNum>
+      {sub && <Mono size="xs" className="mt-2 text-muted-foreground block">{sub}</Mono>}
+    </div>
   );
 }

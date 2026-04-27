@@ -15,7 +15,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <TooltipProvider>
       <ToastProvider />
       <SidebarProvider open={sidebarOpen} setOpen={setSidebarOpen}>
-        <div className="flex min-h-screen w-full bg-slate-50 dark:bg-slate-950 overflow-x-hidden">
+        <div className="flex min-h-screen w-full bg-background text-foreground overflow-x-hidden">
           <AceternitySidebar />
           <main className="flex min-h-screen flex-1 flex-col overflow-x-hidden">
             {children}

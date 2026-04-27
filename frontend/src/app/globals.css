@@ -1,18 +1,165 @@
-/* ORGON · Crimson Ledger
- * Institutional-grade design tokens.
- * Light is the default theme; dark is composed (not inverted).
- *
- * Fonts are wired via next/font in layout.tsx (Inter + IBM Plex Mono).
- * --font-display reuses Inter weight 500/600 with tight letter-spacing.
- */
+/* ============================================================
+   ORGON · Crimson Ledger v2 — globals.css
+   ============================================================
+   Изменения относительно v1:
+   - --primary и --destructive разделены: brand crimson отделён
+     от ink-чёрного destructive
+   - --ring переведён на foreground (focus = чёрный outline,
+     не crimson)
+   - --accent-foreground больше не оттенок crimson
+   - --surface-contrast (light=ink #14110f, dark=navy #0d1525)
+     для landing-блоков с обратным контрастом
+   - --navy / --navy-foreground / --navy-* — aliases на
+     surface-contrast для обратной совместимости
+   - chart palette переработана (brand + green + amber + blue + grey)
+   - удалена старая утилита .eyebrow (используется компонент <Eyebrow>);
+     минимальный shortcut оставлен как .eyebrow-cls для legacy
+   ============================================================ */
 
-@import 'react-datepicker/dist/react-datepicker.css';
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  /* ---- Surfaces ---- */
+  --background: #fafaf7;          /* off-white paper */
+  --foreground: #14110f;          /* near-black ink */
+  --card: #ffffff;
+  --card-foreground: #14110f;
+  --popover: #ffffff;
+  --popover-foreground: #14110f;
+
+  /* ---- Brand (crimson) — used ONLY for primary actions, eyebrow accents, brand chrome ---- */
+  --primary: #9c1825;
+  --primary-foreground: #ffffff;
+
+  /* ---- Destructive (ink-black) — used ONLY for delete/reject actions, error states ---- */
+  --destructive: #1a1a1a;
+  --destructive-foreground: #ffffff;
+
+  /* ---- Status palette ---- */
+  --success: #1f6b3f;
+  --success-foreground: #ffffff;
+  --warning: #b86e00;
+  --warning-foreground: #ffffff;
+  --info: #0f4f8c;
+  --info-foreground: #ffffff;
+
+  /* ---- Neutrals ---- */
+  --muted: #f0ede5;
+  --muted-foreground: #5a544c;
+  --accent: #efece4;
+  --accent-foreground: #14110f;
+  --border: #d8d4ca;
+  --strong: #cbc8c1;
+  --border-strong: #cbc8c1;       /* alias used by atoms (Button.secondary, hover:border-strong) */
+  --faint: #9b958b;
+  --input: #d8d4ca;
+
+  /* ---- Focus ring — ink, not crimson ---- */
+  --ring: #14110f;
+
+  /* ---- Contrast surface (для landing-блоков с обратным контрастом) ---- */
+  --surface-contrast: #14110f;
+  --surface-contrast-foreground: #fafaf7;
+  --surface-contrast-muted: #2a2622;
+  --surface-contrast-border: #2a2622;
+  --surface-contrast-faint: #7a7268;
+
+  /* Legacy navy aliases — point to surface-contrast. Avoid in new code. */
+  --navy: var(--surface-contrast);
+  --navy-foreground: var(--surface-contrast-foreground);
+  --navy-muted: var(--surface-contrast-muted);
+  --navy-border: var(--surface-contrast-border);
+  --navy-faint: var(--surface-contrast-faint);
+
+  /* ---- Charts (discriminate-color set) ---- */
+  --chart-1: #9c1825;             /* brand */
+  --chart-2: #1f6b3f;
+  --chart-3: #b86e00;
+  --chart-4: #0f4f8c;
+  --chart-5: #5a544c;
+
+  /* ---- Sidebar ---- */
+  --sidebar: #f5f3ec;
+  --sidebar-foreground: #14110f;
+  --sidebar-primary: #9c1825;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #efece4;
+  --sidebar-accent-foreground: #14110f;
+  --sidebar-border: #d8d4ca;
+  --sidebar-ring: #14110f;
+
+  /* ---- Radii (sharp by design) ---- */
+  --radius: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+}
+
+.dark {
+  /* ---- Surfaces (composed dark, не инверсия) ---- */
+  --background: #070d1a;
+  --foreground: #eef2f8;
+  --card: #0d1525;
+  --card-foreground: #eef2f8;
+  --popover: #0d1525;
+  --popover-foreground: #eef2f8;
+
+  --primary: #d63748;
+  --primary-foreground: #ffffff;
+
+  --destructive: #f5f2ea;
+  --destructive-foreground: #14110f;
+
+  --success: #4ea876;
+  --success-foreground: #06120a;
+  --warning: #e0a653;
+  --warning-foreground: #2a1a05;
+  --info: #5a9bd4;
+  --info-foreground: #061122;
+
+  --muted: #131c30;
+  --muted-foreground: #8e9bb3;
+  --accent: #1a2540;
+  --accent-foreground: #eef2f8;
+  --border: #1a2540;
+  --strong: #2a3858;
+  --border-strong: #2a3858;
+  --faint: #5a6885;
+  --input: #1a2540;
+
+  --ring: #eef2f8;
+
+  --surface-contrast: #0d1525;
+  --surface-contrast-foreground: #eef2f8;
+  --surface-contrast-muted: #131c30;
+  --surface-contrast-border: #1a2540;
+  --surface-contrast-faint: #5a6885;
+
+  --navy: var(--surface-contrast);
+  --navy-foreground: var(--surface-contrast-foreground);
+  --navy-muted: var(--surface-contrast-muted);
+  --navy-border: var(--surface-contrast-border);
+  --navy-faint: var(--surface-contrast-faint);
+
+  --chart-1: #d63748;
+  --chart-2: #4ea876;
+  --chart-3: #e0a653;
+  --chart-4: #5a9bd4;
+  --chart-5: #8e9bb3;
+
+  --sidebar: #0a1220;
+  --sidebar-foreground: #eef2f8;
+  --sidebar-primary: #d63748;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #131c30;
+  --sidebar-accent-foreground: #eef2f8;
+  --sidebar-border: #1a2540;
+  --sidebar-ring: #eef2f8;
+}
+
 @theme inline {
-  /* Surface tokens */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -20,46 +167,47 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
 
-  /* Brand */
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-
-  /* Quiet surfaces */
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-
-  /* Semantic */
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
 
-  /* Crimson Ledger extras */
-  --color-navy: var(--navy);
-  --color-navy-foreground: var(--navy-foreground);
-  --color-surface-2: var(--surface-2);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-strong: var(--strong);
   --color-border-strong: var(--border-strong);
   --color-faint: var(--faint);
-
-  /* Form / utility */
-  --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Charts */
+  --color-surface-contrast: var(--surface-contrast);
+  --color-surface-contrast-foreground: var(--surface-contrast-foreground);
+  --color-surface-contrast-muted: var(--surface-contrast-muted);
+  --color-surface-contrast-border: var(--surface-contrast-border);
+  --color-surface-contrast-faint: var(--surface-contrast-faint);
+
+  --color-navy: var(--navy);
+  --color-navy-foreground: var(--navy-foreground);
+  --color-navy-muted: var(--navy-muted);
+  --color-navy-border: var(--navy-border);
+  --color-navy-faint: var(--navy-faint);
+
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
 
-  /* Sidebar */
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -69,14 +217,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Typography */
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-display);
-  --font-mono: var(--font-mono);
-  --font-serif: var(--font-serif);
-
-  /* Radius — Crimson Ledger is sharp by design.
-     rounded-* utilities are pinned to 0; rounded-full kept for dots & avatars. */
+  /* Radii — sharp utilities, full kept for dots/avatars */
   --radius-sm: 0px;
   --radius-md: 0px;
   --radius-lg: 0px;
@@ -85,221 +226,73 @@
   --radius-3xl: 0px;
   --radius-full: 9999px;
 
-  /* Shadows — minimal, mostly absent in light, subtle inner-glow in dark */
-  --shadow-2xs: 0 1px 0 0 rgb(0 0 0 / 0.02);
-  --shadow-xs:  0 1px 0 0 rgb(0 0 0 / 0.04);
-  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow:     0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md:  0 2px 6px -1px rgb(0 0 0 / 0.06);
-  --shadow-lg:  0 4px 12px -2px rgb(0 0 0 / 0.08);
-  --shadow-xl:  0 8px 20px -4px rgb(0 0 0 / 0.10);
-  --shadow-2xl: 0 16px 40px -8px rgb(0 0 0 / 0.14);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* ============================================================
-   LIGHT (default) — paper white, ink, crimson accent
-   ============================================================ */
-:root {
-  /* Crimson Ledger · LIGHT */
-  --background: #ffffff;          /* paper */
-  --foreground: #0e1320;          /* ink with a navy whisper */
-  --surface-2: #f3f2ef;           /* warm grey for sidebar/secondary surfaces */
-  --faint: #8a8d96;               /* eyebrow / labels — quietest text */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
 
-  --card: #fafaf9;                /* off-white, separates from bg */
-  --card-foreground: #0e1320;
-  --popover: #ffffff;
-  --popover-foreground: #0e1320;
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
 
-  --primary: #b81e2f;             /* crimson — brand action */
-  --primary-foreground: #ffffff;
-  --secondary: #f3f2ef;           /* warm grey button */
-  --secondary-foreground: #0e1320;
+  /* Tabular numerals for everything financial */
+  .tabular,
+  [data-tabular] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+  table tbody td {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
 
-  --muted: #fafaf9;               /* quiet bg */
-  --muted-foreground: #5a5e6a;
-  --accent: #fbe8ea;              /* crimson-tinted soft hover */
-  --accent-foreground: #7a1320;
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
 
-  --destructive: #b81e2f;
-  --destructive-foreground: #ffffff;
-  --success: #2e6f3b;
-  --success-foreground: #ffffff;
-  --warning: #a86a00;
-  --warning-foreground: #ffffff;
+  *:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 
-  --navy: #0a1428;                /* logo navy — for blocks (login left, popular plan) */
-  --navy-foreground: #ffffff;
-
-  --border: #e6e4df;
-  --border-strong: #cbc8c1;
-  --input: #e6e4df;
-  --ring: #b81e2f;
-
-  /* Charts — discriminate-color set */
-  --chart-1: #b81e2f;             /* crimson */
-  --chart-2: #0a1428;             /* navy */
-  --chart-3: #2e6f3b;             /* green */
-  --chart-4: #a86a00;             /* amber */
-  --chart-5: #5a5e6a;             /* warm grey */
-
-  /* Sidebar */
-  --sidebar: #f3f2ef;
-  --sidebar-foreground: #0e1320;
-  --sidebar-primary: #b81e2f;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #fafaf9;
-  --sidebar-accent-foreground: #0e1320;
-  --sidebar-border: #e6e4df;
-  --sidebar-ring: #b81e2f;
-
-  /* Typography fallbacks (real values come from next/font CSS variables) */
-  --font-sans: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
-  --font-display: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
-  --font-serif: "IBM Plex Serif", Georgia, serif;
-
-  /* Radius (legacy — most utilities pinned via @theme above) */
-  --radius: 0;
-
-  --tracking-tight: -0.02em;
-  --tracking-normal: 0em;
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--background); }
+  ::-webkit-scrollbar-thumb { background: var(--strong); border-radius: 0; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--faint); }
 }
 
-/* ============================================================
-   DARK — midnight navy, brighter crimson; not an inversion
-   ============================================================ */
-.dark {
-  --background: #070d1a;
-  --foreground: #eef2f8;
-  --surface-2: #142142;
-  --faint: #5e6886;
-
-  --card: #0e1830;
-  --card-foreground: #eef2f8;
-  --popover: #0e1830;
-  --popover-foreground: #eef2f8;
-
-  --primary: #e23b50;             /* brighter on navy */
-  --primary-foreground: #ffffff;
-  --secondary: #142142;
-  --secondary-foreground: #eef2f8;
-
-  --muted: #0e1830;
-  --muted-foreground: #9aa3b8;
-  --accent: #3d0f15;              /* deep crimson tint */
-  --accent-foreground: #ff5d72;
-
-  --destructive: #e23b50;
-  --destructive-foreground: #ffffff;
-  --success: #5fbf78;
-  --success-foreground: #07210f;
-  --warning: #e0a040;
-  --warning-foreground: #2a1a04;
-
-  --navy: #070d1a;
-  --navy-foreground: #eef2f8;
-
-  --border: #1f2c4d;
-  --border-strong: #2e3d65;
-  --input: #1f2c4d;
-  --ring: #e23b50;
-
-  --chart-1: #e23b50;
-  --chart-2: #5fa0ff;
-  --chart-3: #5fbf78;
-  --chart-4: #e0a040;
-  --chart-5: #9aa3b8;
-
-  --sidebar: #0e1830;
-  --sidebar-foreground: #eef2f8;
-  --sidebar-primary: #e23b50;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #142142;
-  --sidebar-accent-foreground: #eef2f8;
-  --sidebar-border: #1f2c4d;
-  --sidebar-ring: #e23b50;
-}
-
-/* ============================================================
-   Base
-   ============================================================ */
-body {
-  font-family: var(--font-sans);
-  background: var(--background);
-  color: var(--foreground);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  letter-spacing: var(--tracking-normal);
-  font-feature-settings: "ss01", "cv11";
-}
-
-/* tabular numbers for everything that should align (status counts, KPIs, money) */
-.tabular,
-[data-tabular] {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
-}
-
-/* Aceternity spotlight keyframe — kept for legacy components */
-@keyframes spotlight {
-  0%   { opacity: 0; transform: translate(-72%, -62%) scale(0.5); }
-  100% { opacity: 1; transform: translate(-50%, -40%) scale(1); }
-}
-.animate-spotlight {
-  animation: spotlight 2s ease .75s 1 forwards;
-}
-
-/* Custom scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 0;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--muted-foreground);
-}
-
-::selection {
-  background: var(--primary);
-  color: var(--primary-foreground);
-}
-
-/* Focus ring — sharp, no glow */
-*:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
-/* Address / hash mono shortcut */
-.mono { font-family: var(--font-mono); }
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;     /* 11px */
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-/* Token-driven utility shortcuts (kept compatible with existing class usage) */
 @layer utilities {
-  .bg-card { background-color: var(--card); color: var(--card-foreground); }
-  .bg-popover { background-color: var(--popover); color: var(--popover-foreground); }
-  .bg-primary { background-color: var(--primary); color: var(--primary-foreground); }
-  .bg-secondary { background-color: var(--secondary); color: var(--secondary-foreground); }
-  .bg-muted { background-color: var(--muted); color: var(--muted-foreground); }
-  .bg-accent { background-color: var(--accent); color: var(--accent-foreground); }
-  .bg-destructive { background-color: var(--destructive); color: var(--destructive-foreground); }
-  .bg-navy { background-color: var(--navy); color: var(--navy-foreground); }
+  /* Quiet pulse — replaces animate-ping in legacy spots */
+  @keyframes quiet-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+  .animate-quiet-pulse {
+    animation: quiet-pulse 2.4s ease-in-out infinite;
+  }
 
-  .text-foreground { color: var(--foreground); }
-  .text-primary { color: var(--primary); }
-  .text-muted-foreground { color: var(--muted-foreground); }
-  .text-faint { color: var(--faint); }
+  /* Aceternity legacy spotlight keyframe — kept for components that
+     still reference .animate-spotlight (gradual removal in P2). */
+  @keyframes spotlight {
+    0%   { opacity: 0; transform: translate(-72%, -62%) scale(0.5); }
+    100% { opacity: 1; transform: translate(-50%, -40%) scale(1); }
+  }
+  .animate-spotlight {
+    animation: spotlight 2s ease .75s 1 forwards;
+  }
 
-  .border-border { border-color: var(--border); }
-  .border-strong { border-color: var(--border-strong); }
-
-  .ring-ring { --tw-ring-color: var(--ring); }
+  /* Address / hash mono shortcut for places where importing <Mono> is overkill */
+  .mono { font-family: var(--font-mono); }
 }

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "ORGON - Secure Multi-Signature Wallet Management",
     description: "Enterprise-grade crypto custody platform with multi-signature security for exchanges, banks and fintech companies.",
-    url: "https://orgon.asystem.ai",
+    url: "https://orgon.asystem.kg",
     siteName: "ORGON Platform",
     type: "website",
     locale: "ru_RU",

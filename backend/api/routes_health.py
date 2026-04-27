@@ -1,8 +1,10 @@
 """Health check endpoints."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from datetime import datetime, timezone
 import logging
+
+from backend.rbac import require_roles
 
 logger = logging.getLogger("orgon.api.health")
 
@@ -216,8 +218,11 @@ async def check_services(request: Request):
 
 
 @router.post("/run-migrations")
-async def run_migrations(request: Request):
-    """Run PostgreSQL migrations manually."""
+async def run_migrations(
+    request: Request,
+    user: dict = Depends(require_roles("company_admin")),
+):
+    """Run PostgreSQL migrations manually. Admin only."""
     from pathlib import Path
 
     pool = getattr(request.app.state, 'db_pool', None)

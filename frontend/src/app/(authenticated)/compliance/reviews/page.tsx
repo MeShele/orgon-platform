@@ -35,7 +35,7 @@ export default function ReviewsPage() {
     try {
       const endpoint = tab === "kyc" ? "/api/v1/kyc-kyb/kyc/submissions" : "/api/v1/kyc-kyb/kyb/submissions";
       const res = await fetch(endpoint, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("orgon_access_token")}` },
       });
       const data = await res.json();
       setSubmissions(Array.isArray(data) ? data : []);
@@ -56,7 +56,7 @@ export default function ReviewsPage() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("orgon_access_token")}`,
         },
         body: JSON.stringify({ decision, comment, risk_level: riskLevel }),
       });

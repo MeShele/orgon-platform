@@ -39,7 +39,7 @@ export default function KycPage() {
   async function fetchStatus() {
     try {
       const res = await fetch("/api/v1/kyc-kyb/kyc/status", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("orgon_access_token")}` },
       });
       const data = await res.json();
       setKycStatus(data);
@@ -71,7 +71,7 @@ export default function KycPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("orgon_access_token")}`,
         },
         body: JSON.stringify({
           full_name: fullName,

@@ -6,6 +6,7 @@ import json
 import logging
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Set
 
@@ -511,8 +512,8 @@ app.include_router(compliance_router)  # Compliance & Regulatory
 app.include_router(whitelabel_router)  # White Label
 app.include_router(kyc_kyb_router)  # KYC/KYB Verification Flow
 app.include_router(fiat_router)  # Fiat On-ramp/Off-ramp
-app.include_router(test_events_router)  # Development only
-app.include_router(debug_router)  # Debug endpoints
+# app.include_router(test_events_router)  # Development only — disabled in prod (anonymous WS event injection)
+# app.include_router(debug_router)  # Debug endpoints — disabled in prod (dumps app.state)
 app.include_router(monitoring_router)  # Monitoring & Prometheus metrics
 app.include_router(documents_router)  # OnlyOffice document tokens
 app.include_router(reports_router)  # Reports

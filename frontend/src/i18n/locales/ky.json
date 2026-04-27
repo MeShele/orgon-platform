@@ -620,5 +620,94 @@
   "metadata": {
     "title": "ORGON - Капчыктарды башкаруу",
     "description": "Safina Pay аркылуу криптовалюта капчыктарын башкаруу"
+  },
+  "billing": {
+    "title": "Эсеп жана жазылуулар",
+    "currentPlan": "Учурдагы план",
+    "month": "ай",
+    "year": "жыл",
+    "renewalDate": "Жаңылануу күнү",
+    "autoRenew": "Автоматтык жаңылануу",
+    "enabled": "Күйгүзүлгөн",
+    "disabled": "Өчүрүлгөн",
+    "upgradePlan": "Планды жогорулатуу",
+    "cancelSubscription": "Жазылууну токтотуу",
+    "noSubscription": "Жигердүү жазылуу жок",
+    "choosePlan": "Планды тандаңыз",
+    "outstandingBalance": "Карыз",
+    "totalSpend": "Бардык чыгашалар",
+    "recentInvoices": "Акыркы эсептер",
+    "invoiceNumber": "Эсеп №",
+    "issueDate": "Чыгарылган күн",
+    "dueDate": "Төлөм мөөнөтү",
+    "amount": "Сумма",
+    "status": "Абал",
+    "actions": "Аракеттер",
+    "payNow": "Төлөө",
+    "paid": "Төлөнгөн",
+    "noInvoices": "Эсептер жок",
+    "paymentHistory": "Төлөмдөр тарыхы",
+    "noPayments": "Төлөмдөр жок",
+    "select": "Тандоо",
+    "cancelConfirm": "Жазылууну токтотууну каалайсызбы?"
+  },
+  "branding": {
+    "title": "Брендинг жана White Label",
+    "logo": "Логотип",
+    "logoUrl": "Логотиптин URL",
+    "colors": "Түстөр",
+    "primaryColor": "Негизги түс",
+    "secondaryColor": "Кошумча түс",
+    "accentColor": "Акцент түсү",
+    "platformInfo": "Платформа жөнүндө",
+    "platformName": "Платформанын аты",
+    "tagline": "Девиз",
+    "supportEmail": "Колдоо email",
+    "preview": "Алдын ала көрүү",
+    "previewButton": "Негизги баскыч",
+    "previewSecondary": "Кошумча баскыч"
+  },
+  "compliance": {
+    "title": "Комплаенс жана жөнгө салуу",
+    "kycRecords": "KYC жазуулары",
+    "amlAlerts": "AML эскертүүлөр",
+    "reports": "Отчёттор",
+    "recentKYC": "Акыркы KYC жазуулары",
+    "noKYC": "KYC жазуулары жок",
+    "amlAlertsTitle": "AML эскертүүлөр",
+    "noAlerts": "Эскертүүлөр жок",
+    "reportsTitle": "Жөнгө салуучу үчүн отчёттор",
+    "noReports": "Отчёттор жок"
+  },
+  "organizations": {
+    "title": "Уюмдар",
+    "newOrganization": "Жаңы уюм",
+    "selectOrganization": "Уюмду тандаңыз",
+    "manageOrganizations": "Уюмдарды башкаруу",
+    "allOrganizations": "Бардык уюмдар",
+    "overview": "Жалпы көрүнүш",
+    "members": "Катышуучулар",
+    "settings": "Жөндөөлөр",
+    "details": "Уюмдун чоо-жайы",
+    "addMember": "Катышуучу кошуу",
+    "maxWallets": "Эң көп капчык",
+    "maxVolume": "Эң көп көлөм",
+    "kycRequired": "KYC милдеттүү",
+    "created": "Түзүлгөн",
+    "status": {
+      "active": "Жигердүү",
+      "suspended": "Токтотулган",
+      "closed": "Жабылган"
+    },
+    "license": {
+      "free": "Акысыз",
+      "pro": "Профессионал",
+      "enterprise": "Корпоративдик"
+    },
+    "role": {
+      "admin": "Администратор",
+      "operator": "Оператор",
+      "viewer": "Көзөмөлчү"
+    }
   }
 }

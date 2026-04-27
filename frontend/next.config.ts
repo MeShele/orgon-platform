@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
   },
   
   // Allow cross-origin requests from production domain
-  allowedDevOrigins: ['orgon.asystem.ai'],
+  allowedDevOrigins: ['orgon.asystem.kg'],
   
   // Rewrites for API proxying
   async rewrites() {

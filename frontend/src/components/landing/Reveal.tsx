@@ -44,7 +44,7 @@ export function Reveal({
           y: 0,
           transition: {
             duration,
-            ease: [0.22, 1, 0.36, 1],
+            ease: [0.22, 1, 0.36, 1] as const,
             delay,
             ...(stagger ? { staggerChildren: stagger, delayChildren: delay } : {}),
           },
@@ -87,7 +87,7 @@ export const RevealItem = forwardRef<HTMLElement, RevealItemProps>(
           visible: {
             opacity: 1,
             y: 0,
-            transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+            transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const },
           },
         };
 

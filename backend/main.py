@@ -481,8 +481,7 @@ from backend.api.routes_monitoring import router as monitoring_router
 from backend.api.routes_documents import router as documents_router
 from backend.api.routes_reports import router as reports_router
 from backend.api.routes_support import router as support_router
-from backend.api.routes_billing_compat import router as billing_compat_router
-from backend.api.routes_compliance_compat import router as compliance_compat_router
+# compat routers removed in sprint 2 — they served hardcoded mock data
 
 # B2B Platform routes
 from backend.api.routes_partner import router as partner_router
@@ -519,8 +518,6 @@ app.include_router(monitoring_router)  # Monitoring & Prometheus metrics
 app.include_router(documents_router)  # OnlyOffice document tokens
 app.include_router(reports_router)  # Reports
 app.include_router(support_router)  # Support tickets
-# app.include_router(billing_compat_router)  # disabled — returned fake mock plans
-# app.include_router(compliance_compat_router)  # disabled — returned fake mock KYC stats
 
 # B2B Platform routes
 app.include_router(partner_router)

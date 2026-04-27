@@ -7,6 +7,8 @@ export type ButtonVariant =
   | 'ghost'        // no border, hover quiet
   | 'navy'         // navy block, white text — for popular/feature CTAs
   | 'destructive'  // crimson, dangerous
+  | 'danger'       // alias of destructive (legacy callers)
+  | 'warning'      // amber
   | 'success';     // green
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
@@ -35,6 +37,10 @@ const VARIANT: Record<ButtonVariant, string> = {
     'bg-navy text-navy-foreground border border-navy hover:opacity-90 active:opacity-80',
   destructive:
     'bg-destructive text-destructive-foreground border border-destructive hover:opacity-90',
+  danger:
+    'bg-destructive text-destructive-foreground border border-destructive hover:opacity-90',
+  warning:
+    'bg-warning text-warning-foreground border border-warning hover:opacity-90',
   success:
     'bg-success text-success-foreground border border-success hover:opacity-90',
 };

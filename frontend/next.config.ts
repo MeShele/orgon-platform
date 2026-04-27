@@ -4,9 +4,9 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
 
-  // Skip TypeScript/ESLint errors during build
+  // Skip TypeScript errors during Coolify build (still type-checked locally
+  // via `npx tsc --noEmit`). ESLint config moved to .eslintrc per Next 16.
   typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
   
   // Performance optimizations
   compress: true,

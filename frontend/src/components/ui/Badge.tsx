@@ -1,7 +1,13 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-export type BadgeVariant = 'primary' | 'success' | 'warning' | 'danger' | 'gray' | 'navy' | 'outline';
+export type BadgeVariant =
+  | 'primary' | 'success' | 'warning' | 'danger' | 'gray' | 'navy' | 'outline'
+  // legacy colour aliases (use semantic variants in new code)
+  | 'green'   // → success
+  | 'red'     // → danger
+  | 'yellow'  // → warning
+  | 'blue';   // → primary
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -18,6 +24,11 @@ const VARIANT: Record<BadgeVariant, string> = {
   gray: 'bg-muted text-muted-foreground border-border',
   navy: 'bg-navy text-navy-foreground border-navy',
   outline: 'bg-transparent text-foreground border-strong',
+  // legacy aliases
+  green: 'bg-success text-success-foreground border-success',
+  red: 'bg-destructive text-destructive-foreground border-destructive',
+  yellow: 'bg-warning text-warning-foreground border-warning',
+  blue: 'bg-primary text-primary-foreground border-primary',
 };
 
 export function Badge({ variant = 'gray', mono = true, className, children, ...props }: BadgeProps) {

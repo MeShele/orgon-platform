@@ -93,7 +93,7 @@ export default function NewOrganizationPage() {
                     value={formData.name}
                     onChange={(e) => handleChange("name", e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    placeholder="Safina Exchange"
+                    placeholder="Acme Exchange"
                   />
                 </div>
 
@@ -106,7 +106,7 @@ export default function NewOrganizationPage() {
                     value={formData.display_name}
                     onChange={(e) => handleChange("display_name", e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    placeholder="Safina"
+                    placeholder="Acme"
                   />
                 </div>
 
@@ -120,7 +120,7 @@ export default function NewOrganizationPage() {
                     value={formData.slug}
                     onChange={(e) => handleChange("slug", e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    placeholder="safina-exchange"
+                    placeholder="acme-exchange"
                   />
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     URL-friendly identifier (lowercase, hyphens)
@@ -160,7 +160,7 @@ export default function NewOrganizationPage() {
                     value={formData.email}
                     onChange={(e) => handleChange("email", e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    placeholder="info@safina.kg"
+                    placeholder="info@acme.kg"
                   />
                 </div>
 
@@ -186,7 +186,7 @@ export default function NewOrganizationPage() {
                     value={formData.address}
                     onChange={(e) => handleChange("address", e.target.value)}
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-                    placeholder="123 Finance Street"
+                    placeholder="ул. Финансовая, 123"
                   />
                 </div>
 

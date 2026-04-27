@@ -48,6 +48,12 @@ export function PublicHeader() {
               Возможности
             </Link>
             <Link
+              href="/pricing"
+              className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+            >
+              Тарифы
+            </Link>
+            <Link
               href="/about"
               className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
             >
@@ -98,6 +104,13 @@ export function PublicHeader() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Возможности
+              </Link>
+              <Link
+                href="/pricing"
+                className="text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Тарифы
               </Link>
               <Link
                 href="/about"

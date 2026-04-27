@@ -1,467 +1,129 @@
-# ORGON - Multi-Signature Wallet Platform
+# ORGON
 
-**ORGON** is a multi-tenancy, multi-signature cryptocurrency wallet platform designed for crypto exchanges and financial institutions. Built with Next.js 16, FastAPI, and PostgreSQL.
+**Институциональная мульти-подписная кастоди для криптообменников, брокеров,
+банков и финтех-компаний.**
 
-> **Status:** Phase 1 complete (Multi-Tenancy Foundation)  
-> **Version:** 1.0.0-alpha  
-> **License:** Proprietary
-
----
-
-## Features
-
-### Phase 1: Multi-Tenancy Foundation ✅
-- **Organizations Management:** Create and manage multiple organizations (exchanges)
-- **Role-Based Access Control:** Admin, Operator, Viewer roles
-- **Row-Level Security (RLS):** Postgres-based tenant isolation
-- **Settings Management:** Billing, KYC, features per organization
-- **Audit Logging:** Complete activity tracking
-
-### Phase 2: Safina Integration (In Progress)
-- Crypto exchange API integration
-- Multi-signature wallet workflows
-- Transaction scheduling
-- Real-time price feeds
-
----
-
-## Architecture
-
-### Tech Stack
-
-**Frontend:**
-- Next.js 16 (App Router, Turbopack)
-- React 19
-- TypeScript 5
-- Tailwind CSS 4
-- Radix UI + Framer Motion
-- i18n (en/ru/ky)
-
-**Backend:**
-- FastAPI (Python 3.12)
-- PostgreSQL 16 + asyncpg
-- JWT Authentication
-- Pydantic validation
-- Event-driven architecture
-
-**Infrastructure:**
-- Docker + Docker Compose
-- Cloudflare Tunnel (optional)
-- Neon Postgres (production)
-
-### Database Schema
+Operational layer between wallet and blockchain: M-of-N signing policies,
+KYC/KYB/AML, append-only audit log, B2B API and white-label dashboard.
 
 ```
-users
-  ├── organizations (multi-tenancy)
-  │   ├── organization_settings
-  │   └── user_organizations (members)
-  ├── wallets
-  │   └── wallet_users
-  ├── transactions
-  │   └── signatures
-  └── audit_logs
-```
-
-**Multi-Tenancy Model:**
-- Each organization is a tenant
-- Row-Level Security (RLS) enforces data isolation
-- Users can belong to multiple organizations
-- Context switching via `set_tenant_context()`
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- Docker & Docker Compose
-- Node.js 18+ (for local frontend dev)
-- Python 3.12+ (for local backend dev)
-
-### Installation
-
-1. **Clone the repository:**
-```bash
-git clone <repository-url>
-cd ORGON
-```
-
-2. **Configure environment:**
-```bash
-cp .env.example .env
-# Edit .env with your values:
-# - DATABASE_URL (Postgres connection)
-# - JWT_SECRET_KEY
-# - CORS_ORIGINS
-```
-
-3. **Start services:**
-```bash
-docker compose up -d
-```
-
-4. **Apply database migrations:**
-```bash
-docker compose exec backend python -c "
-from backend.migrations.runner import apply_migrations
-apply_migrations()
-"
-```
-
-5. **Access the application:**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
----
-
-## Development
-
-### Frontend Development
-
-```bash
-cd frontend
-npm install
-npm run dev        # Start dev server (port 3000)
-npm run build      # Production build
-npm run lint       # ESLint check
-```
-
-**Project Structure:**
-```
-frontend/
-├── src/
-│   ├── app/              # Next.js App Router pages
-│   ├── components/       # React components
-│   ├── lib/              # Utilities, API client
-│   └── i18n/             # Translations (en/ru/ky)
-└── public/               # Static assets
-```
-
-### Backend Development
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-**Project Structure:**
-```
-backend/
-├── api/                  # FastAPI routes & schemas
-├── services/             # Business logic
-├── database/             # Database layer
-├── migrations/           # SQL migrations
-├── tests/                # Pytest test suites
-└── main.py               # FastAPI application
+production       https://orgon.asystem.kg
+preview          https://orgon-preview.asystem.kg
+api docs         https://orgon-preview-api.asystem.kg/api/redoc
+support          support@orgon.asystem.kg
 ```
 
 ---
 
-## Testing
+## Status
 
-### Run All Tests
+| Layer | What's wired | What's not yet |
+|---|---|---|
+| Auth | JWT + refresh + 2FA-ready, role hierarchy with legacy mapping | webhook-based JWT rotation |
+| Multi-tenancy | service-layer tenant context (`set_tenant_context`) | RLS policies have known SQL bugs in migration `005`; isolation is enforced at the Python layer until a follow-up migration |
+| Multi-signature | thresholds and signing flow live in Safina; ORGON records each step in `signature_history` (append-only via trigger from migration `015`) | local canonical-payload verification + nonce/timestamp replay protection — planned |
+| Compliance | KYC/KYB submission + admin review queue; AML alert table | regulator export (CSV/JSON) |
+| Audit log | append-only via migration `015` (UPDATE/DELETE blocked) | retention policy + cold storage |
+| Frontend | Crimson Ledger v2 design (light + composed dark), public marketing + 4 main authenticated screens | 25+ rest-of-app pages still on legacy density |
+| i18n | RU primary, EN parity, KY for navigation/dashboard | full KY parity for `landing.*`, `compliance.*` |
+| Security | rate-limit on auth (5/min/IP), CORS whitelist, no stack-trace leak in 500s, monitoring/debug routes admin-gated | RLS in Postgres, partner-id scoping in B2B API (work in progress) |
+| Deploy | Coolify on `asystem-proxmox` (10.30.30.132), nginx on `hetzner-ax41` + Cloudflare DNS | GitHub→Coolify webhook (manual `curl` deploy for now) |
 
-```bash
-# Backend tests (24 test cases)
-docker compose exec backend pytest -v
-
-# Frontend tests (if configured)
-cd frontend && npm test
-```
-
-### Test Suites
-
-1. **Basic Tests** (10 tests)
-   - CRUD operations
-   - Member management
-   - Settings management
-
-2. **E2E Tests** (4 tests)
-   - Organization creation flow
-   - Member workflows
-   - Tenant isolation
-
-3. **Performance Tests** (5 tests)
-   - Throughput: 616 orgs/sec
-   - Pagination: <100ms
-   - RLS overhead: 62%
-
-4. **Security Tests** (5 tests)
-   - SQL injection resistance
-   - RLS bypass prevention
-   - Permission escalation checks
-
-**Test Coverage:** 100% of Organizations API
+> Honest baseline. Anything not listed is not yet implemented — please don't
+> sell what isn't here.
 
 ---
 
-## Database Migrations
+## Tech stack
 
-### Create Migration
+**Backend** — Python 3.12 · FastAPI · asyncpg · PostgreSQL 16 · Pydantic v2 ·
+APScheduler · python-jose JWT · bcrypt · Safina Pay client.
 
-```bash
-# Create new migration file
-cat > backend/migrations/007_your_migration.sql << 'EOF'
--- Migration 007: Description
--- Phase: 1.x
--- Date: YYYY-MM-DD
+**Frontend** — Next.js 16 (App Router) · React 19 · TypeScript 5 ·
+Tailwind CSS 4 (`@theme inline` syntax, no `tailwind.config.js`) ·
+Framer Motion · Magic UI primitives · Iconify Solar set · SWR.
 
--- Your SQL here
-CREATE TABLE ...;
-EOF
-```
-
-### Apply Migrations
-
-```bash
-# Via Docker
-docker compose exec backend python -c "
-from backend.migrations.runner import apply_migrations
-apply_migrations()
-"
-
-# Or manually via psql
-docker compose exec postgres psql -U orgon_user -d orgon_db -f /app/backend/migrations/007_your_migration.sql
-```
-
-### Migration Files (Current)
-
-- `000_base_schema.sql` - Users, sessions
-- `001_create_organizations.sql` - Organizations table
-- `002_add_tenant_columns.sql` - Tenant context
-- `003_create_user_organizations.sql` - Members
-- `004_create_tenant_settings.sql` - Settings
-- `005_enable_rls_policies.sql` - RLS functions
-- `006_create_billing_tables.sql` - Billing
+**Infra** — Docker · Coolify v4 self-hosted · Postgres in container ·
+nginx reverse-proxy · Cloudflare (DNS proxied, no tunnel for orgon).
 
 ---
 
-## API Documentation
+## Quick start (local dev)
 
-### Interactive API Docs
-
-**Swagger UI:** http://localhost:8000/docs  
-**ReDoc:** http://localhost:8000/redoc
-
-### Key Endpoints
-
-#### Organizations
-```http
-POST   /api/v1/organizations          # Create organization
-GET    /api/v1/organizations          # List organizations
-GET    /api/v1/organizations/{id}     # Get organization
-PATCH  /api/v1/organizations/{id}     # Update organization
-DELETE /api/v1/organizations/{id}     # Delete (soft)
-```
-
-#### Members
-```http
-GET    /api/v1/organizations/{id}/members              # List members
-POST   /api/v1/organizations/{id}/members              # Add member
-PATCH  /api/v1/organizations/{id}/members/{user_id}    # Update role
-DELETE /api/v1/organizations/{id}/members/{user_id}    # Remove member
-```
-
-#### Settings
-```http
-GET    /api/v1/organizations/{id}/settings    # Get settings
-PATCH  /api/v1/organizations/{id}/settings    # Update settings
-```
-
-### Authentication
-
-All API requests require JWT token:
+Requires Docker, Node 18+, Python 3.12+.
 
 ```bash
-# Login
-curl -X POST http://localhost:8000/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password"}'
+git clone https://github.com/MeShele/orgon-platform
+cd orgon-platform
 
-# Use token
-curl http://localhost:8000/api/v1/organizations \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
-```
-
----
-
-## Deployment
-
-### Docker Production Build
-
-```bash
-# Build images
-docker compose -f docker-compose.prod.yml build
-
-# Start services
-docker compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker compose -f docker-compose.prod.yml logs -f
-```
-
-### Environment Variables (Production)
-
-```bash
-# Database
-DATABASE_URL=postgresql://user:password@host:5432/dbname
-
-# Security
-JWT_SECRET_KEY=your-secret-key-here
-CORS_ORIGINS=https://yourdomain.com
-
-# Optional
-CLOUDFLARE_TUNNEL_TOKEN=your-tunnel-token
-SAFINA_API_KEY=your-safina-api-key
-```
-
-### Cloudflare Tunnel (Optional)
-
-Secure public access without exposing ports:
-
-```bash
-# Set CLOUDFLARE_TUNNEL_TOKEN in .env
-docker compose up -d cloudflared
-```
-
----
-
-## Multi-Tenancy Guide
-
-### Tenant Context
-
-Organizations use Row-Level Security (RLS) for data isolation:
-
-```python
-# Set tenant context (Python service layer)
-await service.set_tenant_context(organization_id)
-
-# Queries now filtered to this organization
-orgs = await service.list_organizations()  # Returns only accessible orgs
-
-# Clear context
-await service.clear_tenant_context()
-```
-
-### RLS Design
-
-- **Read-permissive:** Users can see organizations they're members of
-- **Write-restrictive:** Only admins can modify organization data
-- **Context-aware:** Queries automatically filtered by tenant_id
-
-### Adding Tenant-Aware Tables
-
-```sql
--- 1. Add organization_id column
-ALTER TABLE your_table ADD COLUMN organization_id UUID REFERENCES organizations(id);
-
--- 2. Enable RLS
-ALTER TABLE your_table ENABLE ROW LEVEL SECURITY;
-
--- 3. Create RLS policy
-CREATE POLICY tenant_isolation ON your_table
-  USING (organization_id = current_setting('app.current_tenant', TRUE)::uuid);
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Frontend build fails:**
-```bash
-# Clear cache and rebuild
-cd frontend
-rm -rf .next node_modules
-npm install
-npm run build
-```
-
-**Backend tests fail:**
-```bash
-# Reset test database
-docker compose down -v
+# 1. Spin up Postgres locally
 docker compose up -d postgres
-# Wait 10 seconds for DB to initialize
-docker compose exec postgres psql -U orgon_user -d orgon_db -f /app/backend/migrations/000_base_schema.sql
-# Re-run tests
-docker compose exec backend pytest
+
+# 2. Backend
+cd backend
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8890
+
+# 3. Frontend (separate terminal)
+cd ../frontend
+npm install
+NEXT_PUBLIC_API_URL=http://localhost:8890 npm run dev
+
+# 4. Apply DB schema (once)
+curl -X POST http://localhost:8890/api/health/run-migrations \
+     -H "Authorization: Bearer <admin token>"
 ```
 
-**Database connection errors:**
-```bash
-# Check Postgres is running
-docker compose ps postgres
+Default demo accounts (after migration `013` runs):
 
-# Test connection
-docker compose exec postgres psql -U orgon_user -d orgon_db -c "SELECT 1;"
+```
+demo-admin@orgon.io   / demo2026   Admin in Demo Exchange + Demo Broker
+demo-signer@orgon.io  / demo2026   Operator in Demo Exchange
+demo-viewer@orgon.io  / demo2026   Viewer in Demo Exchange
 ```
 
 ---
 
-## Contributing
+## Repository layout
 
-### Code Style
-
-**Frontend:**
-- ESLint + Prettier
-- TypeScript strict mode
-- Tailwind CSS (no inline styles)
-
-**Backend:**
-- Black formatter
-- Type hints (mypy)
-- Docstrings (Google style)
-
-### Testing Requirements
-
-- All new features must have tests
-- Maintain 100% passing test suite
-- Performance benchmarks for critical paths
+```
+backend/                      FastAPI app
+  api/routes_*.py             routers grouped by domain
+  services/                   business logic, Safina client, signature flow
+  database/                   asyncpg pool, schema migrations under database/migrations/
+  migrations/                 multi-tenancy + RLS + seed migrations (001..015)
+  rbac.py                     role hierarchy + require_roles dependency
+  middleware/                 LoginRateLimit, security headers
+  api/middleware*.py          CORS, RLS context, auth, B2B partner-key
+frontend/                     Next.js 16 App Router
+  src/app/(public)/*          marketing pages
+  src/app/(authenticated)/*   logged-in app
+  src/components/landing/     Hero, Pillars, FlowSection, …
+  src/components/magicui/     Marquee, NumberTicker, AnimatedBeam
+  src/components/ui/          Button, Card, primitives (Eyebrow, Mono, BigNum, …)
+  src/i18n/locales/           ru.json · en.json · ky.json (must stay in sync)
+docs/                         architecture + design notes
+docs/archive/2026-Q1-Q2/      old phase-completion notes (preserved for history)
+claude design/                design hand-offs (snapshots from claude.ai/design)
+docker-compose.yml            local dev stack (Postgres + backend + frontend)
+config/orgon.yaml             backend runtime config (read by backend/config.py)
+```
 
 ---
 
-## Roadmap
+## Documentation
 
-- [x] **Phase 1.1:** Database Design (Multi-Tenancy)
-- [x] **Phase 1.2:** Backend API (Organizations CRUD)
-- [x] **Phase 1.3:** Frontend UI (Organizations Management)
-- [x] **Phase 1.4:** Testing (Basic + E2E + Performance + Security)
-- [x] **Phase 1.5:** Documentation (This README)
-- [ ] **Phase 2.1:** Safina Exchange Integration
-- [ ] **Phase 2.2:** Multi-Signature Wallets
-- [ ] **Phase 2.3:** Transaction Management
-- [ ] **Phase 3:** Advanced Features (Analytics, Reporting)
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — actual stack, auth flow, multi-sig flow with honest disclaimers
+- [`DEPLOYMENT.md`](DEPLOYMENT.md) — Coolify API procedures, redeploy, rollback, log access
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — branch strategy, PR process, tests
+- [`API.md`](API.md) — points at live Swagger / ReDoc
+- [`AGENTS.md`](AGENTS.md) — guidance for AI assistants working on the repo
+- [`docs/`](docs/) — deeper architecture notes
+- [`docs/archive/2026-Q1-Q2/`](docs/archive/2026-Q1-Q2/) — historical session notes (read for context, not current truth)
 
 ---
 
 ## License
 
-Proprietary - All rights reserved  
-© 2026 ORGON Project
-
----
-
-## Support
-
-- **Issues:** Open a GitHub issue
-- **Email:** support@orgon.dev
-- **Documentation:** [docs.orgon.dev](https://docs.orgon.dev)
-
----
-
-## Acknowledgments
-
-Built with:
-- [Next.js](https://nextjs.org/)
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [PostgreSQL](https://www.postgresql.org/)
-- [Aceternity UI](https://ui.aceternity.com/)
-
-**Development:** Forge (Atlas Chief Worker) + Team
+Proprietary. © ОсОО «АСИСТЕМ». ORGON™ is a trademark of ОсОО «АСИСТЕМ».

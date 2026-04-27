@@ -1,540 +1,205 @@
-# ORGON Architecture
+# Architecture
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-02-11  
-**Phase:** 1 (Multi-Tenancy Foundation)
-
----
-
-## Table of Contents
-
-1. [System Overview](#system-overview)
-2. [Multi-Tenancy Design](#multi-tenancy-design)
-3. [Component Architecture](#component-architecture)
-4. [Data Flow](#data-flow)
-5. [Security Model](#security-model)
-6. [Performance Considerations](#performance-considerations)
-7. [Deployment Architecture](#deployment-architecture)
+> Truthful description of the current implementation. If a feature is
+> aspirational, it is marked `(planned)`. If a documented term doesn't match
+> reality, fix the doc rather than the code.
 
 ---
 
-## System Overview
-
-### High-Level Architecture
+## High-level
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         ORGON Platform                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌───────────────┐         ┌───────────────┐                │
-│  │   Frontend    │◄───────►│   Backend     │                │
-│  │  (Next.js)    │  REST   │   (FastAPI)   │                │
-│  │   Port 3000   │  API    │   Port 8000   │                │
-│  └───────────────┘         └───────┬───────┘                │
-│         │                           │                         │
-│         │                           ▼                         │
-│         │                  ┌─────────────────┐               │
-│         │                  │   PostgreSQL    │               │
-│         │                  │   (Multi-Tenant)│               │
-│         │                  │    Port 5432    │               │
-│         │                  └─────────────────┘               │
-│         │                                                     │
-│         └─────────────────────────────────────────────────┐  │
-│                                                             │  │
-│  ┌──────────────────────────────────────────────────────┐ │  │
-│  │              External Services (Phase 2)              │ │  │
-│  │  - Safina API (Crypto Exchanges)                    │ │  │
-│  │  - Blockchain Networks                               │ │  │
-│  └──────────────────────────────────────────────────────┘ │  │
-│                                                             │  │
-└─────────────────────────────────────────────────────────────┘
+                  ┌──────────────────────────────────────────────┐
+   browser  ──→   │  Cloudflare DNS (proxied) → ax41 nginx       │
+                  │       ↓                                       │
+                  │  10.30.30.132 (asystem-proxmox)               │
+                  │       ↓                                       │
+                  │  Coolify-managed:                             │
+                  │    orgon-frontend (Next.js, port 3100)        │
+                  │    orgon-backend  (FastAPI,  port 8891)       │
+                  │    orgon-preview-{frontend,backend}           │
+                  │    coolify-postgres (shared DB)               │
+                  │       ↓                                       │
+                  │  Safina Pay API (custody / signing)           │
+                  └──────────────────────────────────────────────┘
 ```
 
-### Technology Stack
-
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend** | Next.js 16 (App Router) | Server-side rendering, routing |
-| | React 19 | UI components |
-| | TypeScript 5 | Type safety |
-| | Tailwind CSS 4 | Styling |
-| | Radix UI | Accessible components |
-| | next-intl | i18n (en/ru/ky) |
-| **Backend** | FastAPI | REST API framework |
-| | Python 3.12 | Runtime |
-| | Pydantic V2 | Data validation |
-| | asyncpg | Async PostgreSQL driver |
-| | JWT | Authentication |
-| **Database** | PostgreSQL 16 | Primary data store |
-| | Row-Level Security | Multi-tenancy isolation |
-| **Infrastructure** | Docker Compose | Local development |
-| | Cloudflare Tunnel | Secure public access |
-| | Neon Postgres | Production database |
+ORGON is the operational layer above Safina. Safina holds private keys and
+performs blockchain signatures; ORGON enforces M-of-N policy, KYC/KYB/AML,
+audit log, and the operator UI.
 
 ---
 
-## Multi-Tenancy Design
+## Backend
 
-### Tenant Model
+**FastAPI ASGI app** (`backend/main.py`). Lifespan hook initializes a
+shared `asyncpg.Pool`, then constructs services on top of it: `WalletService`,
+`TransactionService`, `SignatureService`, `OrganizationService`, `AuthService`,
+`AuditService`, `WebhookService`, `PartnerService`, etc.
 
-ORGON uses **Shared Database, Shared Schema** multi-tenancy:
-
-- **Single Database:** All tenants share one PostgreSQL database
-- **Shared Schema:** All tenants use the same table structure
-- **Row-Level Security:** Postgres RLS enforces data isolation
-- **Tenant Context:** Session-level `app.current_tenant` variable
-
-### Tenant Isolation Flow
+### Middleware stack (outer → inner)
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│ 1. User Login → JWT Token (user_id, organizations[])    │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-                         ▼
-┌──────────────────────────────────────────────────────────┐
-│ 2. User Selects Organization (Frontend)                 │
-│    → API Request with Authorization header              │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-                         ▼
-┌──────────────────────────────────────────────────────────┐
-│ 3. Backend Validates JWT + Organization Membership      │
-│    → set_tenant_context(organization_id)                │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-                         ▼
-┌──────────────────────────────────────────────────────────┐
-│ 4. PostgreSQL RLS Policies Filter Queries               │
-│    → Only returns rows for current tenant                │
-└──────────────────────────────────────────────────────────┘
+LoginRateLimitMiddleware   5 req/min/IP for /api/auth/{login,verify-2fa,
+                           reset-password,reset-password/confirm};
+                           100 req/min/IP for everything else /api/*.
+                           IP from X-Forwarded-For (we sit behind nginx + traefik).
+AuditLoggingMiddleware     captures request → audit_log
+PartnerRateLimitMiddleware tier-based limit for /api/v1/partner/*
+APIKeyAuthMiddleware       partner API-key for /api/v1/partner/*
+CORSMiddleware             explicit whitelist (orgon.asystem.kg, preview, localhost)
+AuthMiddleware             JWT bearer extraction → request.state.user
+RLSMiddleware              SET app.current_tenant from header X-Organization-ID
+RequestLoggingMiddleware   structured request log
 ```
 
-### Database Schema (Multi-Tenancy)
+Global 500 handler returns `{detail: "Internal server error", error_id: "<uuid>"}`
+to the client; full stacktrace stays in server logs (Coolify), keyed by `error_id`.
 
-```sql
--- Core tenant table
-CREATE TABLE organizations (
-    id UUID PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    slug VARCHAR(100) UNIQUE,
-    license_type VARCHAR(20),  -- free, basic, pro, enterprise
-    status VARCHAR(20),         -- active, suspended, cancelled
-    -- ... other columns
-);
+### Routers
 
--- User-Organization membership (many-to-many)
-CREATE TABLE user_organizations (
-    user_id UUID REFERENCES users(id),
-    organization_id UUID REFERENCES organizations(id),
-    role VARCHAR(20),  -- admin, operator, viewer
-    PRIMARY KEY (user_id, organization_id)
-);
+`/api/auth`, `/api/users`, `/api/2fa`, `/api/organizations`, `/api/wallets`,
+`/api/transactions`, `/api/signatures`, `/api/scheduled`, `/api/contacts`,
+`/api/audit`, `/api/analytics`, `/api/networks`, `/api/tokens`,
+`/api/dashboard`, `/api/health`, `/api/monitoring`, `/api/documents`,
+`/api/reports`, `/api/support`, `/api/v1/billing`, `/api/v1/compliance`,
+`/api/v1/kyc-kyb`, `/api/v1/whitelabel`, `/api/v1/fiat`,
+`/api/v1/partner/*` (B2B), `/api/webhooks/safina/callback`.
 
--- Tenant-aware table (example: wallets)
-CREATE TABLE wallets (
-    id UUID PRIMARY KEY,
-    organization_id UUID REFERENCES organizations(id),  -- Tenant FK
-    name VARCHAR(255),
-    -- ... other columns
-);
+Compat routers `/api/billing`, `/api/compliance` returned mock data; **disabled
+in this branch** (file kept for reference, removal scheduled).
 
--- Enable RLS
-ALTER TABLE wallets ENABLE ROW LEVEL SECURITY;
+### RBAC
 
--- RLS Policy (read-permissive, write-restrictive)
-CREATE POLICY tenant_isolation ON wallets
-    USING (
-        organization_id = current_setting('app.current_tenant', TRUE)::uuid
-        OR
-        EXISTS (
-            SELECT 1 FROM user_organizations uo
-            WHERE uo.organization_id = wallets.organization_id
-              AND uo.user_id = current_setting('app.current_user', TRUE)::uuid
-        )
-    );
+`backend/rbac.py` defines a role hierarchy:
+
+```
+super_admin > platform_admin > company_admin > company_operator
+> company_auditor > end_user
 ```
 
-### Tenant Context Management
+Plus legacy aliases `admin → company_admin`, `signer → company_operator`,
+`viewer → company_auditor` so old `users.role` rows still resolve.
 
-**Python Service Layer:**
-```python
-class OrganizationService:
-    async def set_tenant_context(self, org_id: UUID):
-        """Set RLS tenant context for current session."""
-        await self._db.execute(
-            "SELECT set_tenant_context($1)",
-            params=(org_id,)
-        )
-    
-    async def clear_tenant_context(self):
-        """Clear RLS context (admin queries)."""
-        await self._db.execute("SELECT clear_tenant_context()")
-```
+`require_roles("company_admin", ...)` is the canonical FastAPI dependency.
+`super_admin` is auto-allowed for any check.
 
-**PostgreSQL Functions:**
-```sql
-CREATE OR REPLACE FUNCTION set_tenant_context(tenant_id UUID)
-RETURNS void AS $$
-BEGIN
-    PERFORM set_config('app.current_tenant', tenant_id::text, false);
-END;
-$$ LANGUAGE plpgsql;
-```
+Used on every mutating endpoint and on sensitive read endpoints (audit logs,
+detailed health, monitoring, billing admin actions).
 
-### RLS Design Philosophy
+### Multi-tenancy — actual implementation
 
-**Read-Permissive:**
-- Users can see organizations they're members of
-- Supports cross-tenant reporting (for admins)
-- Simplifies UI data fetching
+- Each user has zero or more rows in `user_organizations` linking them to
+  `organizations` with a per-org role.
+- Frontend sends `X-Organization-ID` on every request.
+- `RLSMiddleware` reads the header, validates the user belongs to that org,
+  and sets two Postgres session variables: `app.current_tenant` and
+  `app.is_super_admin`.
+- Service layer (`backend/services/*`) filters by `organization_id` in
+  every query that reads tenant-scoped data.
 
-**Write-Restrictive:**
-- Only organization admins can modify data
-- Enforced at database level
-- Prevents accidental cross-tenant updates
+**RLS policies in migration `005_enable_rls_policies.sql` have known SQL
+syntax bugs** (mismatched quotes around `current_setting('app.is_super_admin', true)`).
+RLS is therefore not active at the database level — only the service layer
+enforces isolation. Fixing this is a planned migration.
 
-**Trade-offs:**
-- 62% query overhead (measured)
-- Simplified application code
-- Enhanced security guarantees
+### Multi-signature — actual implementation
+
+- Wallet has a network, a Safina-side `min_sign` threshold, and a list of
+  signer addresses.
+- Operator initiates a transaction → ORGON forwards to Safina.
+- Each signer's approval is forwarded to Safina; Safina records it.
+- ORGON also writes a row to `signature_history` (`tx_unid`,
+  `signer_address`, `action`, `signed_at`).
+- When threshold reached, Safina broadcasts to chain.
+
+**ORGON does not currently verify signature payloads locally.** It trusts
+Safina's response. Replay protection (canonical payload hash + nonce +
+timestamp) is `(planned)`. For institutional deployments this needs to land
+before going live.
+
+### Append-only audit
+
+Migration `015_immutability_triggers.sql` adds `BEFORE UPDATE OR DELETE`
+triggers on `audit_log` and `signature_history` that `RAISE EXCEPTION`.
+Once a row is inserted, it cannot be altered or removed — even by the
+application. Verified live in preview DB.
+
+### Demo data
+
+Migrations `013_demo_data.sql` (orgs, members, transactions, signatures)
+and `014_wallet_labels.sql` (human-readable wallet labels) seed the
+preview/prod database. Both are idempotent (`ON CONFLICT DO NOTHING`,
+`UPDATE WHERE label IS NULL`).
 
 ---
 
-## Component Architecture
+## Frontend
 
-### Frontend (Next.js)
+**Next.js 16** with App Router. Default theme is light (Crimson Ledger
+palette: paper `#fafaf7`, ink `#14110f`, brand crimson `#9c1825`); dark theme
+is composed (not inverted) — navy `#070d1a` background, brighter crimson.
 
-```
-frontend/
-├── app/
-│   ├── [locale]/              # i18n routing (en/ru/ky)
-│   │   ├── (auth)/            # Auth pages (login, register)
-│   │   └── (dashboard)/       # Protected dashboard
-│   │       ├── organizations/ # Organizations management
-│   │       ├── wallets/       # Wallets (Phase 2)
-│   │       └── transactions/  # Transactions (Phase 2)
-│   └── api/                   # API routes (if needed)
-├── components/
-│   ├── ui/                    # Reusable UI components
-│   ├── layout/                # Layout components (Header, Sidebar)
-│   └── features/              # Feature-specific components
-├── lib/
-│   ├── api.ts                 # Centralized API client
-│   ├── auth.ts                # Authentication utilities
-│   └── utils.ts               # Helper functions
-└── i18n/
-    └── locales/               # Translations (en.json, ru.json, ky.json)
-```
-
-**Key Patterns:**
-- **Server Components by default** (App Router)
-- **Client Components** only when interactivity needed (`"use client"`)
-- **Centralized API client** (`lib/api.ts`)
-- **SWR for data fetching** (client-side caching)
-- **i18n with next-intl** (server-side translations)
-
-### Backend (FastAPI)
+Routing:
 
 ```
-backend/
-├── api/
-│   ├── routes_auth.py         # Authentication endpoints
-│   ├── routes_organizations.py# Organizations CRUD
-│   ├── routes_wallets.py      # Wallets (Phase 2)
-│   └── schemas.py             # Pydantic models
-├── services/
-│   ├── organization_service.py# Business logic (organizations)
-│   ├── auth_service.py        # JWT, password hashing
-│   └── event_manager.py       # Event publishing
-├── database/
-│   ├── db_postgres.py         # AsyncDatabase wrapper
-│   └── pool.py                # Connection pooling
-├── migrations/
-│   ├── 000_base_schema.sql    # Initial schema
-│   ├── 001_create_organizations.sql
-│   └── ...
-├── tests/
-│   ├── test_organizations_simple.py
-│   ├── test_organizations_e2e.py
-│   └── ...
-└── main.py                    # FastAPI app entry point
+(public)/             marketing + auth
+  /, /features, /pricing, /about
+  /login, /register, /forgot-password, /reset-password
+(authenticated)/      logged-in app — guarded by middleware redirect
+  /dashboard, /wallets, /transactions, /signatures, …
 ```
 
-**Key Patterns:**
-- **Layered architecture** (API → Service → Database)
-- **Dependency injection** (FastAPI DI)
-- **Async/await** throughout (asyncpg, asyncio)
-- **Pydantic validation** (request/response models)
-- **Event-driven** (event_manager for audit logs)
+`middleware.ts` runs on every request, redirects unauthenticated users
+hitting protected routes back to `/`. Public routes whitelist explicit.
+
+Data fetching: SWR keyed on path, refresh interval 30–60s on dashboard
+endpoints. WebSocket `/ws/updates` (auto-refresh on `transaction.created`,
+`balance.updated`, `signature.approved`, etc.) — token in path,
+verified server-side.
+
+i18n: `next-intl` with locale cookie `NEXT_LOCALE`; full reload on locale
+switch (acceptable trade-off for now).
+
+### Animation stack (per `~/.claude/CLAUDE.md`)
+
+- **Framer Motion** — primary engine.
+- **Tailwind + tailwindcss-animate** — micro transitions.
+- **Magic UI** — copy-pasted Marquee, NumberTicker, AnimatedBeam.
+- **Motion Primitives** — copy-pasted TextEffect (split-by-word reveal).
+- Custom: `MagneticButton` (cursor pull) and `TiltCard` (3D rotate from cursor),
+  both Framer-Motion-only, transform/opacity only, `prefers-reduced-motion` safe.
 
 ---
 
-## Data Flow
+## Infrastructure
 
-### Request Flow (Organizations API)
+**Hetzner-ax41** is the physical Hetzner node. It hosts proxmox VMs, one of
+which is `asystem-proxmox` (10.30.30.132). Coolify v4 runs there; it
+orchestrates Docker containers for ORGON, the Postgres DB, and other
+asystem.kg projects.
 
-```
-1. Frontend Request
-   │
-   │  GET /api/v1/organizations
-   │  Authorization: Bearer JWT_TOKEN
-   │
-   ▼
-2. FastAPI Route
-   │
-   │  @router.get("/organizations")
-   │  async def list_organizations(
-   │      current_user = Depends(get_current_user)
-   │  )
-   │
-   ▼
-3. Auth Middleware
-   │
-   │  Validate JWT → Extract user_id
-   │  Check organization membership
-   │
-   ▼
-4. Service Layer
-   │
-   │  OrganizationService.list_organizations()
-   │  ├─ set_tenant_context(org_id)  # Optional
-   │  └─ Query database
-   │
-   ▼
-5. Database Layer
-   │
-   │  AsyncDatabase.fetch(sql, params)
-   │  ├─ RLS policies filter rows
-   │  └─ Return matching organizations
-   │
-   ▼
-6. Response
-   │
-   │  Pydantic models serialize to JSON
-   │  FastAPI sends response
-   │
-   ▼
-7. Frontend
-   │
-   │  SWR caches data
-   │  React re-renders UI
-```
+Routing: ax41 nginx terminates HTTPS for `*.asystem.kg` and forwards by
+host header to the right port on 10.30.30.132. Cloudflare DNS resolves
+`orgon.asystem.kg` and `orgon-api.asystem.kg` proxied to the ax41 IP.
 
-### Database Connection Flow
+Coolify env vars (Coolify UI / API): `DATABASE_URL`, `JWT_SECRET_KEY`,
+`SAFINA_EC_PRIVATE_KEY`, `NEXT_PUBLIC_API_URL`. `.env` files in repo are
+**not** the source of truth for production — Coolify is.
 
-```
-┌─────────────────────────────────────────────┐
-│ FastAPI App Startup                         │
-│  ├─ Create asyncpg pool (min=5, max=20)    │
-│  └─ Store in app.state.db_pool             │
-└────────────────────┬────────────────────────┘
-                     │
-                     ▼
-┌─────────────────────────────────────────────┐
-│ Per-Request                                 │
-│  ├─ Get connection from pool                │
-│  ├─ Execute queries (via AsyncDatabase)    │
-│  ├─ Commit transaction                      │
-│  └─ Return connection to pool               │
-└─────────────────────────────────────────────┘
-```
+Backups: weekly `pg_dump` to `/backup/orgon-YYYY-MM-DD.sql.gz` `(planned —
+cron not yet wired)`.
 
 ---
 
-## Security Model
+## Compliance posture (honest)
 
-### Authentication & Authorization
+- **FATF Travel Rule**: implemented at the data-model level (we record
+  originator/beneficiary on cross-VASP transfers); integration with
+  Sumsub/Notabene is `(planned)`.
+- **ISO 27001:2022**: in progress (gap analysis in 2026Q2).
+- **SOC 2 Type I**: in progress.
+- **Лицензия НБ КР**: in progress.
 
-**Authentication (JWT):**
-```python
-# Login endpoint
-@router.post("/auth/login")
-async def login(credentials: LoginRequest):
-    user = await auth_service.authenticate(email, password)
-    access_token = auth_service.create_access_token(user_id=user.id)
-    return {"access_token": access_token, "token_type": "bearer"}
-```
-
-**Authorization (Dependency):**
-```python
-# Protected endpoint
-@router.get("/organizations")
-async def list_organizations(
-    current_user: User = Depends(get_current_user)  # JWT validation
-):
-    # current_user.id extracted from JWT
-    return await service.list_organizations(current_user.id)
-```
-
-### Security Layers
-
-| Layer | Mechanism | Purpose |
-|-------|-----------|---------|
-| **Transport** | HTTPS/TLS | Encrypt data in transit |
-| **Authentication** | JWT tokens | Verify user identity |
-| **Authorization** | Role checks | Verify user permissions |
-| **Database** | RLS policies | Isolate tenant data |
-| **Input Validation** | Pydantic | Prevent injection attacks |
-| **Audit** | Event logging | Track all actions |
-
-### Threat Model
-
-**Threats Addressed:**
-- ✅ **SQL Injection:** Pydantic validation + parameterized queries
-- ✅ **XSS:** React auto-escaping + Content-Security-Policy
-- ✅ **CSRF:** SameSite cookies + token validation
-- ✅ **Tenant Isolation:** RLS policies + context checks
-- ✅ **Privilege Escalation:** Role-based access control
-- ✅ **Data Leakage:** Audit logs + encryption at rest
-
-**Known Limitations:**
-- RLS read-permissive design allows cross-tenant reads for members
-- Application-layer role checks required (not DB-enforced)
-- JWT rotation not yet implemented
-
----
-
-## Performance Considerations
-
-### Measured Benchmarks (Phase 1.4 Testing)
-
-| Metric | Value | Acceptance |
-|--------|-------|------------|
-| **Throughput** | 616 orgs/sec | > 100 orgs/sec |
-| **Avg Create Time** | 1.62ms/org | < 300ms |
-| **Pagination** | <100ms (50 orgs) | < 150ms |
-| **RLS Overhead** | 62% | < 100% |
-| **Concurrent Creates** | 10 orgs <5s | < 10s |
-
-### Optimization Strategies
-
-**Database:**
-- Connection pooling (asyncpg pool: min=5, max=20)
-- Indexes on frequently queried columns (`slug`, `status`)
-- RLS function optimization (minimize `set_config` calls)
-
-**Backend:**
-- Async/await throughout (no blocking I/O)
-- Response caching (SWR on frontend)
-- Batch operations where possible
-
-**Frontend:**
-- Server-side rendering (Next.js App Router)
-- Static asset optimization (Turbopack)
-- Code splitting (dynamic imports)
-
-### Scalability Roadmap
-
-**Current (Phase 1):**
-- Single database instance
-- Vertical scaling (increase CPU/RAM)
-- Expected load: 1,000 organizations, 10,000 users
-
-**Future (Phase 3):**
-- Read replicas for reporting
-- Redis caching layer
-- Horizontal scaling (API servers)
-- Expected load: 100,000+ organizations
-
----
-
-## Deployment Architecture
-
-### Development Environment
-
-```
-docker-compose.yml
-├── postgres (port 5432)
-├── backend (port 8000)
-└── frontend (port 3000)
-```
-
-**Start:** `docker compose up -d`  
-**Logs:** `docker compose logs -f`  
-**Stop:** `docker compose down`
-
-### Production Environment (Recommended)
-
-```
-┌─────────────────────────────────────────────┐
-│          Cloudflare (DNS + CDN)             │
-│  ├─ DDoS protection                         │
-│  ├─ SSL/TLS termination                     │
-│  └─ Static asset caching                    │
-└────────────────┬────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────┐
-│     Cloudflare Tunnel (Optional)            │
-│  ├─ Secure ingress (no exposed ports)      │
-│  └─ Automatic HTTPS                         │
-└────────────────┬────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────┐
-│          Docker Host (VPS/Cloud)            │
-│  ├─ Backend (FastAPI container)            │
-│  ├─ Frontend (Next.js container)           │
-│  └─ Reverse Proxy (Nginx/Traefik)          │
-└────────────────┬────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────┐
-│      Neon Postgres (Serverless DB)          │
-│  ├─ Automatic scaling                       │
-│  ├─ Point-in-time recovery                  │
-│  └─ Built-in connection pooling             │
-└─────────────────────────────────────────────┘
-```
-
-**Production Checklist:**
-- [ ] Set strong `JWT_SECRET_KEY`
-- [ ] Configure `CORS_ORIGINS` (whitelist domains)
-- [ ] Enable HTTPS (Cloudflare or Let's Encrypt)
-- [ ] Set up database backups (Neon auto-backups)
-- [ ] Configure monitoring (Sentry, Prometheus)
-- [ ] Enable rate limiting (FastAPI middleware)
-- [ ] Review RLS policies (audit tenant isolation)
-
----
-
-## Future Enhancements (Roadmap)
-
-### Phase 2: Safina Integration
-- Crypto exchange API client
-- Multi-signature wallet management
-- Transaction signing workflows
-- Blockchain network abstraction
-
-### Phase 3: Advanced Features
-- Analytics dashboard (transaction volume, fees)
-- Reporting engine (CSV/PDF exports)
-- Webhook system (real-time notifications)
-- Admin panel (platform-wide management)
-
-### Phase 4: Enterprise
-- SSO integration (OAuth2, SAML)
-- Audit trail export (compliance)
-- Custom branding per tenant
-- API rate limiting per organization
-
----
-
-## References
-
-- **FastAPI Docs:** https://fastapi.tiangolo.com/
-- **Next.js Docs:** https://nextjs.org/docs
-- **PostgreSQL RLS:** https://www.postgresql.org/docs/16/ddl-rowsecurity.html
-- **Pydantic V2:** https://docs.pydantic.dev/2.0/
-- **asyncpg:** https://magicstack.github.io/asyncpg/
-
----
-
-**Document Maintenance:**
-- Update after each phase completion
-- Review architecture decisions quarterly
-- Keep diagrams in sync with code
-
-**Last Review:** 2026-02-11 (Phase 1.5)
+These statuses are reflected in the public footer. Update them as soon as
+they change — never display certification we don't actually hold.

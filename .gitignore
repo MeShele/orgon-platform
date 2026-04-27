@@ -1,10 +1,92 @@
+# Dependencies
 node_modules/
-.next/
+.pnp/
+.pnp.js
 venv/
 __pycache__/
 *.pyc
-data/*.db
-logs/
-.env
+*.pyo
+
+# Build / Next.js
+.next/
+out/
+dist/
+build/
+
+# Logs and runtime state
 *.log
+*.pid
+logs/
+
+# Environment files (never commit secrets — use Coolify env / .env.example as template)
+.env
+.env.*
+!.env.example
+docker.env
+*.env.local
+config.local.yaml
+
+# Cloudflare / cloud creds
+cloudflare-credentials.json
+cloudflare-tunnel-config.yaml
+*-tunnel-config.yaml
+*-credentials.json
+
+# Local databases / SQLite WAL
+data/*.db
+data/*.db-shm
+data/*.db-wal
+*.sqlite
+*.sqlite3
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# Testing artifacts
+coverage/
+.coverage
+htmlcov/
+playwright-report/
+test-results/
+.nyc_output/
+
+# Outbox (legacy event queue)
 outbox/
+
+# Scratch / debug files at repo root (these belong in branches or local notes)
+/debug_*.py
+/fix_*.py
+/fix_*.sh
+/migrate_*.py
+/migrate_*.sql
+/quick_migrate.py
+/restart_services.py
+/convert_to_async.py
+/auto_migrate_services.sh
+/test_*.py
+/check-*.sh
+/check-browser-errors.js
+/status.sh
+/deploy.sh
+/quick-start.sh
+/restart-all.sh
+/COMMANDS.sh
+
+# Image scratch
+/*.png
+/generated-page*.html
+/Wiki.html
+/Exampls.html
+
+# Claude Design hand-offs (the .md is the source of truth, not the zip)
+/claude design/*.zip
+
+# Per-project Coolify overrides
+/.coolify

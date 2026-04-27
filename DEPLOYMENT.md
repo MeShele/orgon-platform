@@ -1,206 +1,146 @@
-# ORGON Deployment Summary
+# Deployment
 
-**Статус:** ✅ Запущено и доступно публично
-
-**Домен:** https://orgon.asystem.ai
-
-**Дата запуска:** 2026-02-06 14:05 GMT+6
+How ORGON gets from a `git push` to a live container, and how to recover
+when something breaks.
 
 ---
 
-## 🌐 Публичный доступ
+## Topology
 
-**URL:** https://orgon.asystem.ai
+| App | Coolify uuid | Branch | Domain | Internal port | Host port |
+|---|---|---|---|---|---|
+| `orgon-frontend` | `p10p6tfvyl5b86zlfizowp79` | `main` | https://orgon.asystem.kg | 3000 | 3100 |
+| `orgon-backend` | `g5ktpm7dy1abguwpy4tm7dpv` | `main` | https://orgon-api.asystem.kg | 8890 | 8891 |
+| `orgon-preview-frontend` | `ngsw9w49kjn2qrgchaw850jg` | `preview-ready` | https://orgon-preview.asystem.kg | 3000 | 3200 |
+| `orgon-preview-backend` | `kvdb0wtgo8ysyzchbjjo7n8o` | `preview-ready` | https://orgon-preview-api.asystem.kg | 8890 | 8892 |
 
-- ✅ HTTPS (Cloudflare SSL)
-- ✅ Global CDN (Cloudflare)
-- ✅ DDoS Protection
-- ✅ Доступно из любой точки мира
+Coolify UI: <https://c.asystem.kg> (Authentik OIDC).
+API token: store at `~/.config/orgon/coolify-token` with mode `0600`.
 
----
-
-## 🖥️ Локальные сервисы
-
-### Backend API (FastAPI)
-- **PID:** 4423
-- **Port:** 8890
-- **URL:** http://localhost:8890
-- **Docs:** http://localhost:8890/docs
-- **Log:** `/Users/urmatmyrzabekov/AGENT/ORGON/backend.log`
-- **Status:** ✅ Running
-
-### Frontend (Next.js)
-- **PID:** 4486
-- **Port:** 3000
-- **URL:** http://localhost:3000
-- **Log:** `/Users/urmatmyrzabekov/AGENT/ORGON/frontend/frontend.log`
-- **Status:** ✅ Running
-
-### Cloudflare Tunnel
-- **PID:** 4741
-- **Tunnel ID:** 81d9f92a-e0c6-4d85-a98c-8dc47c55f243
-- **Tunnel Name:** orgon-tunnel
-- **Connections:** 4 active (dme06, arn07, dme01, arn06)
-- **Log:** `/Users/urmatmyrzabekov/AGENT/ORGON/cloudflared.log`
-- **Status:** ✅ Running
+DB: shared `coolify-postgres` container on `asystem-proxmox` (10.30.30.132).
+Both prod and preview hit it; demo migrations are idempotent and isolated
+to `Demo Exchange KG` / `Demo Broker KG` orgs.
 
 ---
 
-## 🔧 Конфигурация
+## Trigger a deploy
 
-### Cloudflare Tunnel
-```yaml
-ingress:
-  - hostname: orgon.asystem.ai
-    service: http://localhost:3000
-  - service: http_status:404
-```
-
-### DNS Record
-```
-Type: CNAME
-Name: orgon.asystem.ai
-Content: 81d9f92a-e0c6-4d85-a98c-8dc47c55f243.cfargotunnel.com
-Proxied: Yes
-```
-
-### Environment Variables
-- `SAFINA_EC_PRIVATE_KEY`: Configured ✅
-- `ORGON_ADMIN_TOKEN`: Configured ✅
-- `TELEGRAM_BOT_TOKEN`: @urmat_ai_bot ✅
-
----
-
-## 🗄️ Databases
-
-### SQLite (Local)
-- **Path:** `/Users/urmatmyrzabekov/AGENT/ORGON/data/orgon.db`
-- **Size:** 140 KB
-- **Tables:** 10 (wallets, transactions, balances, etc.)
-- **Status:** ✅ Active
-
-### PostgreSQL (Neon.tech) - Available
-- **Host:** ep-late-sea-aglfcbe1-pooler.c-2.eu-central-1.aws.neon.tech
-- **Database:** neondb
-- **Version:** PostgreSQL 17.7
-- **Status:** ✅ Connected (not used yet)
-
----
-
-## 🔐 API Credentials
-
-### Cloudflare
-- **Account ID:** 19d1ad30dcee568b862eee5054d874c6
-- **Zone ID (asystem.ai):** e4b8fde3e7f8ddd307a7d8df97ff1533
-- **API Token:** FmNcV46FPX1f2OESD8F4EJsK0JSAOzhkPZXjuMPO
-
-### Safina Pay
-- **Address:** 0xA285990a1Ce696d770d578Cf4473d80e0228DF95
-- **Wallets:** 4 synced
-- **Tokens:** 17 available
-- **Networks:** 7 (BTC, ETH, TRX, etc.)
-
----
-
-## 📊 Monitoring
-
-### Check Backend Status
 ```bash
-curl http://localhost:8890/docs
-# Should return 200 OK
-```
-
-### Check Frontend Status
-```bash
-curl http://localhost:3000
-# Should return 200 OK
-```
-
-### Check Public Access
-```bash
-curl https://orgon.asystem.ai
-# Should return 200 OK with Cloudflare headers
-```
-
-### View Logs
-```bash
-# Backend
-tail -f /Users/urmatmyrzabekov/AGENT/ORGON/backend.log
+TOKEN=$(cat ~/.config/orgon/coolify-token)
 
 # Frontend
-tail -f /Users/urmatmyrzabekov/AGENT/ORGON/frontend/frontend.log
+curl -X GET -H "Authorization: Bearer $TOKEN" \
+  "https://c.asystem.kg/api/v1/deploy?uuid=ngsw9w49kjn2qrgchaw850jg"
 
-# Cloudflare Tunnel
-tail -f /Users/urmatmyrzabekov/AGENT/ORGON/cloudflared.log
+# Backend
+curl -X GET -H "Authorization: Bearer $TOKEN" \
+  "https://c.asystem.kg/api/v1/deploy?uuid=kvdb0wtgo8ysyzchbjjo7n8o"
 ```
+
+Coolify builds the container from `git pull origin <branch>` + `docker build`.
+A Next.js full build is ~3–5 minutes; a Python build is ~1–2 minutes (most
+of which is `pip install`).
+
+GitHub → Coolify webhook is **not yet wired**, so a `git push` alone does
+nothing — you have to call the API. Setup is in CONTRIBUTING.md.
 
 ---
 
-## 🔄 Management Commands
+## Watch a deploy
 
-### Restart Backend
 ```bash
-cd /Users/urmatmyrzabekov/AGENT/ORGON
-kill 4423
-source venv/bin/activate
-nohup uvicorn backend.main:app --host 0.0.0.0 --port 8890 > backend.log 2>&1 &
+# Container status
+ssh asystem-proxmox 'docker ps --filter name=ngsw9w49kjn2qrgchaw850jg --format "{{.Status}} | {{.Image}}"'
+
+# Live logs (tail)
+ssh asystem-proxmox 'docker logs -f $(docker ps --filter name=g5ktpm7dy1abguwpy4tm7dpv -q)'
+
+# Coolify deployment record
+curl -sS -H "Authorization: Bearer $TOKEN" \
+  "https://c.asystem.kg/api/v1/deployments/<deployment_uuid>"
 ```
 
-### Restart Frontend
-```bash
-cd /Users/urmatmyrzabekov/AGENT/ORGON/frontend
-kill 4486
-nohup npm run dev > frontend.log 2>&1 &
-```
-
-### Restart Cloudflare Tunnel
-```bash
-cd /Users/urmatmyrzabekov/AGENT/ORGON
-kill 4741
-nohup cloudflared tunnel run --token eyJhIjoiMTlkMWFkMzBkY2VlNTY4Yjg2MmVlZTUwNTRkODc0YzYiLCJ0IjoiODFkOWY5MmEtZTBjNi00ZDg1LWE5OGMtOGRjNDdjNTVmMjQzIiwicyI6InNSb0MwY2FUaWZsWGp3VzJiRGthZlpSdVlHV1lEYnNQUmVjd2FBRnlWamM9In0= > cloudflared.log 2>&1 &
-```
-
-### Stop All
-```bash
-kill 4423 4486 4741
-```
+If a deploy stalls or fails, the build container leaves logs accessible via
+Coolify UI → Application → Deployments → individual deployment.
 
 ---
 
-## 🚀 Features
+## Apply a database migration
 
-### Currently Working
-- ✅ Wallet management (4 wallets synced)
-- ✅ Transaction history
-- ✅ Balance tracking
-- ✅ Multi-signature support
-- ✅ Network/token reference data
-- ✅ Real-time sync (every 5 minutes)
-- ✅ Telegram notifications (@urmat_ai_bot)
-
-### Pending
-- ⏳ Transaction sending UI
-- ⏳ Signature approval workflow
-- ⏳ PostgreSQL migration
-
----
-
-## 📞 Support
-
-**Issues:**
-- Backend issues → check `backend.log`
-- Frontend issues → check `frontend/frontend.log`
-- Tunnel issues → check `cloudflared.log`
-- Safina API issues → check CRITICAL_REFERENCE.md
-
-**Restart Everything:**
 ```bash
-cd /Users/urmatmyrzabekov/AGENT/ORGON
-./restart-all.sh  # (create this script)
+# Migrations live in backend/migrations/*.sql
+# Apply via the running backend container's asyncpg connection:
+scp backend/migrations/01N_xxx.sql asystem-proxmox:/tmp/
+ssh asystem-proxmox 'BE=$(docker ps --filter name=g5ktpm7dy1abguwpy4tm7dpv -q); \
+  docker cp /tmp/01N_xxx.sql $BE:/tmp/m.sql; \
+  docker exec $BE python -c "
+import asyncio, asyncpg, os
+async def main():
+  conn = await asyncpg.connect(os.environ[\"DATABASE_URL\"])
+  await conn.execute(open(\"/tmp/m.sql\").read())
+  print(\"applied\")
+  await conn.close()
+asyncio.run(main())
+"'
 ```
 
+For destructive migrations: prefix with a `pg_dump` to a host folder. For
+RLS / trigger migrations: dry-run first by replacing `COMMIT;` with
+`ROLLBACK;` (the helper script in CONTRIBUTING.md does this automatically).
+
+`POST /api/health/run-migrations` runs every `*.sql` in the migrations
+directories that doesn't have `seed`/`test`/`bak` in its name. It is
+admin-gated since this branch.
+
 ---
 
-**Last Updated:** 2026-02-06 14:08 GMT+6  
-**Deployed By:** ASAGENT  
-**Status:** ✅ Production Ready
+## Rollback
+
+Coolify keeps previous Docker images. Quickest rollback:
+
+```bash
+# 1. Identify the previous good image tag
+ssh asystem-proxmox 'docker images | grep g5ktpm7dy1abguwpy4tm7dpv | head -5'
+
+# 2. Stop current container, run previous image
+ssh asystem-proxmox 'docker stop g5ktpm7dy1abguwpy4tm7dpv-... && \
+                     docker run -d --name <name> <prev-image-id> ...'
+```
+
+For a clean rollback via Coolify: redeploy from a previous git commit by
+temporarily setting `git_commit_sha` in the application config, then
+calling `/deploy`.
+
+For DB schema rollback: every migration should ship with a paired
+`<n>_revert.sql` (we don't always have these — write one for any
+migration that adds a constraint or trigger).
+
+---
+
+## Common breakages
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `ssh: Operation timed out` to ax41 | Hetzner network blip or host overload | wait 60–120s, check Hetzner Cloud Console; if persistent, reboot from console |
+| Coolify API returns `error code: 522` | Coolify backend overloaded (usually during a heavy build) | wait 30s and retry; check `c.asystem.kg` itself |
+| Deploy build fails on `npm install` | New dep conflict with Tailwind 4 | use `--legacy-peer-deps` in Dockerfile RUN, or pin offending dep |
+| Container in `running:unhealthy` | Healthcheck path requires auth or returned 500 | check the healthcheck command in Coolify; ensure it hits `/api/health` (no auth) |
+| All `*.asystem.kg` 522 / dead | ax41 down. SSH itself won't connect. | reboot from Hetzner Console; check disk space; check RAM exhaustion |
+| Login starts returning 401 unexpectedly | `JWT_SECRET_KEY` env regenerated mid-flight (auto-fallback in `backend/config.py`) | set `JWT_SECRET_KEY` explicitly in Coolify env, redeploy |
+| Frontend shows "Failed to fetch" | wrong `NEXT_PUBLIC_API_URL` or browser CORS block | verify env in Coolify FE app, hit `/api/v1/billing/plans` from terminal |
+
+---
+
+## Backups
+
+Recommended (not yet wired): weekly `pg_dump` cron on coolify host →
+`/backup/orgon-YYYY-MM-DD.sql.gz`, retain 8 weeks, sync to off-site
+(Hetzner Storage Box or B2). See `CONTRIBUTING.md` for the implementation plan.
+
+To take a manual backup right now:
+
+```bash
+ssh asystem-proxmox 'docker exec coolify-postgres-... pg_dump -U orgon -F c orgon \
+  > /tmp/orgon-$(date +%Y%m%d).pgdump'
+scp asystem-proxmox:/tmp/orgon-*.pgdump ./backups/
+```

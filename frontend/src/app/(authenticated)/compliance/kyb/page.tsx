@@ -93,54 +93,54 @@ export default function KybPage() {
   }
 
   const statusColors: Record<string, string> = {
-    approved: "bg-emerald-100 text-emerald-700",
-    pending: "bg-amber-100 text-amber-700",
-    rejected: "bg-red-100 text-red-700",
-    not_submitted: "bg-slate-100 text-slate-600",
+    approved: "bg-emerald-100 text-success",
+    pending: "bg-warning/10 text-warning",
+    rejected: "bg-destructive/10 text-destructive",
+    not_submitted: "bg-muted text-muted-foreground",
   };
 
   return (
     <div className="space-y-6 p-2 sm:p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
-        <Icon icon="solar:buildings-bold" className="text-2xl text-indigo-500" />
+        <Icon icon="solar:buildings-bold" className="text-2xl text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">KYB Верификация</h1>
-          <p className="text-sm text-slate-500">Верификация организации по законодательству КР</p>
+          <h1 className="text-2xl font-bold text-foreground">KYB Верификация</h1>
+          <p className="text-sm text-muted-foreground">Верификация организации по законодательству КР</p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Company Info */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 space-y-4">
-          <h3 className="font-semibold text-slate-900 dark:text-white">Данные компании</h3>
+        <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+          <h3 className="font-semibold text-foreground">Данные компании</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Название компании *</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Название компании *</label>
               <input
                 type="text" required value={companyName} onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Рег. номер</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Рег. номер</label>
               <input
                 type="text" value={regNumber} onChange={(e) => setRegNumber(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ИНН</label>
+              <label className="block text-sm font-medium text-foreground mb-1">ИНН</label>
               <input
                 type="text" value={taxId} onChange={(e) => setTaxId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Страна</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Страна</label>
               <select
                 value={country} onChange={(e) => setCountry(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
               >
                 <option value="KG">Кыргызстан</option>
                 <option value="KZ">Казахстан</option>
@@ -150,33 +150,33 @@ export default function KybPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Юридический адрес</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Юридический адрес</label>
             <textarea
               value={legalAddress} onChange={(e) => setLegalAddress(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
               rows={2}
             />
           </div>
         </div>
 
         {/* Documents */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 space-y-4">
-          <h3 className="font-semibold text-slate-900 dark:text-white">Документы</h3>
+        <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+          <h3 className="font-semibold text-foreground">Документы</h3>
           <div className="space-y-3">
             {DOC_TYPES.map((doc) => {
               const added = documents.find((d) => d.type === doc.value);
               return (
                 <div key={doc.value} className={`flex items-center justify-between p-3 rounded-lg border ${
-                  added ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" : "border-slate-200 dark:border-slate-700"
+                  added ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" : "border-border"
                 }`}>
                   <div className="flex items-center gap-3">
-                    <Icon icon={doc.icon} className={added ? "text-emerald-500" : "text-slate-400"} />
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{doc.label}</span>
+                    <Icon icon={doc.icon} className={added ? "text-success" : "text-muted-foreground"} />
+                    <span className="text-sm text-foreground">{doc.label}</span>
                   </div>
                   {added ? (
-                    <button type="button" onClick={() => removeDocument(doc.value)} className="text-red-500 text-sm">Удалить</button>
+                    <button type="button" onClick={() => removeDocument(doc.value)} className="text-destructive text-sm">Удалить</button>
                   ) : (
-                    <button type="button" onClick={() => addDocument(doc.value)} className="px-3 py-1 text-sm bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">Загрузить</button>
+                    <button type="button" onClick={() => addDocument(doc.value)} className="px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary">Загрузить</button>
                   )}
                 </div>
               );
@@ -185,26 +185,26 @@ export default function KybPage() {
         </div>
 
         {/* Beneficiaries */}
-        <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 space-y-4">
+        <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-slate-900 dark:text-white">Бенефициары</h3>
-            <button type="button" onClick={addBeneficiary} className="text-sm text-indigo-600 hover:underline">+ Добавить</button>
+            <h3 className="font-semibold text-foreground">Бенефициары</h3>
+            <button type="button" onClick={addBeneficiary} className="text-sm text-primary hover:underline">+ Добавить</button>
           </div>
           {beneficiaries.map((b, i) => (
             <div key={i} className="grid grid-cols-3 gap-3">
               <input
                 type="text" placeholder="ФИО" value={b.name}
                 onChange={(e) => updateBeneficiary(i, "name", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                className="px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
               />
               <input
                 type="number" placeholder="% доли" value={b.share_percent}
                 onChange={(e) => updateBeneficiary(i, "share_percent", Number(e.target.value))}
-                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                className="px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
               />
               <select
                 value={b.nationality} onChange={(e) => updateBeneficiary(i, "nationality", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                className="px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
               >
                 <option value="KG">KG</option>
                 <option value="KZ">KZ</option>
@@ -215,11 +215,11 @@ export default function KybPage() {
         </div>
 
         {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
-        {success && <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-700">{success}</div>}
+        {success && <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-success">{success}</div>}
 
         <button
           type="submit" disabled={submitting || !companyName}
-          className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50"
+          className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? "Отправка..." : "Отправить на верификацию"}
         </button>

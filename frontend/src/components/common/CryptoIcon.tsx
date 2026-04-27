@@ -8,7 +8,7 @@ function FallbackIcon({ label, className }: { label: string; className?: string 
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+        "flex items-center justify-center rounded-full bg-muted text-[10px] font-bold text-muted-foreground dark:bg-muted dark:text-muted-foreground",
         className
       )}
     >

@@ -1,5 +1,3 @@
-"use client";
-
 import { PublicHeader } from '@/components/layout/PublicHeader';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 
@@ -9,7 +7,7 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950">
+    <div className="min-h-screen flex flex-col bg-background text-foreground">
       <PublicHeader />
       <main className="flex-1">
         {children}

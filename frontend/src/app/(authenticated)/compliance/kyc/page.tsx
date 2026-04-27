@@ -98,11 +98,11 @@ export default function KycPage() {
   }
 
   const statusColors: Record<string, string> = {
-    approved: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-    pending: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300",
-    in_review: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-    rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-    not_submitted: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+    approved: "bg-success/10 text-success",
+    pending: "bg-warning/10 text-warning",
+    in_review: "bg-primary/10 text-primary",
+    rejected: "bg-destructive/10 text-destructive",
+    not_submitted: "bg-muted text-muted-foreground",
   };
 
   const statusLabels: Record<string, string> = {
@@ -116,7 +116,7 @@ export default function KycPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Icon icon="svg-spinners:ring-resize" className="text-3xl text-indigo-500" />
+        <Icon icon="svg-spinners:ring-resize" className="text-3xl text-primary" />
       </div>
     );
   }
@@ -127,21 +127,21 @@ export default function KycPage() {
   return (
     <div className="space-y-6 p-2 sm:p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3">
-        <Icon icon="solar:user-check-bold" className="text-2xl text-indigo-500" />
+        <Icon icon="solar:user-check-bold" className="text-2xl text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">KYC Верификация</h1>
-          <p className="text-sm text-slate-500">Подтверждение личности по законодательству КР</p>
+          <h1 className="text-2xl font-bold text-foreground">KYC Верификация</h1>
+          <p className="text-sm text-muted-foreground">Подтверждение личности по законодательству КР</p>
         </div>
       </div>
 
       {/* Current Status */}
-      <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-        <h3 className="text-sm font-medium text-slate-500 mb-2">Текущий статус</h3>
+      <div className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card">
+        <h3 className="text-sm font-medium text-muted-foreground mb-2">Текущий статус</h3>
         <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${statusColors[currentStatus]}`}>
           {statusLabels[currentStatus]}
         </span>
         {kycStatus?.review_comment && currentStatus === "rejected" && (
-          <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+          <p className="mt-2 text-sm text-destructive">
             Причина: {kycStatus.review_comment}
           </p>
         )}
@@ -150,30 +150,30 @@ export default function KycPage() {
       {/* Submission Form */}
       {canSubmit && (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 space-y-4">
-            <h3 className="font-semibold text-slate-900 dark:text-white">Личные данные</h3>
+          <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+            <h3 className="font-semibold text-foreground">Личные данные</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">ФИО *</label>
+                <label className="block text-sm font-medium text-foreground mb-1">ФИО *</label>
                 <input
                   type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
                   placeholder="Иванов Иван Иванович"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Дата рождения</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Дата рождения</label>
                 <input
                   type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Гражданство</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Гражданство</label>
                 <select
                   value={nationality} onChange={(e) => setNationality(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
                 >
                   <option value="KG">Кыргызстан</option>
                   <option value="KZ">Казахстан</option>
@@ -182,29 +182,29 @@ export default function KycPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Телефон</label>
+                <label className="block text-sm font-medium text-foreground mb-1">Телефон</label>
                 <input
                   type="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
                   placeholder="+996 555 123456"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Адрес</label>
+              <label className="block text-sm font-medium text-foreground mb-1">Адрес</label>
               <textarea
                 value={address} onChange={(e) => setAddress(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
                 rows={2} placeholder="г. Бишкек, ул. ..."
               />
             </div>
           </div>
 
           {/* Documents */}
-          <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900 space-y-4">
-            <h3 className="font-semibold text-slate-900 dark:text-white">Документы</h3>
-            <p className="text-sm text-slate-500">Загрузите необходимые документы для верификации</p>
+          <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+            <h3 className="font-semibold text-foreground">Документы</h3>
+            <p className="text-sm text-muted-foreground">Загрузите необходимые документы для верификации</p>
 
             <div className="space-y-3">
               {DOC_TYPES.map((doc) => {
@@ -215,21 +215,21 @@ export default function KycPage() {
                     className={`flex items-center justify-between p-3 rounded-lg border ${
                       added
                         ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
-                        : "border-slate-200 dark:border-slate-700"
+                        : "border-border"
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon icon={doc.icon} className={added ? "text-emerald-500" : "text-slate-400"} />
-                      <span className="text-sm text-slate-700 dark:text-slate-300">{doc.label}</span>
+                      <Icon icon={doc.icon} className={added ? "text-success" : "text-muted-foreground"} />
+                      <span className="text-sm text-foreground">{doc.label}</span>
                     </div>
                     {added ? (
-                      <button type="button" onClick={() => removeDocument(doc.value)} className="text-red-500 text-sm hover:underline">
+                      <button type="button" onClick={() => removeDocument(doc.value)} className="text-destructive text-sm hover:underline">
                         Удалить
                       </button>
                     ) : (
                       <button
                         type="button" onClick={() => addDocument(doc.value)}
-                        className="px-3 py-1 text-sm bg-indigo-500 text-white rounded-lg hover:bg-indigo-600"
+                        className="px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary"
                       >
                         Загрузить
                       </button>
@@ -241,19 +241,19 @@ export default function KycPage() {
           </div>
 
           {error && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-400">
+            <div className="rounded-lg bg-destructive/10 border border-red-200 dark:border-red-800 p-3 text-sm text-destructive">
               {error}
             </div>
           )}
           {success && (
-            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-3 text-sm text-emerald-700 dark:text-emerald-400">
+            <div className="rounded-lg bg-success/10 border border-emerald-200 dark:border-emerald-800 p-3 text-sm text-success">
               {success}
             </div>
           )}
 
           <button
             type="submit" disabled={submitting || !fullName || documents.length === 0}
-            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? "Отправка..." : "Отправить на верификацию"}
           </button>
@@ -262,9 +262,9 @@ export default function KycPage() {
 
       {currentStatus === "approved" && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20 p-6 text-center">
-          <Icon icon="solar:verified-check-bold" className="text-4xl text-emerald-500 mx-auto mb-2" />
-          <p className="text-emerald-700 dark:text-emerald-300 font-medium">Ваша личность подтверждена</p>
-          <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-1">Вы можете совершать транзакции</p>
+          <Icon icon="solar:verified-check-bold" className="text-4xl text-success mx-auto mb-2" />
+          <p className="text-success dark:text-emerald-300 font-medium">Ваша личность подтверждена</p>
+          <p className="text-sm text-success mt-1">Вы можете совершать транзакции</p>
         </div>
       )}
     </div>

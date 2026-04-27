@@ -12,7 +12,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none",
+        "rounded-xl border border-border bg-white shadow-sm dark:border-border dark:bg-card/40 dark:shadow-none",
         className
       )}
     >
@@ -37,9 +37,9 @@ export function CardHeader({
   helpTips?: readonly string[];
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-border">
       <div>
-        <h3 className="text-sm font-medium text-slate-900 dark:text-white flex items-center gap-2">
+        <h3 className="text-sm font-medium text-foreground flex items-center gap-2">
           {title}
           {helpText && (
             <HelpTooltip
@@ -50,7 +50,7 @@ export function CardHeader({
           )}
         </h3>
         {subtitle && (
-          <p className="text-[10px] text-slate-500 dark:text-slate-400">{subtitle}</p>
+          <p className="text-[10px] text-muted-foreground">{subtitle}</p>
         )}
       </div>
       {action}

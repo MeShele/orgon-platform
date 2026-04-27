@@ -34,55 +34,55 @@ export function MarginCalculator() {
   const asystemShare = monthlyRevenue * 0.5;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 p-6 space-y-6">
+    <div className="rounded-xl border border-border bg-white dark:border-border dark:bg-card p-6 space-y-6">
       <div className="flex items-center gap-3">
-        <Icon icon="solar:calculator-bold" className="text-2xl text-indigo-500" />
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Margin Calculator</h2>
+        <Icon icon="solar:calculator-bold" className="text-2xl text-primary" />
+        <h2 className="text-lg font-bold text-foreground">Margin Calculator</h2>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tariff Plan</label>
-          <select value={tier} onChange={(e) => setTier(e.target.value as Tier)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white">
+          <label className="block text-sm font-medium text-foreground mb-1">Tariff Plan</label>
+          <select value={tier} onChange={(e) => setTier(e.target.value as Tier)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
             <option value="A">A — Start (small exchanges)</option>
             <option value="B">B — Business (medium)</option>
             <option value="C">C — Enterprise (banks)</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Network</label>
-          <select value={network} onChange={(e) => setNetwork(e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white">
+          <label className="block text-sm font-medium text-foreground mb-1">Network</label>
+          <select value={network} onChange={(e) => setNetwork(e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground">
             {Object.keys(BLOCKCHAIN_FEES).map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Transaction Amount ($)</label>
-          <input type="number" value={amount} onChange={(e) => setAmount(+e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white" />
+          <label className="block text-sm font-medium text-foreground mb-1">Transaction Amount ($)</label>
+          <input type="number" value={amount} onChange={(e) => setAmount(+e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Monthly Transactions</label>
-          <input type="number" value={txCount} onChange={(e) => setTxCount(+e.target.value)} className="w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-900 dark:text-white" />
+          <label className="block text-sm font-medium text-foreground mb-1">Monthly Transactions</label>
+          <input type="number" value={txCount} onChange={(e) => setTxCount(+e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground" />
         </div>
       </div>
 
-      <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Per Transaction Breakdown</h3>
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Per Transaction Breakdown</h3>
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-slate-500">TX Commission ({(t.txFee * 100).toFixed(1)}%)</span><span className="text-slate-900 dark:text-white font-medium">${txCommission.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Blockchain Fee ({network})</span><span className="text-slate-900 dark:text-white font-medium">${blockchainFee.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">Blockchain Markup ({(t.blockchainMarkup * 100)}%)</span><span className="text-slate-900 dark:text-white font-medium">${(blockchainFee * t.blockchainMarkup).toFixed(2)}</span></div>
-          <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-2 font-semibold"><span className="text-slate-700 dark:text-slate-300">Total Client Pays</span><span className="text-indigo-600 dark:text-indigo-400">${totalPerTx.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">TX Commission ({(t.txFee * 100).toFixed(1)}%)</span><span className="text-foreground font-medium">${txCommission.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Blockchain Fee ({network})</span><span className="text-foreground font-medium">${blockchainFee.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Blockchain Markup ({(t.blockchainMarkup * 100)}%)</span><span className="text-foreground font-medium">${(blockchainFee * t.blockchainMarkup).toFixed(2)}</span></div>
+          <div className="flex justify-between border-t border-border pt-2 font-semibold"><span className="text-foreground">Total Client Pays</span><span className="text-primary dark:text-primary">${totalPerTx.toFixed(2)}</span></div>
         </div>
       </div>
 
-      <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Monthly Revenue (Tier {tier})</h3>
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Monthly Revenue (Tier {tier})</h3>
         <div className="space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-slate-500">Subscription Fee</span><span className="text-slate-900 dark:text-white font-medium">${t.monthlyFee.toFixed(0)}</span></div>
-          <div className="flex justify-between"><span className="text-slate-500">TX Revenue ({txCount} × ${txCommission.toFixed(2)})</span><span className="text-slate-900 dark:text-white font-medium">${(txCount * txCommission).toFixed(2)}</span></div>
-          <div className="flex justify-between font-semibold"><span className="text-slate-700 dark:text-slate-300">Total Monthly</span><span className="text-emerald-600 dark:text-emerald-400">${monthlyRevenue.toFixed(2)}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-slate-400">ASYSTEM Share (50%)</span><span className="text-slate-500">${asystemShare.toFixed(2)}</span></div>
-          <div className="flex justify-between text-xs"><span className="text-slate-400">KAZ.ONE Share (50%)</span><span className="text-slate-500">${kazOneShare.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Subscription Fee</span><span className="text-foreground font-medium">${t.monthlyFee.toFixed(0)}</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">TX Revenue ({txCount} × ${txCommission.toFixed(2)})</span><span className="text-foreground font-medium">${(txCount * txCommission).toFixed(2)}</span></div>
+          <div className="flex justify-between font-semibold"><span className="text-foreground">Total Monthly</span><span className="text-success">${monthlyRevenue.toFixed(2)}</span></div>
+          <div className="flex justify-between text-xs"><span className="text-muted-foreground">ASYSTEM Share (50%)</span><span className="text-muted-foreground">${asystemShare.toFixed(2)}</span></div>
+          <div className="flex justify-between text-xs"><span className="text-muted-foreground">KAZ.ONE Share (50%)</span><span className="text-muted-foreground">${kazOneShare.toFixed(2)}</span></div>
         </div>
       </div>
     </div>

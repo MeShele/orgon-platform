@@ -25,7 +25,7 @@ export function ProfileCard({ collapsed = false, mobile = false }: ProfileCardPr
     return (
       <Link
         href="/login"
-        className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm font-medium text-slate-900 transition-colors hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white dark:hover:bg-slate-800"
+        className="flex items-center gap-3 rounded-lg border border-border bg-white p-3 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:border-border dark:bg-card/50 dark:text-white dark:hover:bg-muted"
       >
         <Icon icon="solar:login-2-linear" className="text-xl" />
         {!collapsed && <span>{t('signIn')}</span>}
@@ -40,9 +40,9 @@ export function ProfileCard({ collapsed = false, mobile = false }: ProfileCardPr
 
   const getRoleBadgeColor = (role: string) => {
     const colors = {
-      admin: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-      signer: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-      viewer: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
+      admin: 'bg-destructive/10 text-destructive dark:bg-red-900/30 dark:text-red-400',
+      signer: 'bg-primary/10 text-primary dark:bg-blue-900/30 dark:text-blue-400',
+      viewer: 'bg-muted text-foreground dark:bg-muted dark:text-muted-foreground',
     };
     return colors[role as keyof typeof colors] || colors.viewer;
   };
@@ -64,17 +64,17 @@ export function ProfileCard({ collapsed = false, mobile = false }: ProfileCardPr
               className="fixed inset-0 z-40"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
-              <div className="border-b border-slate-200 p-4 dark:border-slate-800">
+            <div className="absolute bottom-full left-0 z-50 mb-2 w-64 rounded-lg border border-border bg-white shadow-xl dark:border-border dark:bg-card">
+              <div className="border-b border-border p-4 dark:border-border">
                 <div className="mb-2 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
                     <Icon icon="solar:user-circle-bold" className="text-2xl" />
                   </div>
                   <div className="flex-1 overflow-hidden">
-                    <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                    <p className="truncate text-sm font-semibold text-foreground">
                       {user.full_name}
                     </p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                    <p className="truncate text-xs text-muted-foreground">
                       {user.email}
                     </p>
                   </div>
@@ -92,7 +92,7 @@ export function ProfileCard({ collapsed = false, mobile = false }: ProfileCardPr
                 <Link
                   href="/profile"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:text-faint dark:hover:bg-muted"
                 >
                   <Icon icon="solar:settings-linear" className="text-lg" />
                   {t('profileSettings')}
@@ -118,23 +118,23 @@ export function ProfileCard({ collapsed = false, mobile = false }: ProfileCardPr
     <div className="relative">
       <button
         onClick={() => setMenuOpen(!menuOpen)}
-        className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left transition-all hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900/50 dark:hover:bg-slate-800"
+        className="w-full rounded-lg border border-border bg-white p-3 text-left transition-all hover:bg-muted dark:border-border dark:bg-card/50 dark:hover:bg-muted"
       >
         <div className="mb-2 flex items-center gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
             <Icon icon="solar:user-circle-bold" className="text-2xl" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+            <p className="truncate text-sm font-semibold text-foreground">
               {user.full_name}
             </p>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+            <p className="truncate text-xs text-muted-foreground">
               {user.email}
             </p>
           </div>
           <Icon
             icon="solar:alt-arrow-up-linear"
-            className={`text-lg text-slate-400 transition-transform ${
+            className={`text-lg text-muted-foreground transition-transform ${
               menuOpen ? 'rotate-180' : ''
             }`}
           />
@@ -154,12 +154,12 @@ export function ProfileCard({ collapsed = false, mobile = false }: ProfileCardPr
             className="fixed inset-0 z-40"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900">
+          <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lg border border-border bg-white shadow-xl dark:border-border dark:bg-card">
             <div className="p-2">
               <Link
                 href="/profile"
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted dark:text-faint dark:hover:bg-muted"
               >
                 <Icon icon="solar:settings-linear" className="text-lg" />
                 {t('profileSettings')}

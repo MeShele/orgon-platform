@@ -64,9 +64,9 @@ export function TransactionFilters({
   ];
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div className="rounded-lg border border-border bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+        <h3 className="text-sm font-medium text-foreground">
           {t('filters.title')}
           {activeCount > 0 && (
             <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
@@ -79,7 +79,7 @@ export function TransactionFilters({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {/* Wallet Filter */}
         <div>
-          <label className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-1 flex items-center gap-1 text-xs font-medium text-foreground">
             {t('filters.wallet')}
             <HelpTooltip 
               text={helpContent.transactionFilters.wallet.text}
@@ -91,18 +91,18 @@ export function TransactionFilters({
             value={filters.wallet || "__all__"}
             onValueChange={(value) => handleChange("wallet", value)}
           >
-            <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
+            <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-sm text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
               <Select.Value placeholder={t('filters.allWallets')} />
               <Select.Icon>
                 <Icon icon="solar:alt-arrow-down-linear" className="h-4 w-4" />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Content className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+              <Select.Content className="overflow-hidden rounded-lg border border-border bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                 <Select.Viewport className="p-1">
                   <Select.Item
                     value="__all__"
-                    className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-gray-900 outline-none hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                    className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-foreground outline-none hover:bg-muted dark:text-gray-100 dark:hover:bg-gray-700"
                   >
                     <Select.ItemText>{t('filters.allWallets')}</Select.ItemText>
                   </Select.Item>
@@ -110,7 +110,7 @@ export function TransactionFilters({
                     <Select.Item
                       key={wallet.name}
                       value={wallet.name}
-                      className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-gray-900 outline-none hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                      className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-foreground outline-none hover:bg-muted dark:text-gray-100 dark:hover:bg-gray-700"
                     >
                       <Select.ItemText>{wallet.name}</Select.ItemText>
                     </Select.Item>
@@ -123,7 +123,7 @@ export function TransactionFilters({
 
         {/* Status Filter */}
         <div>
-          <label className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-1 flex items-center gap-1 text-xs font-medium text-foreground">
             {t('filters.status')}
             <HelpTooltip 
               text={helpContent.transactionFilters.status.text}
@@ -135,18 +135,18 @@ export function TransactionFilters({
             value={filters.status || "__all__"}
             onValueChange={(value) => handleChange("status", value)}
           >
-            <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
+            <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-sm text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
               <Select.Value placeholder={t('filters.allStatuses')} />
               <Select.Icon>
                 <Icon icon="solar:alt-arrow-down-linear" className="h-4 w-4" />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Content className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+              <Select.Content className="overflow-hidden rounded-lg border border-border bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                 <Select.Viewport className="p-1">
                   <Select.Item
                     value="__all__"
-                    className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-gray-900 outline-none hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                    className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-foreground outline-none hover:bg-muted dark:text-gray-100 dark:hover:bg-gray-700"
                   >
                     <Select.ItemText>{t('filters.allStatuses')}</Select.ItemText>
                   </Select.Item>
@@ -154,7 +154,7 @@ export function TransactionFilters({
                     <Select.Item
                       key={status.value}
                       value={status.value}
-                      className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-gray-900 outline-none hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                      className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-foreground outline-none hover:bg-muted dark:text-gray-100 dark:hover:bg-gray-700"
                     >
                       <Select.ItemText>{status.label}</Select.ItemText>
                     </Select.Item>
@@ -167,7 +167,7 @@ export function TransactionFilters({
 
         {/* Network Filter */}
         <div>
-          <label className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+          <label className="mb-1 flex items-center gap-1 text-xs font-medium text-foreground">
             {t('filters.network')}
             <HelpTooltip 
               text={helpContent.transactionFilters.network.text}
@@ -179,18 +179,18 @@ export function TransactionFilters({
             value={filters.network || "__all__"}
             onValueChange={(value) => handleChange("network", value)}
           >
-            <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
+            <Select.Trigger className="flex h-9 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 text-sm text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800">
               <Select.Value placeholder={t('filters.allNetworks')} />
               <Select.Icon>
                 <Icon icon="solar:alt-arrow-down-linear" className="h-4 w-4" />
               </Select.Icon>
             </Select.Trigger>
             <Select.Portal>
-              <Select.Content className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+              <Select.Content className="overflow-hidden rounded-lg border border-border bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
                 <Select.Viewport className="p-1">
                   <Select.Item
                     value="__all__"
-                    className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-gray-900 outline-none hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                    className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-foreground outline-none hover:bg-muted dark:text-gray-100 dark:hover:bg-gray-700"
                   >
                     <Select.ItemText>{t('filters.allNetworks')}</Select.ItemText>
                   </Select.Item>
@@ -198,7 +198,7 @@ export function TransactionFilters({
                     <Select.Item
                       key={network.network_id}
                       value={network.network_id}
-                      className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-gray-900 outline-none hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                      className="relative flex cursor-pointer select-none items-center rounded px-8 py-2 text-sm text-foreground outline-none hover:bg-muted dark:text-gray-100 dark:hover:bg-gray-700"
                     >
                       <Select.ItemText>{network.network_name}</Select.ItemText>
                     </Select.Item>
@@ -213,7 +213,7 @@ export function TransactionFilters({
         <div>
           <label
             htmlFor="from_date"
-            className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300"
+            className="mb-1 flex items-center gap-1 text-xs font-medium text-foreground"
           >
             {t('filters.fromDate')}
             <HelpTooltip 
@@ -227,7 +227,7 @@ export function TransactionFilters({
             id="from_date"
             value={filters.from_date || ""}
             onChange={(e) => handleChange("from_date", e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            className="h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
 
@@ -235,7 +235,7 @@ export function TransactionFilters({
         <div>
           <label
             htmlFor="to_date"
-            className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-300"
+            className="mb-1 flex items-center gap-1 text-xs font-medium text-foreground"
           >
             {t('filters.toDate')}
             <HelpTooltip 
@@ -249,7 +249,7 @@ export function TransactionFilters({
             id="to_date"
             value={filters.to_date || ""}
             onChange={(e) => handleChange("to_date", e.target.value)}
-            className="h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+            className="h-9 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30/20 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
           />
         </div>
       </div>
@@ -258,14 +258,14 @@ export function TransactionFilters({
       <div className="mt-4 flex gap-2">
         <button
           onClick={handleApply}
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-primary/30/20"
         >
           {t('filters.applyButton')}
         </button>
         {activeCount > 0 && (
           <button
             onClick={handleClear}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
             {t('filters.clearButton')}
           </button>

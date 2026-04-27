@@ -136,15 +136,15 @@ export default function PartnerPage() {
       <Header title="Партнёр API" />
       <div className={pageLayout.container}>
         {/* Tabs */}
-        <div className="flex gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 dark:bg-slate-800/50">
+        <div className="flex gap-1 overflow-x-auto rounded-lg bg-muted p-1 dark:bg-muted/50">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white"
-                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                  ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
+                  : "text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
               }`}
             >
               <Icon icon={tab.icon} className="text-base" />
@@ -169,11 +169,11 @@ export default function PartnerPage() {
                 <div className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-blue-100 p-2.5 dark:bg-blue-900/30">
-                      <Icon icon="solar:chart-bold" className="text-xl text-blue-600 dark:text-blue-400" />
+                      <Icon icon="solar:chart-bold" className="text-xl text-primary" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-slate-900 dark:text-white">{volume?.total_volume ?? "—"}</p>
-                      <p className="text-xs text-slate-500">Объём транзакций</p>
+                      <p className="text-2xl font-bold text-foreground">{volume?.total_volume ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">Объём транзакций</p>
                     </div>
                   </div>
                 </div>
@@ -182,11 +182,11 @@ export default function PartnerPage() {
                 <div className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="rounded-lg bg-green-100 p-2.5 dark:bg-green-900/30">
-                      <Icon icon="solar:pie-chart-bold" className="text-xl text-green-600 dark:text-green-400" />
+                      <Icon icon="solar:pie-chart-bold" className="text-xl text-success" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-slate-900 dark:text-white">{distribution?.total_wallets ?? "—"}</p>
-                      <p className="text-xs text-slate-500">Распределение</p>
+                      <p className="text-2xl font-bold text-foreground">{distribution?.total_wallets ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">Распределение</p>
                     </div>
                   </div>
                 </div>
@@ -198,8 +198,8 @@ export default function PartnerPage() {
                       <Icon icon="solar:tag-price-bold" className="text-xl text-amber-600 dark:text-amber-400" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-slate-900 dark:text-white">{fees?.total_fees ?? "—"}</p>
-                      <p className="text-xs text-slate-500">Комиссии</p>
+                      <p className="text-2xl font-bold text-foreground">{fees?.total_fees ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">Комиссии</p>
                     </div>
                   </div>
                 </div>
@@ -208,21 +208,21 @@ export default function PartnerPage() {
             {volume && volume.data && volume.data.length > 0 && (
               <Card>
                 <div className="p-4">
-                  <h4 className="mb-3 font-semibold text-slate-900 dark:text-white">Детали объёма</h4>
+                  <h4 className="mb-3 font-semibold text-foreground">Детали объёма</h4>
                   <div className="space-y-2">
                     {volume.data.map((item: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800 last:border-0">
-                        <span className="text-sm text-slate-600 dark:text-slate-400">{item.network_name || `Network ${item.network_id}`}</span>
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-border last:border-0">
+                        <span className="text-sm text-muted-foreground">{item.network_name || `Network ${item.network_id}`}</span>
                         <div className="text-right">
-                          <span className="text-sm font-medium text-slate-900 dark:text-white">{item.tx_count} tx</span>
-                          <span className="text-xs text-slate-500 ml-2">{Number(item.total_value || 0).toFixed(4)}</span>
+                          <span className="text-sm font-medium text-foreground">{item.tx_count} tx</span>
+                          <span className="text-xs text-muted-foreground ml-2">{Number(item.total_value || 0).toFixed(4)}</span>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm">
-                    <span className="text-slate-500">Всего транзакций:</span>
-                    <span className="font-medium text-slate-900 dark:text-white">{volume.total_transactions}</span>
+                  <div className="mt-3 pt-3 border-t border-border flex justify-between text-sm">
+                    <span className="text-muted-foreground">Всего транзакций:</span>
+                    <span className="font-medium text-foreground">{volume.total_transactions}</span>
                   </div>
                 </div>
               </Card>
@@ -251,7 +251,7 @@ export default function PartnerPage() {
                   </thead>
                   <tbody className={tableStyles.tbody}>
                     {wallets.map((w: any, i: number) => (
-                      <tr key={i} className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50" onClick={() => setSelectedWallet(w)}>
+                      <tr key={i} className="cursor-pointer hover:bg-muted dark:hover:bg-muted/50" onClick={() => setSelectedWallet(w)}>
                         <td className={tableStyles.td}>{w.name || w.wallet_name || "—"}</td>
                         <td className={tableStyles.td}><code className="text-xs">{w.address || "—"}</code></td>
                         <td className={tableStyles.td}>{w.network || "—"}</td>
@@ -265,9 +265,9 @@ export default function PartnerPage() {
                 {wallets.map((w: any, i: number) => (
                   <Card key={i}>
                     <div className="p-4 space-y-1" onClick={() => setSelectedWallet(w)}>
-                      <p className="font-medium text-slate-900 dark:text-white">{w.name || w.wallet_name}</p>
-                      <p className="text-xs text-slate-500 font-mono truncate">{w.address}</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">{w.network} · {w.balance ?? "—"}</p>
+                      <p className="font-medium text-foreground">{w.name || w.wallet_name}</p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">{w.address}</p>
+                      <p className="text-sm text-muted-foreground">{w.network} · {w.balance ?? "—"}</p>
                     </div>
                   </Card>
                 ))}
@@ -323,11 +323,11 @@ export default function PartnerPage() {
                   <Card key={i}>
                     <div className="p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <code className="text-xs text-slate-500">{(tx.unid || tx.id || "").slice(0, 12)}...</code>
+                        <code className="text-xs text-muted-foreground">{(tx.unid || tx.id || "").slice(0, 12)}...</code>
                         <Badge variant={tx.status === "completed" ? "green" : tx.status === "failed" ? "red" : "yellow"}>{tx.status}</Badge>
                       </div>
-                      <p className="text-sm text-slate-900 dark:text-white">{tx.value || tx.amount} {tx.token}</p>
-                      <p className="text-xs text-slate-500 truncate">→ {tx.to_address || tx.to}</p>
+                      <p className="text-sm text-foreground">{tx.value || tx.amount} {tx.token}</p>
+                      <p className="text-xs text-muted-foreground truncate">→ {tx.to_address || tx.to}</p>
                       {tx.status === "pending" && (
                         <div className="flex gap-2 pt-1">
                           <Button size="sm" onClick={() => handleSign(tx.unid || tx.id)}>Подписать</Button>
@@ -377,9 +377,9 @@ export default function PartnerPage() {
                 {addresses.map((a: any, i: number) => (
                   <Card key={i}>
                     <div className="p-4 space-y-1">
-                      <p className="font-medium text-slate-900 dark:text-white">{a.label || a.name || `Адрес #${a.id}`}</p>
-                      <p className="text-xs text-slate-500 font-mono truncate">{a.address}</p>
-                      <p className="text-xs text-slate-400">{a.network}</p>
+                      <p className="font-medium text-foreground">{a.label || a.name || `Адрес #${a.id}`}</p>
+                      <p className="text-xs text-muted-foreground font-mono truncate">{a.address}</p>
+                      <p className="text-xs text-muted-foreground">{a.network}</p>
                     </div>
                   </Card>
                 ))}
@@ -428,11 +428,11 @@ export default function PartnerPage() {
                   <Card key={i}>
                     <div className="p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-900 dark:text-white">{s.value || s.amount} {s.token}</span>
+                        <span className="text-sm font-medium text-foreground">{s.value || s.amount} {s.token}</span>
                         <Button size="sm" variant="danger" onClick={() => handleCancelScheduled(s.id || s.tx_id)}>Отменить</Button>
                       </div>
-                      <p className="text-xs text-slate-500 truncate">→ {s.to_address}</p>
-                      <p className="text-xs text-slate-400">{s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : ""}</p>
+                      <p className="text-xs text-muted-foreground truncate">→ {s.to_address}</p>
+                      <p className="text-xs text-muted-foreground">{s.scheduled_at ? new Date(s.scheduled_at).toLocaleString() : ""}</p>
                     </div>
                   </Card>
                 ))}
@@ -446,12 +446,12 @@ export default function PartnerPage() {
           <div className="space-y-4">
             <Card>
               <div className="p-4">
-                <h4 className="mb-3 font-semibold text-slate-900 dark:text-white">
+                <h4 className="mb-3 font-semibold text-foreground">
                   <Icon icon="solar:global-linear" className="mr-2 inline" />
                   Доступные сети ({networks.length})
                 </h4>
                 {networks.length === 0 ? (
-                  <p className="text-sm text-slate-500">Нет данных</p>
+                  <p className="text-sm text-muted-foreground">Нет данных</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {networks.map((n: any, i: number) => (
@@ -463,12 +463,12 @@ export default function PartnerPage() {
             </Card>
             <Card>
               <div className="p-4">
-                <h4 className="mb-3 font-semibold text-slate-900 dark:text-white">
+                <h4 className="mb-3 font-semibold text-foreground">
                   <Icon icon="solar:coin-linear" className="mr-2 inline" />
                   Доступные токены ({tokens.length})
                 </h4>
                 {tokens.length === 0 ? (
-                  <p className="text-sm text-slate-500">Нет данных</p>
+                  <p className="text-sm text-muted-foreground">Нет данных</p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {tokens.map((t: any, i: number) => (
@@ -480,19 +480,19 @@ export default function PartnerPage() {
             </Card>
             <Card>
               <div className="p-4">
-                <h4 className="mb-3 font-semibold text-slate-900 dark:text-white">
+                <h4 className="mb-3 font-semibold text-foreground">
                   <Icon icon="solar:pen-linear" className="mr-2 inline" />
                   Ожидающие подписи ({pendingSigs.length})
                 </h4>
                 {pendingSigs.length === 0 ? (
-                  <p className="text-sm text-slate-500">Нет ожидающих подписей</p>
+                  <p className="text-sm text-muted-foreground">Нет ожидающих подписей</p>
                 ) : (
                   <div className="space-y-2">
                     {pendingSigs.map((s: any, i: number) => (
-                      <div key={i} className="rounded border border-slate-200 p-3 text-sm dark:border-slate-700">
+                      <div key={i} className="rounded border border-border p-3 text-sm dark:border-border">
                         <div className="text-xs">
                           <span className="font-medium">{s.tx_unid || s.id}</span>
-                          <span className="text-slate-500 ml-2">{s.status || 'pending'}</span>
+                          <span className="text-muted-foreground ml-2">{s.status || 'pending'}</span>
                         </div>
                       </div>
                     ))}

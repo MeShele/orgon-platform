@@ -119,7 +119,7 @@ export function PendingSignaturesTable({
             icon="solar:check-circle-bold" 
             className="mx-auto mb-4 text-6xl text-green-500 dark:text-green-400"
           />
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+          <h3 className="text-lg font-medium text-foreground">
             {t('noSignatures')}
           </h3>
         </div>
@@ -132,18 +132,18 @@ export function PendingSignaturesTable({
       <Card>
         <div className="overflow-x-auto">
           <div className="overflow-x-auto"><table className="min-w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+            <thead className="border-b border-border bg-muted dark:border-border dark:bg-muted">
               <tr>
-                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   {t('token')}
                 </th>
-                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   {t('value')}
                 </th>
-                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   {t('to')}
                 </th>
-                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   <span className="inline-flex items-center gap-1">
                     {t('age')}
                     <HelpTooltip
@@ -153,7 +153,7 @@ export function PendingSignaturesTable({
                     />
                   </span>
                 </th>
-                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   <span className="inline-flex items-center gap-1">
                     {t('progress')}
                     <HelpTooltip
@@ -163,7 +163,7 @@ export function PendingSignaturesTable({
                     />
                   </span>
                 </th>
-                <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+                <th className="px-4 py-3 font-medium text-foreground">
                   {t('actions')}
                 </th>
               </tr>
@@ -178,28 +178,28 @@ export function PendingSignaturesTable({
                 return (
                   <tr
                     key={sig.unid}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800"
+                    className="hover:bg-muted dark:hover:bg-muted"
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-slate-900 dark:text-slate-100">
+                        <span className="font-medium text-foreground">
                           {tokenSymbol}
                         </span>
                         {walletName && (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                          <span className="text-xs text-muted-foreground">
                             {walletName}
                           </span>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="font-mono text-slate-900 dark:text-slate-100">
+                      <span className="font-mono text-foreground">
                         {sig.tx_value.replace(",", ".")}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <span className="font-mono text-xs text-slate-600 dark:text-slate-400">
+                        <span className="font-mono text-xs text-muted-foreground">
                           {sig.to_addr.substring(0, 10)}...
                           {sig.to_addr.substring(sig.to_addr.length - 8)}
                         </span>
@@ -267,7 +267,7 @@ export function PendingSignaturesTable({
                           <button
                             onClick={() => setRejectingTxUnid(sig.unid)}
                             disabled={signingTxUnid === sig.unid}
-                            className="rounded bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded bg-destructive px-3 py-1 text-xs font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {t('rejectButton')}
                           </button>

@@ -153,31 +153,31 @@ export default function WebhooksPage() {
         {/* Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-900">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Новый вебхук</h2>
+            <div className="w-full max-w-lg rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+              <h2 className="text-lg font-bold text-foreground mb-4">Новый вебхук</h2>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">URL</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">URL</label>
                   <input
                     type="url"
                     value={newUrl}
                     onChange={(e) => setNewUrl(e.target.value)}
                     placeholder="https://example.com/webhook"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-white"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">События</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">События</label>
                   <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
                     {(availableEvents || []).map((event) => (
-                      <label key={event} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 cursor-pointer">
+                      <label key={event} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                         <input
                           type="checkbox"
                           checked={selectedEvents.includes(event)}
                           onChange={() => toggleEvent(event)}
-                          className="rounded border-slate-300 dark:border-slate-600"
+                          className="rounded border-border"
                         />
                         {event}
                       </label>

@@ -9,10 +9,10 @@ import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400 dark:focus:ring-slate-600 transition-colors";
+  "w-full rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground dark:border-border dark:bg-card/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30 dark:focus:ring-slate-600 transition-colors";
 
 const selectClass =
-  "rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400 dark:focus:ring-slate-600 transition-colors";
+  "rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground dark:border-border dark:bg-card/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30 dark:focus:ring-slate-600 transition-colors";
 
 export function CreateWalletForm() {
   const router = useRouter();
@@ -66,7 +66,7 @@ export function CreateWalletForm() {
       <CardHeader title="Create Wallet" subtitle="Create a new wallet on Safina Pay" />
       <form onSubmit={handleSubmit} className="space-y-4 p-4">
         <div>
-          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
             Network
             <HelpTooltip 
               text={helpContent.createWallet.network.text}
@@ -89,7 +89,7 @@ export function CreateWalletForm() {
         </div>
 
         <div>
-          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
             Description
             <HelpTooltip 
               text={helpContent.createWallet.description.text}
@@ -112,9 +112,9 @@ export function CreateWalletForm() {
             id="multisig"
             checked={isMultiSig}
             onChange={(e) => setIsMultiSig(e.target.checked)}
-            className="rounded border-slate-300 text-slate-900 focus:ring-slate-500 dark:border-slate-700 dark:bg-slate-900"
+            className="rounded border-slate-300 text-foreground focus:ring-slate-500 dark:border-border dark:bg-card"
           />
-          <label htmlFor="multisig" className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+          <label htmlFor="multisig" className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
             Multi-signature wallet
             <HelpTooltip 
               text={helpContent.createWallet.multiSig.text}
@@ -126,9 +126,9 @@ export function CreateWalletForm() {
         </div>
 
         {isMultiSig && (
-          <div className="space-y-3 rounded-lg border border-slate-200 p-4 dark:border-slate-800">
+          <div className="space-y-3 rounded-lg border border-border p-4 dark:border-border">
             <div>
-              <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+              <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
                 Minimum signatures required
                 <HelpTooltip 
                   text={helpContent.createWallet.minSigns.text}
@@ -146,7 +146,7 @@ export function CreateWalletForm() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-400">
+              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <span className="w-32">
                   Signer type 
                   <HelpTooltip 
@@ -187,7 +187,7 @@ export function CreateWalletForm() {
                     <button
                       type="button"
                       onClick={() => removeSigner(i)}
-                      className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      className="text-destructive hover:text-destructive dark:hover:text-red-300 transition-colors"
                     >
                       <Icon icon="solar:trash-bin-minimalistic-linear" className="text-base" />
                     </button>
@@ -198,7 +198,7 @@ export function CreateWalletForm() {
             <button
               type="button"
               onClick={addSigner}
-              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
             >
               <Icon icon="solar:add-circle-linear" className="text-sm" />
               Add signer
@@ -207,13 +207,13 @@ export function CreateWalletForm() {
         )}
 
         {error && (
-          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-xs text-destructive">{error}</p>
         )}
 
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 transition-colors"
+          className="rounded-lg bg-card px-4 py-2.5 text-xs font-medium text-white hover:bg-muted disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors"
         >
           {loading ? "Creating..." : "Create Wallet"}
         </button>

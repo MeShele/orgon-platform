@@ -81,8 +81,8 @@ export default function OrganizationsPage() {
               className={clsx(
                 "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
                 filter === 'all'
-                  ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:bg-muted dark:hover:bg-card"
               )}
             >
               All
@@ -92,8 +92,8 @@ export default function OrganizationsPage() {
               className={clsx(
                 "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
                 filter === 'active'
-                  ? "bg-green-500 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                  ? "bg-success text-success-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted dark:hover:bg-card"
               )}
             >
               Active
@@ -103,8 +103,8 @@ export default function OrganizationsPage() {
               className={clsx(
                 "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
                 filter === 'suspended'
-                  ? "bg-yellow-500 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+                  ? "bg-warning text-warning-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted dark:hover:bg-card"
               )}
             >
               Suspended
@@ -113,7 +113,7 @@ export default function OrganizationsPage() {
           
           <Link
             href="/organizations/new"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors"
           >
             <Icon icon="solar:add-circle-linear" />
             New Organization
@@ -126,9 +126,9 @@ export default function OrganizationsPage() {
             {[1, 2, 3].map((i) => (
               <Card key={i}>
                 <div className="p-4 space-y-3 animate-pulse">
-                  <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded" />
-                  <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
-                  <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+                  <div className="h-6 bg-slate-200 dark:bg-muted rounded" />
+                  <div className="h-4 bg-slate-200 dark:bg-muted rounded w-2/3" />
+                  <div className="h-4 bg-slate-200 dark:bg-muted rounded w-1/2" />
                 </div>
               </Card>
             ))}
@@ -136,8 +136,8 @@ export default function OrganizationsPage() {
         ) : organizations.length === 0 ? (
           <Card>
             <div className="p-12 text-center">
-              <Icon icon="solar:buildings-2-linear" className="mx-auto text-6xl text-slate-300 dark:text-slate-700 mb-4" />
-              <p className="text-slate-600 dark:text-slate-400">
+              <Icon icon="solar:buildings-2-linear" className="mx-auto text-6xl text-faint mb-4" />
+              <p className="text-muted-foreground">
                 No organizations found
               </p>
             </div>
@@ -146,16 +146,16 @@ export default function OrganizationsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {organizations.map((org) => (
               <Link key={org.id} href={`/organizations/${org.id}`}>
-                <Card className="h-full hover:border-slate-300 dark:hover:border-slate-700 transition-colors cursor-pointer">
+                <Card className="h-full hover:border-slate-300 dark:hover:border-border transition-colors cursor-pointer">
                   <div className="p-4 space-y-3">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-base font-semibold text-slate-900 dark:text-white truncate">
+                        <h3 className="text-base font-semibold text-foreground truncate">
                           {org.display_name || org.name}
                         </h3>
                         {org.city && org.country && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             <Icon icon="solar:map-point-linear" className="inline mr-1" />
                             {org.city}, {org.country}
                           </p>
@@ -174,29 +174,29 @@ export default function OrganizationsPage() {
                     </div>
 
                     {/* Stats */}
-                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Max Wallets</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        <p className="text-xs text-muted-foreground">Max Wallets</p>
+                        <p className="text-sm font-semibold text-foreground">
                           {org.max_wallets || 0}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">Max Volume</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        <p className="text-xs text-muted-foreground">Max Volume</p>
+                        <p className="text-sm font-semibold text-foreground">
                           ${(org.max_monthly_volume || 0).toLocaleString()}
                         </p>
                       </div>
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                    <div className="flex items-center justify-between pt-3 border-t border-border">
+                      <span className="text-xs text-muted-foreground">
                         {new Date(org.created_at).toLocaleDateString()}
                       </span>
                       <Icon 
                         icon="solar:arrow-right-linear" 
-                        className="text-slate-400 dark:text-slate-600"
+                        className="text-muted-foreground dark:text-muted-foreground"
                       />
                     </div>
                   </div>

@@ -215,15 +215,15 @@ export default function AuditPage() {
             <Card padding hover>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  <p className="text-sm text-muted-foreground mb-1">
                     {t('stats.totalEvents')}
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
                     {stats.total}
                   </p>
                 </div>
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon icon="solar:chart-linear" className="text-2xl text-blue-600 dark:text-blue-400" />
+                  <Icon icon="solar:chart-linear" className="text-2xl text-primary" />
                 </div>
               </div>
             </Card>
@@ -231,15 +231,15 @@ export default function AuditPage() {
             <Card padding hover>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  <p className="text-sm text-muted-foreground mb-1">
                     {t('stats.last24h')}
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
                     {stats.recent_24h}
                   </p>
                 </div>
                 <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon icon="solar:clock-circle-linear" className="text-2xl text-green-600 dark:text-green-400" />
+                  <Icon icon="solar:clock-circle-linear" className="text-2xl text-success" />
                 </div>
               </div>
             </Card>
@@ -247,10 +247,10 @@ export default function AuditPage() {
             <Card padding hover className="sm:col-span-2 lg:col-span-1">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  <p className="text-sm text-muted-foreground mb-1">
                     {t('stats.actionTypes')}
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  <p className="text-2xl sm:text-3xl font-bold text-foreground">
                     {Object.keys(stats.by_action).length}
                   </p>
                 </div>
@@ -298,7 +298,7 @@ export default function AuditPage() {
                 <select
                   value={actionFilter}
                   onChange={(e) => setActionFilter(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="flex-1 px-4 py-2 border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
                 >
                   <option value="">{t('filters.allActions')}</option>
                   <option value="create">{t('actions.create')}</option>
@@ -319,7 +319,7 @@ export default function AuditPage() {
                 <select
                   value={resourceFilter}
                   onChange={(e) => setResourceFilter(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                  className="flex-1 px-4 py-2 border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
                 >
                   <option value="">{t('filters.allResources')}</option>
                   <option value="transaction">{t('filters.resources.transaction')}</option>
@@ -341,7 +341,7 @@ export default function AuditPage() {
               <div className="flex-1 flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="block text-sm text-gray-600 dark:text-gray-400">
+                    <label className="block text-sm text-muted-foreground">
                       {t('filters.fromDate')}
                     </label>
                     <HelpTooltip
@@ -355,13 +355,13 @@ export default function AuditPage() {
                     onChange={(date: Date | null) => setFromDate(date)}
                     dateFormat="yyyy-MM-dd"
                     placeholderText={t('filters.selectFromDate')}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                     isClearable
                   />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <label className="block text-sm text-gray-600 dark:text-gray-400">
+                    <label className="block text-sm text-muted-foreground">
                       {t('filters.toDate')}
                     </label>
                     <HelpTooltip
@@ -375,7 +375,7 @@ export default function AuditPage() {
                     onChange={(date: Date | null) => setToDate(date)}
                     dateFormat="yyyy-MM-dd"
                     placeholderText={t('filters.selectToDate')}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-2 border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                     isClearable
                     minDate={fromDate || undefined}
                   />
@@ -393,7 +393,7 @@ export default function AuditPage() {
             </div>
 
             {/* Export Buttons */}
-            <div className="flex flex-wrap gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex flex-wrap gap-3 pt-2 border-t border-border">
               <div className="flex items-center gap-2">
                 <Button 
                   variant="ghost" 
@@ -439,9 +439,9 @@ export default function AuditPage() {
           <Card padding className="text-center py-12">
             <Icon 
               icon="solar:document-text-linear" 
-              className="mx-auto mb-4 text-6xl text-gray-400 dark:text-gray-600"
+              className="mx-auto mb-4 text-6xl text-muted-foreground dark:text-muted-foreground"
             />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-medium text-foreground">
               {t('noLogs')}
             </h3>
           </Card>
@@ -463,7 +463,7 @@ export default function AuditPage() {
                         <div className="flex-shrink-0">
                           <Icon 
                             icon={getActionIcon(log.action)} 
-                            className="text-2xl text-gray-600 dark:text-gray-400"
+                            className="text-2xl text-muted-foreground"
                           />
                         </div>
                         <div className="min-w-0 flex-1">
@@ -480,7 +480,7 @@ export default function AuditPage() {
                         </div>
                       </div>
 
-                      <div className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      <div className="text-xs text-muted-foreground flex-shrink-0">
                         {(() => { try { const d = new Date(log.timestamp || log.created_at || ""); return isNaN(d.getTime()) ? "—" : format(d, "MMM d, HH:mm:ss"); } catch { return "—"; } })()}
                       </div>
                     </div>
@@ -489,10 +489,10 @@ export default function AuditPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 text-sm">
                       {log.resource_id && (
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <p className="text-xs text-muted-foreground mb-1">
                             {t('fields.resourceId')}
                           </p>
-                          <code className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1 rounded block truncate font-mono">
+                          <code className="text-xs bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
                             {log.resource_id}
                           </code>
                         </div>
@@ -500,10 +500,10 @@ export default function AuditPage() {
 
                       {log.user_id && (
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <p className="text-xs text-muted-foreground mb-1">
                             {t('fields.userId')}
                           </p>
-                          <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                          <p className="text-sm text-foreground truncate">
                             {log.user_id}
                           </p>
                         </div>
@@ -511,10 +511,10 @@ export default function AuditPage() {
 
                       {log.ip_address && (
                         <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                          <p className="text-xs text-muted-foreground mb-1">
                             {t('fields.ipAddress')}
                           </p>
-                          <code className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1 rounded block truncate font-mono">
+                          <code className="text-xs bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
                             {log.ip_address}
                           </code>
                         </div>
@@ -529,7 +529,7 @@ export default function AuditPage() {
             {totalLogs > limit && (
               <Card padding>
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                  <div className="text-sm text-muted-foreground">
                     Showing {offset + 1} - {Math.min(offset + limit, totalLogs)} of {totalLogs} logs
                   </div>
                   
@@ -551,7 +551,7 @@ export default function AuditPage() {
                       <Icon icon="solar:alt-arrow-left-linear" />
                     </Button>
                     
-                    <span className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">
+                    <span className="px-4 py-2 text-sm text-foreground">
                       Page {currentPage} of {totalPages}
                     </span>
                     
@@ -579,7 +579,7 @@ export default function AuditPage() {
                       setLimit(Number(e.target.value));
                       setOffset(0);
                     }}
-                    className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="px-3 py-1 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     <option value="25">25 per page</option>
                     <option value="50">50 per page</option>

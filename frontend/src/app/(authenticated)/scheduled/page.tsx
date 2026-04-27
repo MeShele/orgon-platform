@@ -114,10 +114,10 @@ export default function ScheduledPage() {
               icon="solar:calendar-linear" 
               className={pageLayout.empty.icon} 
             />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            <h3 className="text-lg font-medium text-foreground mb-2">
               {t('noTransactions')}
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-muted-foreground">
               {t(`filters.${filter}`)} {t('noTransactions').toLowerCase()}
             </p>
           </Card>
@@ -129,7 +129,7 @@ export default function ScheduledPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      <h3 className="text-lg font-semibold text-foreground">
                         {tx.value} {tx.token}
                       </h3>
                       <Badge variant={getStatusVariant(tx.status)}>
@@ -138,7 +138,7 @@ export default function ScheduledPage() {
                     </div>
                     
                     {tx.info && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         {tx.info}
                       </p>
                     )}
@@ -169,20 +169,20 @@ export default function ScheduledPage() {
                 </div>
 
                 {/* Details Grid */}
-                <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-border">
                   {/* To Address */}
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    <p className="text-xs text-muted-foreground mb-1">
                       {t('fields.recipient')}
                     </p>
-                    <code className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1 rounded block truncate font-mono">
+                    <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
                       {tx.to_address}
                     </code>
                   </div>
 
                   {/* Scheduled Time */}
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                    <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                       {t('fields.scheduledAt')}
                       <HelpTooltip 
                         text={helpContent.scheduled.scheduledAt.text}
@@ -190,7 +190,7 @@ export default function ScheduledPage() {
                         tips={helpContent.scheduled.scheduledAt.tips}
                       />
                     </p>
-                    <p className="text-sm text-gray-900 dark:text-gray-100">
+                    <p className="text-sm text-foreground">
                       {format(new Date(tx.scheduled_at), "PPpp")}
                     </p>
                   </div>
@@ -198,7 +198,7 @@ export default function ScheduledPage() {
                   {/* Recurrence */}
                   {tx.recurrence_rule && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                         {t('fields.recurrence')}
                         <HelpTooltip 
                           text={helpContent.scheduled.recurrence.text}
@@ -215,7 +215,7 @@ export default function ScheduledPage() {
                   {/* Next Run */}
                   {tx.next_run_at && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                         {t('fields.nextRun')}
                         <HelpTooltip 
                           text={helpContent.scheduled.nextRun.text}
@@ -223,7 +223,7 @@ export default function ScheduledPage() {
                           tips={helpContent.scheduled.nextRun.tips}
                         />
                       </p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                      <p className="text-sm text-foreground">
                         {format(new Date(tx.next_run_at), "PPpp")}
                       </p>
                     </div>
@@ -232,10 +232,10 @@ export default function ScheduledPage() {
                   {/* Sent At */}
                   {tx.sent_at && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-muted-foreground mb-1">
                         {t('fields.sentAt')}
                       </p>
-                      <p className="text-sm text-gray-900 dark:text-gray-100">
+                      <p className="text-sm text-foreground">
                         {format(new Date(tx.sent_at), "PPpp")}
                       </p>
                     </div>
@@ -244,10 +244,10 @@ export default function ScheduledPage() {
                   {/* Transaction ID */}
                   {tx.tx_unid && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-muted-foreground mb-1">
                         {t('fields.transactionId')}
                       </p>
-                      <code className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1 rounded block truncate font-mono">
+                      <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
                         {tx.tx_unid}
                       </code>
                     </div>
@@ -256,10 +256,10 @@ export default function ScheduledPage() {
                   {/* Error Message */}
                   {tx.error_message && (
                     <div className="md:col-span-2">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-muted-foreground mb-1">
                         {t('fields.error')}
                       </p>
-                      <p className="text-sm text-red-600 dark:text-red-400">
+                      <p className="text-sm text-destructive">
                         {tx.error_message}
                       </p>
                     </div>

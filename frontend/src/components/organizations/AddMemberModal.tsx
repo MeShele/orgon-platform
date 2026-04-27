@@ -54,20 +54,20 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="relative w-full max-w-md rounded-xl border border-border bg-white shadow-2xl dark:border-border dark:bg-card">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 p-6 dark:border-slate-800">
+        <div className="flex items-center justify-between border-b border-border p-6 dark:border-border">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+            <h3 className="text-lg font-semibold text-foreground">
               Add Member
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Invite a user to this organization
             </p>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-300"
+            className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted dark:hover:text-faint"
           >
             <Icon icon="solar:close-circle-linear" className="text-xl" />
           </button>
@@ -77,7 +77,7 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Email Address *
             </label>
             <input
@@ -85,18 +85,18 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
               placeholder="user@example.com"
               disabled={loading}
             />
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               User will receive an invitation email
             </p>
           </div>
 
           {/* Role */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Role *
             </label>
             <div className="space-y-2">
@@ -110,8 +110,8 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
                   className={clsx(
                     "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
                     role === roleOption.value
-                      ? "border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800"
-                      : "border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50"
+                      ? "border-slate-900 bg-muted dark:border-white dark:bg-muted"
+                      : "border-border hover:bg-muted dark:border-border dark:hover:bg-muted/50"
                   )}
                 >
                   <input
@@ -120,14 +120,14 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
                     value={roleOption.value}
                     checked={role === roleOption.value}
                     onChange={(e) => setRole(e.target.value as UserRole)}
-                    className="mt-0.5 w-4 h-4 text-slate-900 dark:text-white"
+                    className="mt-0.5 w-4 h-4 text-foreground"
                     disabled={loading}
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">
+                    <p className="text-sm font-medium text-foreground">
                       {roleOption.label}
                     </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <p className="text-xs text-muted-foreground">
                       {roleOption.desc}
                     </p>
                   </div>
@@ -140,7 +140,7 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
           {error && (
             <div className="rounded-lg bg-red-50 border border-red-200 p-3 dark:bg-red-950/20 dark:border-red-900">
               <div className="flex items-start gap-2">
-                <Icon icon="solar:danger-circle-bold" className="text-red-500 text-base flex-shrink-0 mt-0.5" />
+                <Icon icon="solar:danger-circle-bold" className="text-destructive text-base flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-red-700 dark:text-red-300">
                   {error}
                 </p>
@@ -149,12 +149,12 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
           )}
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 text-foreground hover:bg-muted dark:border-border dark:text-faint dark:hover:bg-muted transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -165,7 +165,7 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
                 "px-6 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50",
                 loading
                   ? "bg-slate-400 cursor-not-allowed"
-                  : "bg-slate-900 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                  : "bg-card hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted"
               )}
             >
               {loading ? (

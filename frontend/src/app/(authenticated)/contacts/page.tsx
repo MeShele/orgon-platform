@@ -136,7 +136,7 @@ export default function ContactsPage() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              className="px-4 py-2 border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
             >
               <option value="">{t('categories.all')}</option>
               <option value="personal">{t('categories.personal')}</option>
@@ -190,16 +190,16 @@ export default function ContactsPage() {
           <Card padding className="text-center py-12">
             <Icon 
               icon="solar:users-group-rounded-linear" 
-              className="mx-auto mb-4 text-6xl text-gray-400 dark:text-gray-600"
+              className="mx-auto mb-4 text-6xl text-muted-foreground dark:text-muted-foreground"
             />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            <h3 className="text-lg font-medium text-foreground mb-2">
               {search || categoryFilter || showFavoritesOnly
                 ? t('noContactsFiltered')
                 : t('noContacts')}
             </h3>
             {!search && !categoryFilter && !showFavoritesOnly && (
               <>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   {t('addFirstContact')}
                 </p>
                 <Button variant="primary" onClick={handleCreate}>
@@ -224,7 +224,7 @@ export default function ContactsPage() {
                       >
                         <Icon 
                           icon={contact.favorite ? "solar:star-bold" : "solar:star-linear"} 
-                          className={`text-xl ${contact.favorite ? 'text-yellow-500' : 'text-gray-400'}`}
+                          className={`text-xl ${contact.favorite ? 'text-yellow-500' : 'text-muted-foreground'}`}
                         />
                       </button>
                       <HelpTooltip
@@ -233,7 +233,7 @@ export default function ContactsPage() {
                         tips={helpContent.contacts.favoriteToggle.tips}
                       />
                     </div>
-                    <h3 className="font-semibold text-lg truncate text-gray-900 dark:text-gray-100">
+                    <h3 className="font-semibold text-lg truncate text-foreground">
                       {contact.name}
                     </h3>
                   </div>
@@ -249,10 +249,10 @@ export default function ContactsPage() {
                 <div className="px-4 pb-4 space-y-3">
                   {/* Address */}
                   <div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    <p className="text-xs text-muted-foreground mb-1">
                       {t('fields.address')}
                     </p>
-                    <code className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-2 py-1 rounded block truncate font-mono">
+                    <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
                       {contact.address}
                     </code>
                   </div>
@@ -260,10 +260,10 @@ export default function ContactsPage() {
                   {/* Network */}
                   {contact.network && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-muted-foreground mb-1">
                         {t('fields.network')}
                       </p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      <p className="text-sm font-medium text-foreground">
                         {contact.network}
                       </p>
                     </div>
@@ -272,10 +272,10 @@ export default function ContactsPage() {
                   {/* Notes */}
                   {contact.notes && (
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      <p className="text-xs text-muted-foreground mb-1">
                         {t('fields.notes')}
                       </p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+                      <p className="text-sm text-foreground line-clamp-2">
                         {contact.notes}
                       </p>
                     </div>
@@ -283,7 +283,7 @@ export default function ContactsPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 p-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex gap-2 p-4 pt-3 border-t border-border">
                   <Button
                     variant="secondary"
                     size="sm"

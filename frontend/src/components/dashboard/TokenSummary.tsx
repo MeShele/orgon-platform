@@ -25,7 +25,7 @@ export function TokenSummary({ tokens }: { tokens: TokenBalance[] }) {
       />
       <div className="space-y-1 p-2">
         {tokens.length === 0 && (
-          <p className="py-4 text-center text-xs text-slate-500">{t('tokens.noBalances')}</p>
+          <p className="py-4 text-center text-xs text-muted-foreground">{t('tokens.noBalances')}</p>
         )}
         {tokens.map((t, i) => {
           const hasBalance = t.value > 0;
@@ -34,24 +34,24 @@ export function TokenSummary({ tokens }: { tokens: TokenBalance[] }) {
               key={i}
               className={`group flex items-center justify-between rounded-lg p-2 ${
                 hasBalance
-                  ? "bg-slate-100 dark:bg-slate-800/30"
-                  : "hover:bg-slate-50 dark:hover:bg-slate-800/20"
+                  ? "bg-muted/30"
+                  : "hover:bg-muted dark:hover:bg-muted/20"
               }`}
             >
               <div className="flex items-center gap-3">
                 <CryptoIcon token={t.token} />
                 <div>
-                  <div className="text-xs font-medium text-slate-900 dark:text-white">{t.token}</div>
+                  <div className="text-xs font-medium text-foreground">{t.token}</div>
                   {t.network_name && (
-                    <div className="text-[10px] text-slate-500 dark:text-slate-400">{t.network_name}</div>
+                    <div className="text-[10px] text-muted-foreground">{t.network_name}</div>
                   )}
                 </div>
               </div>
               <div
                 className={`text-xs font-medium ${
                   hasBalance
-                    ? "text-slate-900 dark:text-white"
-                    : "text-slate-500 dark:text-slate-400"
+                    ? "text-foreground"
+                    : "text-muted-foreground"
                 }`}
               >
                 {typeof t.value === "number" ? t.value.toFixed(4) : t.value}

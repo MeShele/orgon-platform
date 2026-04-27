@@ -27,10 +27,10 @@ export function OnboardingTip({ id, text, icon = "solar:info-circle-bold" }: Onb
   if (dismissed) return null;
 
   return (
-    <div className="rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-3 flex items-start gap-3">
-      <Icon icon={icon} className="text-lg text-indigo-500 shrink-0 mt-0.5" />
-      <p className="text-sm text-indigo-700 dark:text-indigo-300 flex-1">{text}</p>
-      <button onClick={dismiss} className="text-indigo-400 hover:text-indigo-600 shrink-0">
+    <div className="rounded-lg bg-primary/10 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 p-3 flex items-start gap-3">
+      <Icon icon={icon} className="text-lg text-primary shrink-0 mt-0.5" />
+      <p className="text-sm text-primary dark:text-indigo-300 flex-1">{text}</p>
+      <button onClick={dismiss} className="text-primary hover:text-primary shrink-0">
         <Icon icon="solar:close-circle-linear" className="text-lg" />
       </button>
     </div>

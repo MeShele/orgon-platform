@@ -15,11 +15,11 @@ export function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+      className="inline-flex items-center text-muted-foreground hover:text-muted-foreground dark:hover:text-slate-200 transition-colors"
       title="Copy"
     >
       {copied ? (
-        <Icon icon="solar:check-circle-bold" className="h-3.5 w-3.5 text-emerald-500" />
+        <Icon icon="solar:check-circle-bold" className="h-3.5 w-3.5 text-success" />
       ) : (
         <Icon icon="solar:copy-linear" className="h-3.5 w-3.5" />
       )}

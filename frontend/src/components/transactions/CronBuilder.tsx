@@ -120,7 +120,7 @@ export default function CronBuilder({
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               preset === p.id
                 ? "bg-blue-600 text-white shadow-md"
-                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                : "bg-white border border-gray-300 text-foreground hover:bg-muted"
             }`}
           >
             {p.label}
@@ -142,7 +142,7 @@ export default function CronBuilder({
 
       {/* Custom Cron Input */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground mb-1">
           Custom Cron Expression (Optional)
         </label>
         <input
@@ -151,9 +151,9 @@ export default function CronBuilder({
           onChange={handleCustomChange}
           onFocus={() => setPreset("custom")}
           placeholder="0 10 * * MON (Every Monday at 10:00 AM)"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 font-mono text-sm"
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Format: minute hour day-of-month month day-of-week
         </p>
       </div>
@@ -176,10 +176,10 @@ export default function CronBuilder({
 
       {/* Cron Help */}
       <details className="text-sm">
-        <summary className="cursor-pointer text-gray-600 hover:text-gray-900 font-medium">
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium">
           📖 Cron Expression Guide
         </summary>
-        <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-2 text-xs text-gray-700">
+        <div className="mt-2 p-3 bg-gray-50 rounded-lg space-y-2 text-xs text-foreground">
           <p>
             <strong>Format:</strong> minute hour day-of-month month day-of-week
           </p>

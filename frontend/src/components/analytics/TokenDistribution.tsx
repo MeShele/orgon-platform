@@ -46,8 +46,8 @@ export default function TokenDistribution({ data }: TokenDistributionProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-      <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+    <div className="bg-card rounded-xl p-4 sm:p-6 border border-border shadow-sm">
+      <h3 className="text-base sm:text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
         {t('tokenDistribution')}
         <HelpTooltip 
           text={helpContent.analytics.tokenDistribution.text}
@@ -57,7 +57,7 @@ export default function TokenDistribution({ data }: TokenDistributionProps) {
       </h3>
       
       {data.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
           <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
@@ -105,18 +105,18 @@ export default function TokenDistribution({ data }: TokenDistributionProps) {
             {chartData.map((item, index) => (
               <div 
                 key={index} 
-                className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors"
+                className="flex items-center justify-between p-2 hover:bg-muted dark:hover:bg-gray-700/50 rounded-lg transition-colors"
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <div 
                     className="w-3 h-3 rounded-sm flex-shrink-0" 
                     style={{ backgroundColor: item.fill }}
                   />
-                  <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                  <span className="font-medium text-sm text-foreground truncate">
                     {item.name}
                   </span>
                 </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 flex-shrink-0 ml-2">
+                <div className="text-xs text-muted-foreground flex-shrink-0 ml-2">
                   {item.percentage.toFixed(1)}% ({item.tx_count} {t('txCount')})
                 </div>
               </div>

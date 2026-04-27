@@ -66,7 +66,7 @@ export function DocumentViewer({ fileUrl, fileName, fileType, editable = false, 
         </div>
       )}
       {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg mb-2">
+        <div className="p-4 bg-destructive/10 text-destructive rounded-lg mb-2">
           {error}
         </div>
       )}

@@ -70,11 +70,11 @@ export function StatCards({ data }: { data: DashboardStats }) {
               className={`rounded-2xl border p-4 shadow-sm ${
                 stat.highlight
                   ? "border-yellow-300 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-900/10"
-                  : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none"
+                  : "border-border bg-white dark:border-border dark:bg-card/40 dark:shadow-none"
               } ${stat.link ? "cursor-pointer" : ""}`}
             >
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
+                <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                   {stat.label}
                   <HelpTooltip
                     text={stat.help.text}
@@ -88,7 +88,7 @@ export function StatCards({ data }: { data: DashboardStats }) {
                   className={
                     stat.highlight
                       ? "text-yellow-400 dark:text-yellow-500"
-                      : "text-slate-300 dark:text-slate-600"
+                      : "text-faint dark:text-muted-foreground"
                   }
                 />
               </div>
@@ -96,7 +96,7 @@ export function StatCards({ data }: { data: DashboardStats }) {
                 className={`mt-3 text-2xl font-semibold tracking-tight ${
                   stat.highlight
                     ? "text-yellow-900 dark:text-yellow-100"
-                    : "text-slate-900 dark:text-white"
+                    : "text-foreground"
                 }`}
               >
                 {stat.value}

@@ -75,7 +75,7 @@ export default function ContactModal({ contact, onClose }: ContactModalProps) {
             type="button"
             onClick={() => onClose(false)}
             disabled={loading}
-            className="flex-1 px-4 py-2 border border-slate-700 rounded-xl hover:bg-slate-800 font-medium transition-colors disabled:opacity-50 text-white"
+            className="flex-1 px-4 py-2 border border-border rounded-xl hover:bg-muted font-medium transition-colors disabled:opacity-50 text-white"
           >
             Cancel
           </button>
@@ -177,28 +177,28 @@ export default function ContactModal({ contact, onClose }: ContactModalProps) {
                     | undefined,
                 })
               }
-              className="peer w-full rounded-xl border border-slate-700 bg-slate-900/40 px-4 pb-2 pt-6 text-sm text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 appearance-none"
+              className="peer w-full rounded-xl border border-border bg-card/40 px-4 pb-2 pt-6 text-sm text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-primary/30/20 appearance-none"
             >
-              <option value="" className="bg-slate-800">
+              <option value="" className="bg-muted">
                 Select category
               </option>
-              <option value="personal" className="bg-slate-800">
+              <option value="personal" className="bg-muted">
                 Personal
               </option>
-              <option value="business" className="bg-slate-800">
+              <option value="business" className="bg-muted">
                 Business
               </option>
-              <option value="exchange" className="bg-slate-800">
+              <option value="exchange" className="bg-muted">
                 Exchange
               </option>
-              <option value="other" className="bg-slate-800">
+              <option value="other" className="bg-muted">
                 Other
               </option>
             </select>
-            <label className="absolute left-4 top-2 text-xs text-slate-400 font-medium">
+            <label className="absolute left-4 top-2 text-xs text-muted-foreground font-medium">
               Category (optional)
             </label>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
               <Icon icon="solar:alt-arrow-down-linear" />
             </div>
           </div>
@@ -219,9 +219,9 @@ export default function ContactModal({ contact, onClose }: ContactModalProps) {
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               rows={3}
               placeholder="Friend from university..."
-              className="peer w-full rounded-xl border border-slate-700 bg-slate-900/40 px-4 pb-2 pt-6 text-sm text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-blue-500/20 resize-none placeholder-transparent"
+              className="peer w-full rounded-xl border border-border bg-card/40 px-4 pb-2 pt-6 text-sm text-white transition-all duration-300 focus:outline-none focus:ring-2 focus:border-blue-500 focus:ring-primary/30/20 resize-none placeholder-transparent"
             />
-            <label className="absolute left-4 top-2 text-xs text-slate-400 font-medium">
+            <label className="absolute left-4 top-2 text-xs text-muted-foreground font-medium">
               Notes (optional)
             </label>
           </div>
@@ -236,14 +236,14 @@ export default function ContactModal({ contact, onClose }: ContactModalProps) {
 
         {/* Favorite */}
         <div className="flex items-start gap-2">
-          <label className="flex-1 flex items-center gap-3 p-3 rounded-xl border border-slate-700 bg-slate-900/20 hover:bg-slate-900/40 transition-colors cursor-pointer group">
+          <label className="flex-1 flex items-center gap-3 p-3 rounded-xl border border-border bg-card/20 hover:bg-card/40 transition-colors cursor-pointer group">
             <input
               type="checkbox"
               checked={formData.favorite}
               onChange={(e) =>
                 setFormData({ ...formData, favorite: e.target.checked })
               }
-              className="w-5 h-5 text-yellow-500 border-slate-600 rounded focus:ring-yellow-500 focus:ring-offset-slate-900 bg-slate-800"
+              className="w-5 h-5 text-yellow-500 border-slate-600 rounded focus:ring-yellow-500 focus:ring-offset-slate-900 bg-muted"
             />
             <div className="flex items-center gap-2">
               <Icon
@@ -253,7 +253,7 @@ export default function ContactModal({ contact, onClose }: ContactModalProps) {
                     : "solar:star-linear"
                 }
                 className={`text-lg ${
-                  formData.favorite ? "text-yellow-500" : "text-slate-400 group-hover:text-yellow-500"
+                  formData.favorite ? "text-yellow-500" : "text-muted-foreground group-hover:text-yellow-500"
                 } transition-colors`}
               />
               <span className="text-sm font-medium text-white">

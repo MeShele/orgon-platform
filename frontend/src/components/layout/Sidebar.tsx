@@ -51,7 +51,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950 dark:shadow-none transition-transform lg:static lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-white shadow-sm dark:border-border dark:bg-slate-950 dark:shadow-none transition-transform lg:static lg:translate-x-0",
         open ? "translate-x-0" : "-translate-x-full"
       )}
     >
@@ -62,10 +62,10 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           <div className="flex flex-col gap-0.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/orgon-logo.svg" alt="ASYSTEM" className="h-3 invert dark:invert-0" />
-            <span className="text-[10px] font-semibold tracking-[0.2em] text-slate-500 dark:text-slate-400">ORGON</span>
+            <span className="text-[10px] font-semibold tracking-[0.2em] text-muted-foreground">ORGON</span>
           </div>
         </Link>
-        <button onClick={onClose} className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white lg:hidden">
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white lg:hidden">
           <Icon icon="solar:close-circle-linear" className="text-xl" />
         </button>
       </div>
@@ -82,8 +82,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
               className={cn(
                 "group flex items-center gap-3 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
                 isActive
-                  ? "border-slate-200 bg-slate-100 text-slate-900 shadow-sm dark:border-slate-800 dark:bg-slate-900/50 dark:text-white"
-                  : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-200"
+                  ? "border-border bg-muted text-foreground shadow-sm dark:border-border dark:bg-card/50 dark:text-white"
+                  : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground dark:text-muted-foreground dark:hover:bg-card dark:hover:text-slate-200"
               )}
             >
               <Icon
@@ -91,8 +91,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                 className={cn(
                   "text-lg",
                   isActive
-                    ? "text-indigo-600 dark:text-indigo-400"
-                    : "text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300"
+                    ? "text-primary dark:text-primary"
+                    : "text-muted-foreground group-hover:text-foreground dark:group-hover:text-faint"
                 )}
               />
               {t(item.label)}
@@ -102,7 +102,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       </nav>
 
       {/* Profile Card */}
-      <div className="border-t border-slate-200 p-4 dark:border-slate-800">
+      <div className="border-t border-border p-4 dark:border-border">
         <ProfileCard />
       </div>
     </aside>

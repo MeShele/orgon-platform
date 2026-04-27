@@ -56,19 +56,19 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-card rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-border">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
                 <Icon 
                   icon={getActionIcon(log.action)} 
-                  className="text-2xl text-blue-600 dark:text-blue-400"
+                  className="text-2xl text-primary"
                 />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">
+                <h2 className="text-xl font-bold text-foreground mb-1">
                   Audit Log Details
                 </h2>
                 <div className="flex flex-wrap items-center gap-2">
@@ -85,9 +85,9 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
             </div>
             <button
               onClick={onClose}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="p-2 rounded-lg hover:bg-muted dark:hover:bg-gray-700 transition-colors"
             >
-              <Icon icon="solar:close-circle-linear" className="text-2xl text-gray-500 dark:text-gray-400" />
+              <Icon icon="solar:close-circle-linear" className="text-2xl text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -97,29 +97,29 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
           {/* Metadata Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+              <label className="text-sm font-medium text-muted-foreground block mb-1">
                 Event ID
               </label>
-              <code className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded-lg block font-mono">
+              <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-3 py-2 rounded-lg block font-mono">
                 {log.id}
               </code>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+              <label className="text-sm font-medium text-muted-foreground block mb-1">
                 Timestamp
               </label>
-              <div className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded-lg">
+              <div className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-3 py-2 rounded-lg">
                 {log.created_at ? format(new Date(log.created_at), "MMM d, yyyy HH:mm:ss") : "—"}
               </div>
             </div>
 
             {log.user_id && (
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
                   User ID
                 </label>
-                <code className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded-lg block font-mono">
+                <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-3 py-2 rounded-lg block font-mono">
                   {log.user_id}
                 </code>
               </div>
@@ -127,10 +127,10 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
 
             {log.resource_id && (
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
                   Resource ID
                 </label>
-                <code className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded-lg block font-mono break-all">
+                <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-3 py-2 rounded-lg block font-mono break-all">
                   {log.resource_id}
                 </code>
               </div>
@@ -138,10 +138,10 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
 
             {log.ip_address && (
               <div>
-                <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                <label className="text-sm font-medium text-muted-foreground block mb-1">
                   IP Address
                 </label>
-                <code className="text-sm bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 rounded-lg block font-mono">
+                <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-3 py-2 rounded-lg block font-mono">
                   {log.ip_address}
                 </code>
               </div>
@@ -151,11 +151,11 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
           {/* User Agent */}
           {log.user_agent && (
             <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">
+              <label className="text-sm font-medium text-muted-foreground block mb-2">
                 User Agent
               </label>
               <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-3">
-                <code className="text-xs text-gray-900 dark:text-gray-100 font-mono break-all">
+                <code className="text-xs text-foreground font-mono break-all">
                   {log.user_agent}
                 </code>
               </div>
@@ -165,7 +165,7 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
           {/* Details */}
           {log.details && Object.keys(log.details).length > 0 && (
             <div>
-              <label className="text-sm font-medium text-gray-600 dark:text-gray-400 block mb-2">
+              <label className="text-sm font-medium text-muted-foreground block mb-2">
                 Additional Details
               </label>
               <div className="bg-gray-900 dark:bg-gray-950 rounded-lg p-4 overflow-x-auto">
@@ -178,7 +178,7 @@ export default function AuditLogDetailModal({ log, onClose }: AuditLogDetailModa
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+        <div className="p-6 border-t border-border flex justify-end">
           <Button variant="primary" onClick={onClose}>
             Close
           </Button>

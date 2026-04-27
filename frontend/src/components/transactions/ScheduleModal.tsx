@@ -67,9 +67,9 @@ export default function ScheduleModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-border">
           <h2 className="text-2xl font-bold mb-2">Schedule Transaction</h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Send {transaction.value} to {transaction.to_address.slice(0, 10)}...
           </p>
         </div>
@@ -84,7 +84,7 @@ export default function ScheduleModal({
               className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
                 !isRecurring
                   ? "bg-blue-600 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  : "bg-gray-100 text-foreground hover:bg-gray-200"
               }`}
             >
               📅 One-Time
@@ -95,7 +95,7 @@ export default function ScheduleModal({
               className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
                 isRecurring
                   ? "bg-blue-600 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  : "bg-gray-100 text-foreground hover:bg-gray-200"
               }`}
             >
               🔄 Recurring
@@ -104,7 +104,7 @@ export default function ScheduleModal({
 
           {/* Date & Time Picker */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               {isRecurring ? "Start Date & Time" : "Execution Date & Time"}
             </label>
 
@@ -118,7 +118,7 @@ export default function ScheduleModal({
                 timeIntervals={15}
                 dateFormat="MMMM d, yyyy h:mm aa"
                 minDate={new Date()}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
                 calendarClassName="shadow-lg"
               />
 
@@ -167,22 +167,22 @@ export default function ScheduleModal({
             <h3 className="font-semibold mb-2">Transaction Details</h3>
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-600">Amount:</span>
+                <span className="text-muted-foreground">Amount:</span>
                 <span className="font-medium">{transaction.value}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Token:</span>
+                <span className="text-muted-foreground">Token:</span>
                 <span className="font-medium">{transaction.token}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">To:</span>
+                <span className="text-muted-foreground">To:</span>
                 <code className="text-xs bg-white px-2 py-1 rounded">
                   {transaction.to_address.slice(0, 15)}...
                 </code>
               </div>
               {transaction.info && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Note:</span>
+                  <span className="text-muted-foreground">Note:</span>
                   <span className="font-medium">{transaction.info}</span>
                 </div>
               )}
@@ -202,7 +202,7 @@ export default function ScheduleModal({
               type="button"
               onClick={() => onClose(false)}
               disabled={loading}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-muted font-medium transition-colors disabled:opacity-50"
             >
               Cancel
             </button>

@@ -96,9 +96,9 @@ export default function OrganizationDetailPage() {
         <div className="p-8">
           <Card>
             <div className="p-8 animate-pulse space-y-4">
-              <div className="h-8 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
-              <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
-              <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+              <div className="h-8 bg-slate-200 dark:bg-muted rounded w-1/3" />
+              <div className="h-4 bg-slate-200 dark:bg-muted rounded w-1/2" />
+              <div className="h-4 bg-slate-200 dark:bg-muted rounded w-2/3" />
             </div>
           </Card>
         </div>
@@ -113,12 +113,12 @@ export default function OrganizationDetailPage() {
         <div className="p-8">
           <Card>
             <div className="p-12 text-center">
-              <p className="text-slate-600 dark:text-slate-400">
+              <p className="text-muted-foreground">
                 Organization not found
               </p>
               <button
                 onClick={() => router.push('/organizations')}
-                className="mt-4 px-4 py-2 text-sm rounded-lg bg-slate-900 text-white dark:bg-white dark:text-slate-950"
+                className="mt-4 px-4 py-2 text-sm rounded-lg bg-foreground text-background"
               >
                 Back to Organizations
               </button>
@@ -139,10 +139,10 @@ export default function OrganizationDetailPage() {
           <div className="p-6 space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+                <h2 className="text-2xl font-bold text-foreground">
                   {organization.display_name || organization.name}
                 </h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {organization.slug}
                 </p>
               </div>
@@ -157,28 +157,28 @@ export default function OrganizationDetailPage() {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-border">
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Max Wallets</p>
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">
+                <p className="text-xs text-muted-foreground">Max Wallets</p>
+                <p className="text-lg font-semibold text-foreground">
                   {organization.max_wallets}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Max Volume</p>
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">
+                <p className="text-xs text-muted-foreground">Max Volume</p>
+                <p className="text-lg font-semibold text-foreground">
                   ${organization.max_monthly_volume?.toLocaleString()}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">KYC Required</p>
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">
+                <p className="text-xs text-muted-foreground">KYC Required</p>
+                <p className="text-lg font-semibold text-foreground">
                   {organization.kyc_required ? 'Yes' : 'No'}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Created</p>
-                <p className="text-lg font-semibold text-slate-900 dark:text-white">
+                <p className="text-xs text-muted-foreground">Created</p>
+                <p className="text-lg font-semibold text-foreground">
                   {new Date(organization.created_at).toLocaleDateString()}
                 </p>
               </div>
@@ -187,14 +187,14 @@ export default function OrganizationDetailPage() {
         </Card>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 border-b border-border">
           <button
             onClick={() => setActiveTab('overview')}
             className={clsx(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'overview'
-                ? "border-slate-900 text-slate-900 dark:border-white dark:text-white"
-                : "border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                ? "border-slate-900 text-foreground dark:border-white dark:text-white"
+                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
             )}
           >
             <Icon icon="solar:document-text-linear" className="inline mr-2" />
@@ -205,8 +205,8 @@ export default function OrganizationDetailPage() {
             className={clsx(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'members'
-                ? "border-slate-900 text-slate-900 dark:border-white dark:text-white"
-                : "border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                ? "border-slate-900 text-foreground dark:border-white dark:text-white"
+                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
             )}
           >
             <Icon icon="solar:users-group-rounded-linear" className="inline mr-2" />
@@ -217,8 +217,8 @@ export default function OrganizationDetailPage() {
             className={clsx(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'settings'
-                ? "border-slate-900 text-slate-900 dark:border-white dark:text-white"
-                : "border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                ? "border-slate-900 text-foreground dark:border-white dark:text-white"
+                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
             )}
           >
             <Icon icon="solar:settings-linear" className="inline mr-2" />
@@ -233,34 +233,34 @@ export default function OrganizationDetailPage() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
                     Email
                   </p>
-                  <p className="text-sm text-slate-900 dark:text-white">
+                  <p className="text-sm text-foreground">
                     {organization.email || 'Not set'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
                     Phone
                   </p>
-                  <p className="text-sm text-slate-900 dark:text-white">
+                  <p className="text-sm text-foreground">
                     {organization.phone || 'Not set'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
                     Address
                   </p>
-                  <p className="text-sm text-slate-900 dark:text-white">
+                  <p className="text-sm text-foreground">
                     {organization.address || 'Not set'}
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">
                     Location
                   </p>
-                  <p className="text-sm text-slate-900 dark:text-white">
+                  <p className="text-sm text-foreground">
                     {organization.city}, {organization.country}
                   </p>
                 </div>
@@ -273,12 +273,12 @@ export default function OrganizationDetailPage() {
           <Card>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                <h3 className="text-lg font-semibold text-foreground">
                   Members
                 </h3>
                 <button 
                   onClick={() => setShowAddMemberModal(true)}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted"
                 >
                   <Icon icon="solar:add-circle-linear" className="inline mr-2" />
                   Add Member
@@ -289,17 +289,17 @@ export default function OrganizationDetailPage() {
                 {members.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                    className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted dark:hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
                         {member.email.charAt(0).toUpperCase()}
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                        <p className="text-sm font-medium text-foreground">
                           {member.username || member.email}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <p className="text-xs text-muted-foreground">
                           {member.email}
                         </p>
                       </div>
@@ -309,7 +309,7 @@ export default function OrganizationDetailPage() {
                       <Badge variant={getRoleBadge(member.role)}>
                         {member.role}
                       </Badge>
-                      <button className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                      <button className="text-muted-foreground hover:text-muted-foreground dark:hover:text-faint">
                         <Icon icon="solar:menu-dots-linear" className="text-lg" />
                       </button>
                     </div>
@@ -324,7 +324,7 @@ export default function OrganizationDetailPage() {
           <Card>
             <CardHeader title="Organization Settings" />
             <div className="p-6">
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 Settings panel coming soon...
               </p>
             </div>

@@ -52,7 +52,7 @@ export function LanguageSwitcher() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         disabled={isChanging}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-white text-foreground hover:bg-muted dark:border-border dark:bg-muted dark:text-slate-200 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Change language"
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -69,7 +69,7 @@ export function LanguageSwitcher() {
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-800 z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+          className="absolute right-0 mt-2 w-48 rounded-lg border border-border bg-white shadow-lg dark:border-border dark:bg-muted z-50 animate-in fade-in slide-in-from-top-2 duration-200"
           role="menu"
           aria-orientation="vertical"
         >
@@ -81,19 +81,19 @@ export function LanguageSwitcher() {
                   key={lang.code}
                   onClick={() => handleLanguageChange(lang.code)}
                   disabled={isChanging}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted dark:hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   role="menuitem"
                 >
                   <span className="text-xl" role="img" aria-label={lang.name}>
                     {lang.flag}
                   </span>
-                  <span className="flex-1 font-medium text-slate-700 dark:text-slate-200">
+                  <span className="flex-1 font-medium text-foreground dark:text-slate-200">
                     {lang.name}
                   </span>
                   {isActive && (
                     <Icon
                       icon="solar:check-circle-bold"
-                      className="text-lg text-green-600 dark:text-green-400"
+                      className="text-lg text-success"
                     />
                   )}
                 </button>

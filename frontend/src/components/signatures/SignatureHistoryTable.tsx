@@ -69,9 +69,9 @@ export function SignatureHistoryTable({ history, loading = false }: Props) {
         <div className="p-6 text-center">
           <Icon 
             icon="solar:clipboard-list-linear" 
-            className="mx-auto mb-4 text-6xl text-slate-400 dark:text-slate-600"
+            className="mx-auto mb-4 text-6xl text-muted-foreground dark:text-muted-foreground"
           />
-          <h3 className="text-lg font-medium text-slate-900 dark:text-slate-100">
+          <h3 className="text-lg font-medium text-foreground">
             {t('noHistory')}
           </h3>
         </div>
@@ -83,21 +83,21 @@ export function SignatureHistoryTable({ history, loading = false }: Props) {
     <Card>
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800">
+          <thead className="border-b border-border bg-muted dark:border-border dark:bg-muted">
             <tr>
-              <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+              <th className="px-4 py-3 font-medium text-foreground">
                 {t('transaction')}
               </th>
-              <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+              <th className="px-4 py-3 font-medium text-foreground">
                 {t('signer')}
               </th>
-              <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+              <th className="px-4 py-3 font-medium text-foreground">
                 {t('action')}
               </th>
-              <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+              <th className="px-4 py-3 font-medium text-foreground">
                 {t('reason')}
               </th>
-              <th className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300">
+              <th className="px-4 py-3 font-medium text-foreground">
                 {t('timestamp')}
               </th>
             </tr>
@@ -106,11 +106,11 @@ export function SignatureHistoryTable({ history, loading = false }: Props) {
             {history.map((item, index) => (
               <tr
                 key={`${item.tx_unid}-${index}`}
-                className="hover:bg-slate-50 dark:hover:bg-slate-800"
+                className="hover:bg-muted dark:hover:bg-muted"
               >
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
-                    <code className="font-mono text-xs text-slate-600 dark:text-slate-400">
+                    <code className="font-mono text-xs text-muted-foreground">
                       {truncateAddress(item.tx_unid)}
                     </code>
                     <CopyButton text={item.tx_unid} />
@@ -118,7 +118,7 @@ export function SignatureHistoryTable({ history, loading = false }: Props) {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
-                    <code className="font-mono text-xs text-slate-600 dark:text-slate-400">
+                    <code className="font-mono text-xs text-muted-foreground">
                       {truncateAddress(item.signer_address)}
                     </code>
                     <CopyButton text={item.signer_address} />
@@ -131,19 +131,19 @@ export function SignatureHistoryTable({ history, loading = false }: Props) {
                 </td>
                 <td className="px-4 py-3">
                   {item.reason ? (
-                    <span className="text-xs text-slate-600 dark:text-slate-400">
+                    <span className="text-xs text-muted-foreground">
                       {item.reason.length > 40
                         ? `${item.reason.substring(0, 40)}...`
                         : item.reason}
                     </span>
                   ) : (
-                    <span className="text-xs text-slate-400 dark:text-slate-500">
+                    <span className="text-xs text-muted-foreground dark:text-muted-foreground">
                       —
                     </span>
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                  <span className="text-xs text-muted-foreground">
                     {formatTimestamp(item.signed_at)}
                   </span>
                 </td>

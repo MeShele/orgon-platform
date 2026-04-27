@@ -57,10 +57,10 @@ export function LanguageThemeSettings() {
     <div className="space-y-6">
       {/* Language Settings */}
       <Card padding>
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className="mb-4 text-lg font-semibold text-foreground">
           {t('language.title')}
         </h3>
-        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
+        <p className="mb-6 text-sm text-muted-foreground">
           {t('language.description')}
         </p>
         
@@ -72,16 +72,16 @@ export function LanguageThemeSettings() {
               className={`flex items-center gap-3 rounded-lg border p-4 transition-all ${
                 locale === lang.code
                   ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
-                  : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600'
+                  : 'border-border bg-white hover:border-border dark:bg-gray-800 dark:hover:border-gray-600'
               }`}
             >
               <span className="text-2xl">{lang.flag}</span>
               <div className="flex-1 text-left">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-foreground">
                   {lang.name}
                 </p>
                 {locale === lang.code && (
-                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                  <p className="text-xs text-primary">
                     {t('language.active')}
                   </p>
                 )}
@@ -89,7 +89,7 @@ export function LanguageThemeSettings() {
               {locale === lang.code && (
                 <Icon
                   icon="solar:check-circle-bold"
-                  className="text-xl text-blue-600 dark:text-blue-400"
+                  className="text-xl text-primary"
                 />
               )}
             </button>
@@ -99,10 +99,10 @@ export function LanguageThemeSettings() {
 
       {/* Theme Settings */}
       <Card padding>
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
+        <h3 className="mb-4 text-lg font-semibold text-foreground">
           {t('theme.title')}
         </h3>
-        <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
+        <p className="mb-6 text-sm text-muted-foreground">
           {t('theme.description')}
         </p>
         
@@ -114,23 +114,23 @@ export function LanguageThemeSettings() {
               className={`flex items-center gap-3 rounded-lg border p-4 transition-all ${
                 currentTheme === theme.id
                   ? 'border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-900/20'
-                  : 'border-gray-200 bg-white hover:border-gray-300 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600'
+                  : 'border-border bg-white hover:border-border dark:bg-gray-800 dark:hover:border-gray-600'
               }`}
             >
               <Icon
                 icon={theme.icon}
                 className={`text-2xl ${
                   currentTheme === theme.id
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : 'text-gray-600 dark:text-gray-400'
+                    ? 'text-primary'
+                    : 'text-muted-foreground'
                 }`}
               />
               <div className="flex-1 text-left">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                <p className="text-sm font-medium text-foreground">
                   {t(`theme.${theme.id}`)}
                 </p>
                 {currentTheme === theme.id && (
-                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                  <p className="text-xs text-primary">
                     {t('theme.active')}
                   </p>
                 )}
@@ -138,7 +138,7 @@ export function LanguageThemeSettings() {
               {currentTheme === theme.id && (
                 <Icon
                   icon="solar:check-circle-bold"
-                  className="text-xl text-blue-600 dark:text-blue-400"
+                  className="text-xl text-primary"
                 />
               )}
             </button>

@@ -54,10 +54,10 @@ export default function MonitoringPage() {
 
         {/* Overall Status */}
         {health && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card">
             <div className="flex items-center gap-3 mb-4">
-              <Icon icon="solar:heart-pulse-bold" className="text-2xl text-indigo-500" />
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Статус сервисов</h2>
+              <Icon icon="solar:heart-pulse-bold" className="text-2xl text-primary" />
+              <h2 className="text-lg font-bold text-foreground">Статус сервисов</h2>
               <span className={`${badgeStyles.default} ${statusColor(health.status === "ok" || health.status === "healthy")}`}>
                 {health.status === "ok" || health.status === "healthy" ? "Всё работает" : "Есть проблемы"}
               </span>
@@ -67,8 +67,8 @@ export default function MonitoringPage() {
                 <Card key={s.key}>
                   <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Icon icon={s.icon} className="text-xl text-slate-400" />
-                      <span className="font-medium text-slate-900 dark:text-white">{s.name}</span>
+                      <Icon icon={s.icon} className="text-xl text-muted-foreground" />
+                      <span className="font-medium text-foreground">{s.name}</span>
                     </div>
                     <span className={`${badgeStyles.default} ${statusColor(s.ok)}`}>
                       {statusText(s.ok)}
@@ -82,40 +82,40 @@ export default function MonitoringPage() {
 
         {/* Metrics */}
         {metrics && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+          <div className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card">
             <div className="flex items-center gap-3 mb-4">
-              <Icon icon="solar:chart-bold" className="text-2xl text-indigo-500" />
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Метрики</h2>
+              <Icon icon="solar:chart-bold" className="text-2xl text-primary" />
+              <h2 className="text-lg font-bold text-foreground">Метрики</h2>
             </div>
             <div className={pageLayout.stats}>
               <Card>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Uptime</div>
-                  <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+                  <div className="text-sm font-medium text-muted-foreground">Uptime</div>
+                  <div className="mt-1 text-2xl font-semibold text-foreground">
                     {metrics.uptime ? `${Math.floor(metrics.uptime / 3600)}ч ${Math.floor((metrics.uptime % 3600) / 60)}м` : "—"}
                   </div>
                 </div>
               </Card>
               <Card>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">CPU</div>
-                  <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+                  <div className="text-sm font-medium text-muted-foreground">CPU</div>
+                  <div className="mt-1 text-2xl font-semibold text-foreground">
                     {metrics.cpu_percent != null ? `${metrics.cpu_percent}%` : "—"}
                   </div>
                 </div>
               </Card>
               <Card>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Память</div>
-                  <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+                  <div className="text-sm font-medium text-muted-foreground">Память</div>
+                  <div className="mt-1 text-2xl font-semibold text-foreground">
                     {metrics.memory_mb != null ? `${metrics.memory_mb} МБ` : metrics.memory_percent != null ? `${metrics.memory_percent}%` : "—"}
                   </div>
                 </div>
               </Card>
               <Card>
                 <div className="p-4">
-                  <div className="text-sm font-medium text-slate-500 dark:text-slate-400">Запросов</div>
-                  <div className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+                  <div className="text-sm font-medium text-muted-foreground">Запросов</div>
+                  <div className="mt-1 text-2xl font-semibold text-foreground">
                     {metrics.total_requests ?? metrics.requests_total ?? "—"}
                   </div>
                 </div>

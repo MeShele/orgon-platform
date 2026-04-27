@@ -136,8 +136,8 @@ export function TwoFactorAuth() {
     return (
       <Card>
         <div className="p-8 text-center">
-          <Icon icon="solar:refresh-linear" className="text-4xl text-gray-400 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">{tc('loading')}</p>
+          <Icon icon="solar:refresh-linear" className="text-4xl text-muted-foreground animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">{tc('loading')}</p>
         </div>
       </Card>
     );
@@ -147,7 +147,7 @@ export function TwoFactorAuth() {
   if (setupStep !== 'idle') {
     return (
       <Card className="p-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+        <h2 className="text-2xl font-bold text-foreground mb-6">
           {t('setupTitle')}
         </h2>
 
@@ -155,7 +155,7 @@ export function TwoFactorAuth() {
         {setupStep === 'qr' && (
           <div className="space-y-6">
             <div className="text-center">
-              <p className="text-gray-700 dark:text-gray-300 mb-4">
+              <p className="text-foreground mb-4">
                 {t('scanQR')}
               </p>
               
@@ -163,15 +163,15 @@ export function TwoFactorAuth() {
                 <img
                   src={qrCode}
                   alt="QR Code"
-                  className="mx-auto border-4 border-gray-200 dark:border-gray-700 rounded-lg"
+                  className="mx-auto border-4 border-border rounded-lg"
                 />
               )}
               
               <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <p className="text-sm text-muted-foreground mb-2">
                   {t('manualEntry')}
                 </p>
-                <code className="text-sm font-mono text-gray-900 dark:text-gray-100">
+                <code className="text-sm font-mono text-foreground">
                   {secret}
                 </code>
               </div>
@@ -191,7 +191,7 @@ export function TwoFactorAuth() {
             </div>
 
             {error && (
-              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/20 rounded-lg text-sm text-red-700 dark:text-red-400">
+              <div className="p-4 bg-destructive/10 border border-destructive/40 rounded-lg text-sm text-destructive">
                 {error}
               </div>
             )}
@@ -223,7 +223,7 @@ export function TwoFactorAuth() {
         {/* Step 2: Backup Codes */}
         {setupStep === 'backup' && (
           <div className="space-y-6">
-            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-500/20 rounded-lg">
+            <div className="p-4 bg-warning/10 border border-warning/40 rounded-lg">
               <div className="flex gap-3">
                 <Icon icon="solar:shield-warning-bold" className="text-yellow-600 dark:text-yellow-400 text-xl flex-shrink-0" />
                 <div>
@@ -241,7 +241,7 @@ export function TwoFactorAuth() {
               {backupCodes.map((code, idx) => (
                 <div
                   key={idx}
-                  className="font-mono text-sm text-gray-900 dark:text-gray-100 p-2 bg-white dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700"
+                  className="font-mono text-sm text-foreground p-2 bg-card rounded border border-border"
                 >
                   {code}
                 </div>
@@ -276,17 +276,17 @@ export function TwoFactorAuth() {
     <Card className="p-6">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <h2 className="text-2xl font-bold text-foreground mb-2">
             {t('title')}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             {t('description')}
           </p>
         </div>
         
         {status?.enabled && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-500/20 rounded-full">
-            <Icon icon="solar:shield-check-bold" className="text-green-600 dark:text-green-400" />
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-success/10 border border-success/40 rounded-full">
+            <Icon icon="solar:shield-check-bold" className="text-success" />
             <span className="text-sm font-medium text-green-700 dark:text-green-300">
               {t('enabled')}
             </span>
@@ -296,10 +296,10 @@ export function TwoFactorAuth() {
 
       {!status?.enabled ? (
         <div className="space-y-4">
-          <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-500/20 rounded-lg">
+          <div className="p-4 bg-primary/10 border border-primary/40 rounded-lg">
             <div className="flex gap-3">
-              <Icon icon="solar:info-circle-bold" className="text-blue-600 dark:text-blue-400 text-xl flex-shrink-0" />
-              <div className="text-sm text-blue-800 dark:text-blue-200">
+              <Icon icon="solar:info-circle-bold" className="text-primary text-xl flex-shrink-0" />
+              <div className="text-sm text-primary">
                 <p className="font-semibold mb-1">{t('whyEnable')}</p>
                 <p>{t('securityBenefit')}</p>
               </div>
@@ -320,18 +320,18 @@ export function TwoFactorAuth() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              <p className="text-sm text-muted-foreground mb-1">
                 {t('backupCodesTotal')}
               </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-bold text-foreground">
                 {status.backup_codes_total}
               </p>
             </div>
             <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+              <p className="text-sm text-muted-foreground mb-1">
                 {t('backupCodesRemaining')}
               </p>
-              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <p className="text-2xl font-bold text-foreground">
                 {status.backup_codes_remaining}
               </p>
             </div>
@@ -347,8 +347,8 @@ export function TwoFactorAuth() {
             {t('regenerateBackupCodes')}
           </Button>
 
-          <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          <div className="pt-6 border-t border-border">
+            <h3 className="text-lg font-semibold text-foreground mb-4">
               {t('disable')}
             </h3>
             
@@ -365,7 +365,7 @@ export function TwoFactorAuth() {
               />
 
               {error && (
-                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/20 rounded-lg text-sm text-red-700 dark:text-red-400">
+                <div className="p-4 bg-destructive/10 border border-destructive/40 rounded-lg text-sm text-destructive">
                   {error}
                 </div>
               )}

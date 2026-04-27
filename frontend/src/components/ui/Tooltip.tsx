@@ -61,7 +61,7 @@ export function Tooltip({
       {showIcon && (
         <Icon
           icon="solar:question-circle-linear"
-          className="ml-1 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 cursor-help"
+          className="ml-1 text-muted-foreground hover:text-muted-foreground dark:text-muted-foreground dark:hover:text-faint cursor-help"
         />
       )}
       
@@ -75,7 +75,7 @@ export function Tooltip({
             className={`absolute z-50 ${positionClasses[position]}`}
             style={{ maxWidth }}
           >
-            <div className="relative bg-slate-900 dark:bg-slate-800 text-white text-sm rounded-lg shadow-xl px-3 py-2 border border-slate-700">
+            <div className="relative bg-card dark:bg-muted text-white text-sm rounded-lg shadow-xl px-3 py-2 border border-border">
               {content}
               <div
                 className={`absolute w-0 h-0 border-4 ${arrowClasses[position]}`}
@@ -99,11 +99,11 @@ export function HelpText({ title, description, example, tips }: HelpTextProps) {
   return (
     <div className="space-y-2">
       <div className="font-semibold text-white">{title}</div>
-      <div className="text-slate-300 text-xs leading-relaxed">{description}</div>
+      <div className="text-faint text-xs leading-relaxed">{description}</div>
       
       {example && (
-        <div className="mt-2 pt-2 border-t border-slate-700">
-          <div className="text-xs text-slate-400 mb-1">Пример:</div>
+        <div className="mt-2 pt-2 border-t border-border">
+          <div className="text-xs text-muted-foreground mb-1">Пример:</div>
           <div className="text-xs text-cyan-400 font-mono bg-slate-950/50 px-2 py-1 rounded">
             {example}
           </div>
@@ -111,9 +111,9 @@ export function HelpText({ title, description, example, tips }: HelpTextProps) {
       )}
       
       {tips && tips.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-slate-700">
-          <div className="text-xs text-slate-400 mb-1">💡 Подсказки:</div>
-          <ul className="text-xs text-slate-300 space-y-1">
+        <div className="mt-2 pt-2 border-t border-border">
+          <div className="text-xs text-muted-foreground mb-1">💡 Подсказки:</div>
+          <ul className="text-xs text-faint space-y-1">
             {tips.map((tip, idx) => (
               <li key={idx} className="flex items-start gap-1">
                 <span className="text-cyan-400 mt-0.5">•</span>

@@ -23,9 +23,9 @@ export const pageLayout = {
    */
   header: {
     wrapper: 'space-y-2',
-    title: 'text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl',
-    description: 'text-sm text-slate-600 dark:text-slate-400',
-    subtitle: 'text-xs text-slate-500 dark:text-slate-400',
+    title: 'text-2xl font-bold text-foreground sm:text-3xl',
+    description: 'text-sm text-muted-foreground',
+    subtitle: 'text-xs text-muted-foreground',
   },
 
   /**
@@ -58,9 +58,9 @@ export const pageLayout = {
    */
   empty: {
     wrapper: 'flex flex-col items-center justify-center py-12 text-center',
-    icon: 'mx-auto mb-4 text-6xl text-slate-400 dark:text-slate-600',
-    title: 'text-lg font-semibold text-slate-900 dark:text-white',
-    description: 'mt-2 text-sm text-slate-600 dark:text-slate-400',
+    icon: 'mx-auto mb-4 text-6xl text-muted-foreground dark:text-muted-foreground',
+    title: 'text-lg font-semibold text-foreground',
+    description: 'mt-2 text-sm text-muted-foreground',
     action: 'mt-6',
   },
 
@@ -134,13 +134,13 @@ export const spacing = {
  * Standard button styles (based on Button component)
  */
 export const buttonStyles = {
-  primary: 'inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-slate-900',
+  primary: 'inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-slate-900',
   
-  secondary: 'inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-offset-slate-900',
+  secondary: 'inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-border dark:bg-muted dark:text-faint dark:hover:bg-slate-700 dark:focus:ring-offset-slate-900',
   
-  danger: 'inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-slate-900',
+  danger: 'inline-flex items-center justify-center gap-2 rounded-lg border border-transparent bg-destructive px-4 py-2 text-sm font-medium text-white transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-slate-900',
   
-  ghost: 'inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800 dark:focus:ring-offset-slate-900',
+  ghost: 'inline-flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:text-faint dark:hover:bg-muted dark:focus:ring-offset-slate-900',
 } as const;
 
 /**
@@ -150,11 +150,11 @@ export const badgeStyles = {
   default: 'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium',
   
   variants: {
-    blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+    blue: 'bg-primary/10 text-primary dark:bg-blue-900/30 dark:text-blue-400',
     green: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-    red: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+    red: 'bg-destructive/10 text-destructive dark:bg-red-900/30 dark:text-red-400',
     yellow: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-    slate: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400',
+    slate: 'bg-muted text-foreground dark:bg-muted dark:text-muted-foreground',
   },
 } as const;
 
@@ -162,11 +162,11 @@ export const badgeStyles = {
  * Standard table styles
  */
 export const tableStyles = {
-  wrapper: 'overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900',
+  wrapper: 'overflow-hidden rounded-lg border border-border bg-white dark:border-border dark:bg-card',
   table: 'min-w-full divide-y divide-slate-200 dark:divide-slate-800',
-  thead: 'bg-slate-50 dark:bg-slate-800/50',
-  th: 'px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400',
-  tbody: 'divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900',
-  td: 'px-4 py-3 text-sm text-slate-900 dark:text-slate-100',
-  tdMuted: 'px-4 py-3 text-sm text-slate-600 dark:text-slate-400',
+  thead: 'bg-muted/50',
+  th: 'px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground',
+  tbody: 'divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-card',
+  td: 'px-4 py-3 text-sm text-foreground',
+  tdMuted: 'px-4 py-3 text-sm text-muted-foreground',
 } as const;

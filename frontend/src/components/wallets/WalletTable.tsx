@@ -57,10 +57,10 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/40 dark:shadow-none">
+    <div className="overflow-x-auto rounded-xl border border-border bg-white shadow-sm dark:border-border dark:bg-card/40 dark:shadow-none">
       <div className="overflow-x-auto"><table className="min-w-full text-left text-xs">
-        <thead className="text-slate-500 dark:text-slate-400">
-          <tr className="border-b border-slate-100 dark:border-slate-800">
+        <thead className="text-muted-foreground">
+          <tr className="border-b border-slate-100 dark:border-border">
             <th className="whitespace-nowrap px-4 py-3 font-medium">
               <HelpTooltip 
                 text={helpContent.walletTable.favorite.text}
@@ -123,13 +123,13 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
           {wallets.length === 0 && (
             <tr>
-              <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
+              <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                 {t('noWallets')}
               </td>
             </tr>
           )}
           {wallets.map((w) => (
-            <tr key={w.name} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/30">
+            <tr key={w.name} className="transition-colors hover:bg-muted dark:hover:bg-muted/30">
               <td className="px-4 py-3">
                 <button
                   onClick={() => toggleFavorite(w.name)}
@@ -141,7 +141,7 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
                     className={`text-base cursor-pointer ${
                       w.is_favorite
                         ? "text-amber-400"
-                        : "text-slate-300 hover:text-amber-300 dark:text-slate-700 dark:hover:text-amber-500"
+                        : "text-faint hover:text-amber-300 dark:text-foreground dark:hover:text-amber-500"
                     }`}
                   />
                 </button>
@@ -156,7 +156,7 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
                       type="text"
                       value={labelValue}
                       onChange={(e) => setLabelValue(e.target.value)}
-                      className="w-32 rounded border border-slate-300 bg-white px-2 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-32 rounded border border-slate-300 bg-white px-2 py-0.5 text-xs dark:border-border dark:bg-muted dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30"
                       autoFocus
                       onBlur={() => saveLabel(w.name)}
                       onKeyDown={(e) => e.key === "Escape" && setEditingLabel(null)}
@@ -166,7 +166,7 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
                   <div className="flex items-center gap-1 group">
                     <Link
                       href={`/wallets/${w.name}`}
-                      className="font-medium text-slate-900 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-400 transition-colors"
+                      className="font-medium text-foreground hover:text-primary dark:text-white dark:hover:text-primary transition-colors"
                     >
                       {w.label || shortenAddress(w.name, 8)}
                     </Link>
@@ -175,7 +175,7 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Редактировать метку"
                     >
-                      <Icon icon="solar:pen-linear" className="text-xs text-slate-400 hover:text-indigo-500" />
+                      <Icon icon="solar:pen-linear" className="text-xs text-muted-foreground hover:text-primary" />
                     </button>
                   </div>
                 )}
@@ -183,23 +183,23 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
               <td className="hidden md:table-cell px-4 py-3">
                 {w.addr ? (
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-slate-700 dark:text-slate-300">
+                    <span className="font-mono text-foreground">
                       {shortenAddress(w.addr)}
                     </span>
                     <CopyButton text={w.addr} />
                   </div>
                 ) : (
-                  <span className="text-slate-500 italic">{t('pending')}</span>
+                  <span className="text-muted-foreground italic">{t('pending')}</span>
                 )}
               </td>
-              <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{w.network}</td>
+              <td className="px-4 py-3 text-muted-foreground">{w.network}</td>
               <td className="hidden md:table-cell px-4 py-3">
                 {w.token_short_names && (
                   <div className="flex flex-wrap gap-1">
                     {w.token_short_names.split(",").map((t) => (
                       <span
                         key={t}
-                        className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                        className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-foreground dark:bg-muted dark:text-faint"
                       >
                         {t.trim()}
                       </span>
@@ -207,7 +207,7 @@ export function WalletTable({ wallets: initialWallets }: { wallets: Wallet[] }) 
                   </div>
                 )}
               </td>
-              <td className="hidden md:table-cell px-4 py-3 text-slate-600 dark:text-slate-400">{w.info || "-"}</td>
+              <td className="hidden md:table-cell px-4 py-3 text-muted-foreground">{w.info || "-"}</td>
             </tr>
           ))}
         </tbody>

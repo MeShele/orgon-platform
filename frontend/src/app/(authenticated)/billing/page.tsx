@@ -62,22 +62,22 @@ export default function BillingPage() {
             <Card>
               <div className="p-4 flex items-center gap-3">
                 <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2.5">
-                  <Icon icon="solar:star-bold" className="text-xl text-indigo-600 dark:text-indigo-400" />
+                  <Icon icon="solar:star-bold" className="text-xl text-primary dark:text-primary" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{planLabel[usage.current_plan] || usage.current_plan}</p>
-                  <p className="text-xs text-slate-500">Текущий план</p>
+                  <p className="text-2xl font-bold text-foreground">{planLabel[usage.current_plan] || usage.current_plan}</p>
+                  <p className="text-xs text-muted-foreground">Текущий план</p>
                 </div>
               </div>
             </Card>
             <Card>
               <div className="p-4 flex items-center gap-3">
                 <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2.5">
-                  <Icon icon="solar:wallet-bold" className="text-xl text-green-600 dark:text-green-400" />
+                  <Icon icon="solar:wallet-bold" className="text-xl text-success" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">${usage.outstanding_balance}</p>
-                  <p className="text-xs text-slate-500">Текущий баланс</p>
+                  <p className="text-2xl font-bold text-foreground">${usage.outstanding_balance}</p>
+                  <p className="text-xs text-muted-foreground">Текущий баланс</p>
                 </div>
               </div>
             </Card>
@@ -87,8 +87,8 @@ export default function BillingPage() {
                   <Icon icon="solar:calendar-bold" className="text-xl text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">{usage.billing_cycle === "monthly" ? "Месячный" : "Годовой"}</p>
-                  <p className="text-xs text-slate-500">Цикл оплаты</p>
+                  <p className="text-2xl font-bold text-foreground">{usage.billing_cycle === "monthly" ? "Месячный" : "Годовой"}</p>
+                  <p className="text-xs text-muted-foreground">Цикл оплаты</p>
                 </div>
               </div>
             </Card>
@@ -99,8 +99,8 @@ export default function BillingPage() {
         {usage && (
           <Card>
             <div className="p-4 sm:p-6">
-              <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <Icon icon="solar:chart-bold" className="text-indigo-500" />
+              <h3 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
+                <Icon icon="solar:chart-bold" className="text-primary" />
                 Использование
               </h3>
               <div className="space-y-4">
@@ -113,16 +113,16 @@ export default function BillingPage() {
                   return (
                     <div key={item.label}>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                          <Icon icon={item.icon} className="text-slate-400" />
+                        <span className="text-sm text-foreground flex items-center gap-2">
+                          <Icon icon={item.icon} className="text-muted-foreground" />
                           {item.label}
                         </span>
-                        <span className="text-xs text-slate-500">{item.data.used} / {item.data.limit}</span>
+                        <span className="text-xs text-muted-foreground">{item.data.used} / {item.data.limit}</span>
                       </div>
-                      <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800">
+                      <div className="h-2 rounded-full bg-muted">
                         <div
                           className={`h-2 rounded-full transition-all ${
-                            pct > 80 ? "bg-red-500" : pct > 50 ? "bg-amber-500" : "bg-indigo-500"
+                            pct > 80 ? "bg-red-500" : pct > 50 ? "bg-amber-500" : "bg-primary"
                           }`}
                           style={{ width: `${pct}%` }}
                         />
@@ -137,7 +137,7 @@ export default function BillingPage() {
 
         {/* Тарифные планы */}
         <div>
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-3">Тарифные планы</h3>
+          <h3 className="text-base font-semibold text-foreground mb-3">Тарифные планы</h3>
           <div className={pageLayout.grid.cols3}>
             {plans && plans.map((plan) => {
               const isCurrent = usage?.current_plan === plan.id;
@@ -145,24 +145,24 @@ export default function BillingPage() {
                 <Card key={plan.id} className={isCurrent ? "ring-2 ring-indigo-500" : ""}>
                   <div className="p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-lg font-bold text-slate-900 dark:text-white">{planLabel[plan.id] || plan.name}</h4>
+                      <h4 className="text-lg font-bold text-foreground">{planLabel[plan.id] || plan.name}</h4>
                       {isCurrent && (
-                        <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-400">
+                        <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-0.5 text-xs font-medium text-primary dark:text-primary">
                           Текущий
                         </span>
                       )}
                     </div>
-                    <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                    <p className="text-3xl font-bold text-primary dark:text-primary">
                       ${plan.monthly_price}
-                      <span className="text-sm font-normal text-slate-400">/мес</span>
+                      <span className="text-sm font-normal text-muted-foreground">/мес</span>
                     </p>
                     {plan.yearly_price > 0 && (
-                      <p className="text-xs text-slate-500 mt-1">или ${plan.yearly_price}/год</p>
+                      <p className="text-xs text-muted-foreground mt-1">или ${plan.yearly_price}/год</p>
                     )}
                     {plan.features && (
                       <ul className="mt-4 space-y-2">
                         {plan.features.map((f, i) => (
-                          <li key={i} className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                          <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
                             <Icon icon="solar:check-circle-bold" className="text-green-500 text-sm flex-shrink-0" />
                             {f}
                           </li>
@@ -170,7 +170,7 @@ export default function BillingPage() {
                       </ul>
                     )}
                     {!isCurrent && (
-                      <button className="mt-4 w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                      <button className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors">
                         Выбрать план
                       </button>
                     )}

@@ -96,12 +96,12 @@ export function RecentActivity({ activities, limit = 20 }: Props) {
         <div className="p-6 text-center">
           <Icon 
             icon="solar:inbox-linear" 
-            className="mx-auto mb-4 text-6xl text-gray-400 dark:text-gray-600"
+            className="mx-auto mb-4 text-6xl text-muted-foreground dark:text-muted-foreground"
           />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+          <h3 className="text-lg font-medium text-foreground">
             {t('activity.noActivity')}
           </h3>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-muted-foreground">
             {t('activity.noActivityDesc')}
           </p>
         </div>
@@ -113,7 +113,7 @@ export function RecentActivity({ activities, limit = 20 }: Props) {
     <Card>
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
             {t('activity.title')}
             <HelpTooltip
               text={helpContent.dashboard.recentActivity.text}
@@ -121,7 +121,7 @@ export function RecentActivity({ activities, limit = 20 }: Props) {
               tips={helpContent.dashboard.recentActivity.tips}
             />
           </h3>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+          <span className="text-sm text-muted-foreground">
             {t('activity.lastEvents', { count: displayActivities.length })}
           </span>
         </div>
@@ -136,13 +136,13 @@ export function RecentActivity({ activities, limit = 20 }: Props) {
             >
               <Icon 
                 icon={getActivityIcon(activity)} 
-                className="text-xl flex-shrink-0 mt-0.5 text-gray-600 dark:text-gray-400"
+                className="text-xl flex-shrink-0 mt-0.5 text-muted-foreground"
               />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <p className="text-sm font-medium text-foreground">
                   {activity.title}
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span>{formatTimestamp(activity.timestamp)}</span>
                   {activity.details.token && (
                     <>

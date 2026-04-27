@@ -58,25 +58,25 @@ export default function WalletDetailPage() {
           />
           <div className="space-y-4 p-4">
             <div>
-              <p className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+              <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
                 Wallet Name
                 <HelpTooltip text={helpContent.walletDetail.walletName.text} />
               </p>
               <div className="flex items-center gap-2">
-                <p className="font-mono text-xs text-slate-900 dark:text-white">{String(wallet.wallet_name || name)}</p>
+                <p className="font-mono text-xs text-foreground">{String(wallet.wallet_name || name)}</p>
                 <CopyButton text={String(wallet.wallet_name || name)} />
               </div>
             </div>
             {wallet.addrs ? (
               <div>
-                <p className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
                   Addresses
                   <HelpTooltip text={helpContent.walletDetail.addresses.text} />
                 </p>
                 <div className="space-y-1.5">
                   {String(wallet.addrs).split(",").map((addr, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <p className="font-mono text-xs text-slate-900 dark:text-white">{addr}</p>
+                      <p className="font-mono text-xs text-foreground">{addr}</p>
                       <CopyButton text={addr} />
                     </div>
                   ))}
@@ -85,20 +85,20 @@ export default function WalletDetailPage() {
             ) : null}
             {wallet.unid ? (
               <div>
-                <p className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
                   Creation UNID
                   <HelpTooltip text={helpContent.walletDetail.creationUnid.text} />
                 </p>
-                <p className="font-mono text-xs text-slate-600 dark:text-slate-300">{String(wallet.unid)}</p>
+                <p className="font-mono text-xs text-muted-foreground">{String(wallet.unid)}</p>
               </div>
             ) : null}
             {wallet.slist ? (
               <div>
-                <p className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
                   Signers (Multi-sig)
                   <HelpTooltip text={helpContent.walletDetail.signers.text} diagram={helpContent.walletDetail.signers.diagram} />
                 </p>
-                <pre className="mt-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-[10px] font-mono text-slate-600 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
+                <pre className="mt-1 rounded-lg border border-border bg-muted p-3 text-[10px] font-mono text-muted-foreground dark:border-border dark:bg-card/50 dark:text-muted-foreground">
                   {JSON.stringify(wallet.slist, null, 2)}
                 </pre>
               </div>
@@ -110,22 +110,22 @@ export default function WalletDetailPage() {
           <CardHeader title="Tokens" subtitle="Token balances in this wallet" />
           <div className="p-4">
             {tokens.length === 0 ? (
-              <p className="text-xs text-slate-500">No tokens found</p>
+              <p className="text-xs text-muted-foreground">No tokens found</p>
             ) : (
               <div className="space-y-2">
                 {tokens.map((t, i) => {
                   const tokenStr = String(t.token || "");
                   const tokenName = tokenStr.includes(":::") ? tokenStr.split(":::")[1] : tokenStr;
                   return (
-                    <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 dark:border-slate-800">
+                    <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 dark:border-border">
                       <div className="flex items-center gap-3">
                         <CryptoIcon token={tokenName} size="md" />
                         <div>
-                          <p className="text-xs font-medium text-slate-900 dark:text-white">{tokenName}</p>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-400">Network: {String(t.network)}</p>
+                          <p className="text-xs font-medium text-foreground">{tokenName}</p>
+                          <p className="text-[10px] text-muted-foreground">Network: {String(t.network)}</p>
                         </div>
                       </div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{formatValue(String(t.value))}</p>
+                      <p className="text-sm font-semibold text-foreground">{formatValue(String(t.value))}</p>
                     </div>
                   );
                 })}

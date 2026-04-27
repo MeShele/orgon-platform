@@ -251,12 +251,12 @@ export const components = {
   
   // Table styles
   table: {
-    wrapper: 'overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700',
+    wrapper: 'overflow-x-auto rounded-lg border border-border',
     base: 'min-w-full divide-y divide-gray-200 dark:divide-gray-700',
     header: 'bg-gray-50 dark:bg-gray-800',
     headerCell: 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-gray-400',
     body: 'bg-white divide-y divide-gray-200 dark:bg-gray-900 dark:divide-gray-700',
-    cell: 'px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100',
+    cell: 'px-6 py-4 whitespace-nowrap text-sm text-foreground',
     row: 'hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
   },
   
@@ -264,10 +264,10 @@ export const components = {
   modal: {
     overlay: 'fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm z-50',
     container: 'fixed inset-0 z-50 flex items-center justify-center p-4',
-    content: 'bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto',
-    header: 'px-6 py-4 border-b border-gray-200 dark:border-gray-700',
+    content: 'bg-card rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto',
+    header: 'px-6 py-4 border-b border-border',
     body: 'px-6 py-4',
-    footer: 'px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3',
+    footer: 'px-6 py-4 border-t border-border flex justify-end gap-3',
   },
 } as const;
 
@@ -279,10 +279,10 @@ export const components = {
 export const utils = {
   // Text styles
   text: {
-    heading: 'text-gray-900 dark:text-gray-100 font-semibold',
-    body: 'text-gray-700 dark:text-gray-300',
-    muted: 'text-gray-500 dark:text-gray-400',
-    caption: 'text-xs text-gray-500 dark:text-gray-400',
+    heading: 'text-foreground font-semibold',
+    body: 'text-foreground',
+    muted: 'text-muted-foreground',
+    caption: 'text-xs text-muted-foreground',
   },
   
   // Layout

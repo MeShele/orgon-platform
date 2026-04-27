@@ -10,10 +10,10 @@ import { helpContent } from "@/lib/help-content";
 import useSWR from "swr";
 
 const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400 dark:focus:ring-slate-600 transition-colors";
+  "w-full rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground dark:border-border dark:bg-card/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30 dark:focus:ring-slate-600 transition-colors";
 
 const selectClass =
-  "w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-slate-400 dark:focus:ring-slate-600 transition-colors";
+  "w-full rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground dark:border-border dark:bg-card/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30 dark:focus:ring-slate-600 transition-colors";
 
 interface ValidationResult {
   valid: boolean;
@@ -176,7 +176,7 @@ export function SendForm() {
       <form onSubmit={handleSubmit} className="space-y-4 p-4">
         {/* Wallet Select */}
         <div>
-          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
             Wallet
             <HelpTooltip text={helpContent.sendForm.token.text} diagram={helpContent.sendForm.token.diagram} />
           </label>
@@ -200,7 +200,7 @@ export function SendForm() {
 
         {/* Token Select */}
         <div>
-          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
             Token
           </label>
           {tokenList.length > 0 ? (
@@ -226,12 +226,12 @@ export function SendForm() {
             </select>
           )}
           {tokenString && (
-            <p className="mt-1 text-[10px] text-slate-400 font-mono">{tokenString}</p>
+            <p className="mt-1 text-[10px] text-muted-foreground font-mono">{tokenString}</p>
           )}
         </div>
 
         <div>
-          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
             To Address
             <HelpTooltip text={helpContent.sendForm.toAddress.text} />
           </label>
@@ -246,22 +246,22 @@ export function SendForm() {
               required
             />
             {addressValidating && (
-              <Icon icon="solar:refresh-linear" className="absolute right-2 top-2.5 text-sm text-slate-400 animate-spin" />
+              <Icon icon="solar:refresh-linear" className="absolute right-2 top-2.5 text-sm text-muted-foreground animate-spin" />
             )}
             {!addressValidating && addressValid === true && (
               <Icon icon="solar:check-circle-bold" className="absolute right-2 top-2.5 text-sm text-green-500" />
             )}
             {!addressValidating && addressValid === false && (
-              <Icon icon="solar:close-circle-bold" className="absolute right-2 top-2.5 text-sm text-red-500" />
+              <Icon icon="solar:close-circle-bold" className="absolute right-2 top-2.5 text-sm text-destructive" />
             )}
           </div>
           {addressError && (
-            <p className="mt-1 text-[10px] text-red-500">{addressError}</p>
+            <p className="mt-1 text-[10px] text-destructive">{addressError}</p>
           )}
         </div>
 
         <div>
-          <label className="flex items-center gap-1 text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
             Amount
             <HelpTooltip text={helpContent.sendForm.amount.text} />
           </label>
@@ -276,7 +276,7 @@ export function SendForm() {
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
             Description (optional)
           </label>
           <input suppressHydrationWarning
@@ -290,26 +290,26 @@ export function SendForm() {
 
         {/* Fee Estimate */}
         {(estimatingFee || feeEstimate) && (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs dark:border-slate-800 dark:bg-slate-900/50">
-            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+          <div className="rounded-lg border border-border bg-muted p-3 text-xs dark:border-border dark:bg-card/50">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Icon icon="solar:calculator-linear" className="text-sm" />
               <span className="font-medium">Оценка комиссии</span>
             </div>
             {estimatingFee ? (
-              <div className="mt-2 flex items-center gap-2 text-slate-400">
+              <div className="mt-2 flex items-center gap-2 text-muted-foreground">
                 <Icon icon="solar:refresh-linear" className="animate-spin text-sm" />
                 Расчёт...
               </div>
             ) : feeEstimate ? (
               <div className="mt-2 space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Комиссия:</span>
-                  <span className="font-mono text-slate-900 dark:text-white">{feeEstimate.fee}</span>
+                  <span className="text-muted-foreground">Комиссия:</span>
+                  <span className="font-mono text-foreground">{feeEstimate.fee}</span>
                 </div>
                 {feeEstimate.total && (
-                  <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1">
-                    <span className="text-slate-500 dark:text-slate-400 font-medium">Итого:</span>
-                    <span className="font-mono font-medium text-slate-900 dark:text-white">{feeEstimate.total}</span>
+                  <div className="flex justify-between border-t border-border pt-1">
+                    <span className="text-muted-foreground font-medium">Итого:</span>
+                    <span className="font-mono font-medium text-foreground">{feeEstimate.total}</span>
                   </div>
                 )}
               </div>
@@ -329,11 +329,11 @@ export function SendForm() {
             <div className="flex items-start gap-2">
               <span className="text-lg">{validation.valid ? "✅" : "❌"}</span>
               <div className="flex-1">
-                <p className={`font-medium ${validation.valid ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                <p className={`font-medium ${validation.valid ? "text-success" : "text-destructive"}`}>
                   {validation.valid ? "Transaction is valid" : "Validation failed"}
                 </p>
                 {validation.errors.length > 0 && (
-                  <ul className="mt-2 space-y-1 text-xs text-red-600 dark:text-red-400">
+                  <ul className="mt-2 space-y-1 text-xs text-destructive">
                     {validation.errors.map((err, i) => (<li key={i}>• {err}</li>))}
                   </ul>
                 )}
@@ -343,21 +343,21 @@ export function SendForm() {
                   </ul>
                 )}
                 {validation.balance && (
-                  <p className="mt-2 text-xs text-gray-600 dark:text-gray-400">Available balance: {validation.balance}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Available balance: {validation.balance}</p>
                 )}
               </div>
             </div>
           </div>
         )}
 
-        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={handleValidate}
             disabled={loading || validating || !tokenString || !toAddress || !value}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50 dark:border-border dark:bg-muted dark:text-faint dark:hover:bg-slate-700 transition-colors"
           >
             <Icon icon="solar:shield-check-linear" className="text-sm" />
             {validating ? "Validating..." : "Validate"}
@@ -365,7 +365,7 @@ export function SendForm() {
           <button
             type="submit"
             disabled={loading || validating || !tokenString || (validation ? !validation.valid : false)}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-card px-4 py-2.5 text-xs font-medium text-white hover:bg-muted disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors"
           >
             <Icon icon="solar:plain-linear" className="text-sm" />
             {loading ? "Sending..." : "Send Transaction"}

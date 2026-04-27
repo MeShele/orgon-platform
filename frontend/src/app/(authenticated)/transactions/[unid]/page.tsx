@@ -84,36 +84,36 @@ export default function TransactionDetailPage() {
           <div className="space-y-4 p-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">UNID</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">UNID</p>
                 <div className="flex items-center gap-2">
-                  <p className="font-mono text-xs text-slate-900 dark:text-white break-all">{String(tx.unid)}</p>
+                  <p className="font-mono text-xs text-foreground break-all">{String(tx.unid)}</p>
                   <CopyButton text={String(tx.unid)} />
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">To Address</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">To Address</p>
                 <div className="flex items-center gap-2">
-                  <p className="font-mono text-xs text-slate-900 dark:text-white break-all">{String(tx.to_addr)}</p>
+                  <p className="font-mono text-xs text-foreground break-all">{String(tx.to_addr)}</p>
                   <CopyButton text={String(tx.to_addr)} />
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Amount</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Amount</p>
+                <p className="text-sm font-semibold text-foreground">
                   {formatValue(String(tx.value))} {String(tx.token_name || "")}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">Date</p>
-                <p className="text-xs text-slate-900 dark:text-white">
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Date</p>
+                <p className="text-xs text-foreground">
                   {tx.init_ts ? formatTimestamp(new Date(Number(tx.init_ts) * 1000)) : "-"}
                 </p>
               </div>
               {tx.tx_hash ? (
                 <div className="col-span-full">
-                  <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">TX Hash</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">TX Hash</p>
                   <div className="flex items-center gap-2">
-                    <p className="font-mono text-xs text-slate-900 dark:text-white break-all">{String(tx.tx_hash)}</p>
+                    <p className="font-mono text-xs text-foreground break-all">{String(tx.tx_hash)}</p>
                     <CopyButton text={String(tx.tx_hash)} />
                   </div>
                 </div>
@@ -130,7 +130,7 @@ export default function TransactionDetailPage() {
                 <button
                   onClick={handleSign}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-lg bg-success px-4 py-2 text-xs font-medium text-white hover:bg-success disabled:opacity-50 transition-colors"
                 >
                   <Icon icon="solar:pen-new-square-linear" className="text-sm" />
                   {actionLoading ? "Processing..." : "Sign Transaction"}
@@ -157,8 +157,8 @@ export default function TransactionDetailPage() {
             <CardHeader title="Signatures" action={<HelpTooltip text={helpContent.transactionDetail.signatures.text} />} />
             <div className="space-y-2 p-4">
               {(tx.signatures as Record<string, unknown>[]).map((sig, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 dark:border-slate-800">
-                  <p className="font-mono text-xs text-slate-600 dark:text-slate-300">{String(sig.ec_address)}</p>
+                <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 dark:border-border">
+                  <p className="font-mono text-xs text-muted-foreground">{String(sig.ec_address)}</p>
                   <StatusBadge status={String(sig.sig_type)} />
                 </div>
               ))}

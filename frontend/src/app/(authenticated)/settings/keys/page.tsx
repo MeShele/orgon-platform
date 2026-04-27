@@ -25,9 +25,9 @@ export default function KeysPage() {
                 (AES-256-GCM encrypted). It is never exposed through the API.
               </p>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               To update the key, set the{" "}
-              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono dark:bg-slate-800">
+              <code className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono dark:bg-muted">
                 SAFINA_EC_PRIVATE_KEY
               </code>{" "}
               environment variable and restart the backend.
@@ -39,19 +39,19 @@ export default function KeysPage() {
           <CardHeader title="Key Details" />
           <div className="space-y-2 p-4">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-500">Algorithm</span>
-              <span className="text-xs font-medium text-slate-900 dark:text-white">ECDSA SECP256k1</span>
+              <span className="text-xs text-muted-foreground">Algorithm</span>
+              <span className="text-xs font-medium text-foreground">ECDSA SECP256k1</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-500">Signature</span>
-              <span className="text-xs font-medium text-slate-900 dark:text-white">ETH-compatible (sign_msg)</span>
+              <span className="text-xs text-muted-foreground">Signature</span>
+              <span className="text-xs font-medium text-foreground">ETH-compatible (sign_msg)</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1 text-xs text-slate-500">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 Headers
                 <HelpTooltip text={helpContent.keys.headers.text} />
               </span>
-              <span className="font-mono text-[10px] text-slate-600 dark:text-slate-400">x-app-ec-from, x-app-ec-sign-r/s/v</span>
+              <span className="font-mono text-[10px] text-muted-foreground">x-app-ec-from, x-app-ec-sign-r/s/v</span>
             </div>
           </div>
         </Card>

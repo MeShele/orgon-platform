@@ -116,19 +116,19 @@ export default function SettingsPage() {
         {/* Quick navigation grid */}
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {[
-            { href: "/profile", label: "Профиль", icon: "solar:user-bold", color: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" },
-            { href: "/settings", label: "Безопасность (2FA)", icon: "solar:shield-keyhole-bold", color: "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400", active: true },
+            { href: "/profile", label: "Профиль", icon: "solar:user-bold", color: "bg-blue-100 dark:bg-blue-900/30 text-primary" },
+            { href: "/settings", label: "Безопасность (2FA)", icon: "solar:shield-keyhole-bold", color: "bg-green-100 dark:bg-green-900/30 text-success", active: true },
             { href: "/settings/keys", label: "API ключи", icon: "solar:key-bold", color: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" },
             { href: "/settings/organization", label: "Организация", icon: "solar:buildings-bold", color: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" },
-            { href: "/settings/platform", label: "Платформа", icon: "solar:server-bold", color: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400", admin: true },
+            { href: "/settings/platform", label: "Платформа", icon: "solar:server-bold", color: "bg-indigo-100 dark:bg-indigo-900/30 text-primary dark:text-primary", admin: true },
             { href: "/settings/webhooks", label: "Webhooks", icon: "solar:link-bold", color: "bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400", admin: true },
-            { href: "/settings/system/monitoring", label: "Мониторинг", icon: "solar:monitor-bold", color: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400", admin: true },
+            { href: "/settings/system/monitoring", label: "Мониторинг", icon: "solar:monitor-bold", color: "bg-red-100 dark:bg-red-900/30 text-destructive", admin: true },
           ].map((item) => (
             <a
               key={item.href}
               href={item.href}
               className={clsx(
-                "flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900",
+                "flex items-center gap-3 rounded-xl border border-border bg-white p-4 transition-all hover:shadow-md dark:border-border dark:bg-card",
                 item.active && "ring-2 ring-blue-500"
               )}
             >
@@ -136,8 +136,8 @@ export default function SettingsPage() {
                 <Icon icon={item.icon} className="text-lg" />
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-900 dark:text-white">{item.label}</p>
-                {item.admin && <span className="text-[10px] text-slate-400">admin</span>}
+                <p className="text-sm font-medium text-foreground">{item.label}</p>
+                {item.admin && <span className="text-[10px] text-muted-foreground">admin</span>}
               </div>
             </a>
           ))}
@@ -156,8 +156,8 @@ export default function SettingsPage() {
                   className={clsx(
                     "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                     activeSection === section.id
-                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-950"
-                      : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                      ? "bg-foreground text-background"
+                      : "text-muted-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted"
                   )}
                 >
                   <Icon icon={section.icon} className="text-base" />
@@ -183,45 +183,45 @@ export default function SettingsPage() {
                   <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
                     {profile.fullName.charAt(0)}
                   </div>
-                  <button className="px-4 py-2 text-sm rounded-lg border border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 transition-colors">
+                  <button className="px-4 py-2 text-sm rounded-lg border border-slate-300 hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
                     {t('profile.changeAvatar')}
                   </button>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-foreground mb-1">
                       {t('profile.fullName')}
                     </label>
                     <input
                       type="text"
                       value={profile.fullName}
                       onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-foreground mb-1">
                       {t('profile.email')}
                     </label>
                     <input
                       type="email"
                       value={profile.email}
                       onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                      className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-medium text-foreground mb-1">
                       {t('profile.role')}
                     </label>
                     <Badge variant="primary">{profile.role}</Badge>
                   </div>
                 </div>
 
-                <button className="px-4 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 transition-colors">
+                <button className="px-4 py-2 text-sm rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors">
                   {t('profile.saveChanges')}
                 </button>
               </div>
@@ -240,8 +240,8 @@ export default function SettingsPage() {
                 <div className="p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">{t('security.twoFactor')}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{t('security.twoFactorDesc')}</p>
+                      <p className="text-sm font-medium text-foreground">{t('security.twoFactor')}</p>
+                      <p className="text-xs text-muted-foreground">{t('security.twoFactorDesc')}</p>
                     </div>
                     <button
                       onClick={() => setSecurity({ ...security, twoFactorEnabled: !security.twoFactorEnabled })}
@@ -259,36 +259,36 @@ export default function SettingsPage() {
                     </button>
                   </div>
 
-                  <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white mb-2">{t('security.changePassword')}</p>
+                  <div className="border-t border-border pt-4">
+                    <p className="text-sm font-medium text-foreground mb-2">{t('security.changePassword')}</p>
                     <div className="space-y-2">
                       <input
                         type="password"
                         placeholder={t('security.currentPassword')}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
                       />
                       <input
                         type="password"
                         placeholder={t('security.newPassword')}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
                       />
                       <input
                         type="password"
                         placeholder={t('security.confirmPassword')}
-                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+                        className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
                       />
-                      <button className="px-4 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+                      <button className="px-4 py-2 text-sm rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted">
                         {t('security.updatePassword')}
                       </button>
                     </div>
                   </div>
 
-                  <div className="border-t border-slate-200 dark:border-slate-800 pt-4">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white mb-2">{t('security.activeSessions')}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className="border-t border-border pt-4">
+                    <p className="text-sm font-medium text-foreground mb-2">{t('security.activeSessions')}</p>
+                    <p className="text-xs text-muted-foreground">
                       {security.activeSessions} {t('security.activeSessionsCount')}
                     </p>
-                    <button className="mt-2 text-xs text-red-600 hover:text-red-700 dark:text-red-400">
+                    <button className="mt-2 text-xs text-red-600 hover:text-destructive">
                       {t('security.logoutAllSessions')}
                     </button>
                   </div>
@@ -306,7 +306,7 @@ export default function SettingsPage() {
                 helpTips={helpContent.settings.apiKeys.tips}
               />
               <div className="p-4 space-y-4">
-                <button className="px-4 py-2 text-sm rounded-lg bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+                <button className="px-4 py-2 text-sm rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted">
                   <Icon icon="solar:add-circle-linear" className="inline mr-2" />
                   {t('apiKeys.createNew')}
                 </button>
@@ -315,18 +315,18 @@ export default function SettingsPage() {
                   {apiKeys.map((key) => (
                     <div
                       key={key.id}
-                      className="p-4 rounded-lg border border-slate-200 dark:border-slate-800 space-y-2"
+                      className="p-4 rounded-lg border border-border space-y-2"
                     >
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">{key.name}</p>
+                        <p className="text-sm font-medium text-foreground">{key.name}</p>
                         <div className="flex gap-2">
-                          <button className="text-xs text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                          <button className="text-xs text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white">
                             {t('apiKeys.revoke')}
                           </button>
                         </div>
                       </div>
-                      <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{key.key}</p>
-                      <div className="flex items-center gap-4 text-xs text-slate-500">
+                      <p className="text-xs font-mono text-muted-foreground">{key.key}</p>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span>{t('apiKeys.created')}: {key.created}</span>
                         <span>{t('apiKeys.lastUsed')}: {key.lastUsed}</span>
                       </div>
@@ -356,8 +356,8 @@ export default function SettingsPage() {
                 ].map((item) => (
                   <div key={item.key} className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">{item.label}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{item.desc}</p>
+                      <p className="text-sm font-medium text-foreground">{item.label}</p>
+                      <p className="text-xs text-muted-foreground">{item.desc}</p>
                     </div>
                     <button
                       onClick={() => setNotifications({ ...notifications, [item.key]: !notifications[item.key] })}
@@ -397,7 +397,7 @@ export default function SettingsPage() {
                         "p-4 rounded-lg border-2 transition-all",
                         theme === themeOption
                           ? "border-slate-900 dark:border-white"
-                          : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700"
+                          : "border-border hover:border-slate-300 dark:hover:border-border"
                       )}
                     >
                       <Icon
@@ -438,13 +438,13 @@ export default function SettingsPage() {
                     className={clsx(
                       "w-full flex items-center justify-between p-3 rounded-lg border transition-colors",
                       language === lang.code
-                        ? "border-slate-900 bg-slate-50 dark:border-white dark:bg-slate-800"
-                        : "border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
+                        ? "border-slate-900 bg-muted dark:border-white dark:bg-muted"
+                        : "border-border hover:bg-muted dark:border-border dark:hover:bg-muted"
                     )}
                   >
                     <div className="text-left">
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">{lang.native}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{lang.name}</p>
+                      <p className="text-sm font-medium text-foreground">{lang.native}</p>
+                      <p className="text-xs text-muted-foreground">{lang.name}</p>
                     </div>
                     {language === lang.code && (
                       <Icon icon="solar:check-circle-bold" className="text-green-500" />
@@ -467,12 +467,12 @@ export default function SettingsPage() {
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">{t('limits.wallets')}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-foreground">{t('limits.wallets')}</p>
+                      <p className="text-xs text-muted-foreground">
                         {limits.usedWallets} / {limits.maxWallets}
                       </p>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
+                    <div className="w-full bg-slate-200 dark:bg-muted rounded-full h-2">
                       <div
                         className="bg-blue-500 h-2 rounded-full transition-all"
                         style={{ width: `${(limits.usedWallets / limits.maxWallets) * 100}%` }}
@@ -482,12 +482,12 @@ export default function SettingsPage() {
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">{t('limits.monthlyVolume')}</p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-sm font-medium text-foreground">{t('limits.monthlyVolume')}</p>
+                      <p className="text-xs text-muted-foreground">
                         ${limits.usedVolume.toLocaleString()} / ${limits.maxMonthlyVolume.toLocaleString()}
                       </p>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2">
+                    <div className="w-full bg-slate-200 dark:bg-muted rounded-full h-2">
                       <div
                         className="bg-green-500 h-2 rounded-full transition-all"
                         style={{ width: `${(limits.usedVolume / limits.maxMonthlyVolume) * 100}%` }}
@@ -495,15 +495,15 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                    <p className="text-sm font-medium text-slate-900 dark:text-white mb-2">{t('limits.transaction')}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className="pt-4 border-t border-border">
+                    <p className="text-sm font-medium text-foreground mb-2">{t('limits.transaction')}</p>
+                    <p className="text-xs text-muted-foreground">
                       {t('limits.maxTransactionSize')}: ${limits.maxTransactionSize.toLocaleString()}
                     </p>
                   </div>
                 </div>
 
-                <button className="w-full px-4 py-2 text-sm rounded-lg border border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 transition-colors">
+                <button className="w-full px-4 py-2 text-sm rounded-lg border border-slate-300 hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
                   {t('limits.upgrade')}
                 </button>
               </div>
@@ -527,37 +527,37 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800 transition-colors">
+                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
                     <div className="flex items-center gap-3">
                       <Icon icon="solar:folder-linear" className="text-xl" />
                       <div className="text-left">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">{t('backup.exportWallets')}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('backup.exportWalletsDesc')}</p>
+                        <p className="text-sm font-medium text-foreground">{t('backup.exportWallets')}</p>
+                        <p className="text-xs text-muted-foreground">{t('backup.exportWalletsDesc')}</p>
                       </div>
                     </div>
-                    <Icon icon="solar:download-linear" className="text-slate-400" />
+                    <Icon icon="solar:download-linear" className="text-muted-foreground" />
                   </button>
 
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800 transition-colors">
+                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
                     <div className="flex items-center gap-3">
                       <Icon icon="solar:document-text-linear" className="text-xl" />
                       <div className="text-left">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">{t('backup.exportTransactions')}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('backup.exportTransactionsDesc')}</p>
+                        <p className="text-sm font-medium text-foreground">{t('backup.exportTransactions')}</p>
+                        <p className="text-xs text-muted-foreground">{t('backup.exportTransactionsDesc')}</p>
                       </div>
                     </div>
-                    <Icon icon="solar:download-linear" className="text-slate-400" />
+                    <Icon icon="solar:download-linear" className="text-muted-foreground" />
                   </button>
 
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800 transition-colors">
+                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
                     <div className="flex items-center gap-3">
                       <Icon icon="solar:users-group-rounded-linear" className="text-xl" />
                       <div className="text-left">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">{t('backup.exportContacts')}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">{t('backup.exportContactsDesc')}</p>
+                        <p className="text-sm font-medium text-foreground">{t('backup.exportContacts')}</p>
+                        <p className="text-xs text-muted-foreground">{t('backup.exportContactsDesc')}</p>
                       </div>
                     </div>
-                    <Icon icon="solar:download-linear" className="text-slate-400" />
+                    <Icon icon="solar:download-linear" className="text-muted-foreground" />
                   </button>
                 </div>
               </div>
@@ -577,57 +577,57 @@ export default function SettingsPage() {
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 mb-4">
                     <span className="text-2xl font-bold text-white">O</span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">ORGON</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">{t('about.version')}: 1.0.0-beta</p>
+                  <h3 className="text-lg font-bold text-foreground">ORGON</h3>
+                  <p className="text-sm text-muted-foreground">{t('about.version')}: 1.0.0-beta</p>
                 </div>
 
-                <div className="space-y-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <div className="space-y-2 pt-4 border-t border-border">
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600 dark:text-slate-400">{t('about.backend')}</span>
+                    <span className="text-muted-foreground">{t('about.backend')}</span>
                     <StatusDot active={!!health} />
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-600 dark:text-slate-400">{t('about.safinaApi')}</span>
+                    <span className="text-muted-foreground">{t('about.safinaApi')}</span>
                     <StatusDot active={!!safinaHealth?.safina_reachable} />
                   </div>
                   {health?.last_sync ? (
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600 dark:text-slate-400">{t('about.lastSync')}</span>
-                      <span className="text-xs font-mono text-slate-500">{String(health.last_sync)}</span>
+                      <span className="text-muted-foreground">{t('about.lastSync')}</span>
+                      <span className="text-xs font-mono text-muted-foreground">{String(health.last_sync)}</span>
                     </div>
                   ) : null}
                 </div>
 
-                <div className="space-y-2 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <div className="space-y-2 pt-4 border-t border-border">
                   <a
                     href="https://orgon.asystem.ai/docs"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted dark:hover:bg-muted transition-colors"
                   >
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{t('about.documentation')}</span>
-                    <Icon icon="solar:arrow-right-linear" className="text-slate-400" />
+                    <span className="text-sm text-foreground">{t('about.documentation')}</span>
+                    <Icon icon="solar:arrow-right-linear" className="text-muted-foreground" />
                   </a>
                   <a
                     href="https://asystem.kg"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted dark:hover:bg-muted transition-colors"
                   >
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{t('about.website')}</span>
-                    <Icon icon="solar:arrow-right-linear" className="text-slate-400" />
+                    <span className="text-sm text-foreground">{t('about.website')}</span>
+                    <Icon icon="solar:arrow-right-linear" className="text-muted-foreground" />
                   </a>
                   <a
                     href="mailto:support@asystem.kg"
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted dark:hover:bg-muted transition-colors"
                   >
-                    <span className="text-sm text-slate-700 dark:text-slate-300">{t('about.support')}</span>
-                    <Icon icon="solar:arrow-right-linear" className="text-slate-400" />
+                    <span className="text-sm text-foreground">{t('about.support')}</span>
+                    <Icon icon="solar:arrow-right-linear" className="text-muted-foreground" />
                   </a>
                 </div>
 
-                <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                  <p className="text-xs text-center text-slate-500 dark:text-slate-400">
+                <div className="pt-4 border-t border-border">
+                  <p className="text-xs text-center text-muted-foreground">
                     © 2026 ASYSTEM. {t('about.rights')}
                   </p>
                 </div>

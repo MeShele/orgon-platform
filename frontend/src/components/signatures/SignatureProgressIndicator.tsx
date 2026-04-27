@@ -28,8 +28,8 @@ export function SignatureProgressIndicator({
         <span
           className={`text-sm font-medium ${
             isComplete
-              ? "text-green-600 dark:text-green-400"
-              : "text-gray-700 dark:text-gray-300"
+              ? "text-success"
+              : "text-foreground"
           }`}
         >
           {progress}
@@ -49,7 +49,7 @@ export function SignatureProgressIndicator({
 
       {/* Details (tooltip-like) */}
       {(signed.length > 0 || waiting.length > 0) && (
-        <div className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="text-xs text-muted-foreground">
           {signed.length > 0 && (
             <div className="mb-1">
               <span className="font-medium">Signed:</span>

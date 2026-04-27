@@ -106,7 +106,7 @@ export function AlertsPanel({ alerts }: Props) {
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/20">
               <svg
-                className="h-6 w-6 text-green-600 dark:text-green-400"
+                className="h-6 w-6 text-success"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -120,10 +120,10 @@ export function AlertsPanel({ alerts }: Props) {
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <h3 className="text-sm font-medium text-foreground">
                 {t('alerts.allOperational')}
               </h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              <p className="mt-1 text-sm text-muted-foreground">
                 {t('alerts.noAlerts')}
               </p>
             </div>
@@ -149,20 +149,20 @@ export function AlertsPanel({ alerts }: Props) {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "error":
-        return "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-500/20";
+        return "text-destructive bg-destructive/10 border-destructive/40";
       case "warning":
-        return "text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-500/20";
+        return "text-yellow-600 dark:text-yellow-400 bg-warning/10 border-warning/40";
       case "info":
-        return "text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-500/20";
+        return "text-primary bg-primary/10 border-primary/40";
       default:
-        return "text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-500/20";
+        return "text-muted-foreground bg-muted/20 border-border dark:border-gray-500/20";
     }
   };
 
   return (
     <Card>
       <div className="p-6">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+        <h3 className="mb-4 text-lg font-semibold text-foreground flex items-center gap-2">
           {t('alerts.title')}
           <HelpTooltip
             text={helpContent.dashboard.alerts.text}

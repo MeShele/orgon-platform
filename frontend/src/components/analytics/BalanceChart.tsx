@@ -26,8 +26,8 @@ export default function BalanceChart({ data, days = 30 }: BalanceChartProps) {
   }));
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 border border-gray-200 dark:border-gray-700 shadow-sm">
-      <h3 className="text-base sm:text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+    <div className="bg-card rounded-xl p-4 sm:p-6 border border-border shadow-sm">
+      <h3 className="text-base sm:text-lg font-semibold mb-4 text-foreground flex items-center gap-2">
         {t('transactionActivity')} ({days} дн)
         <HelpTooltip 
           text={helpContent.analytics.balanceChart.text}
@@ -37,7 +37,7 @@ export default function BalanceChart({ data, days = 30 }: BalanceChartProps) {
       </h3>
       
       {data.length === 0 ? (
-        <div className="h-64 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+        <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
           <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
           </svg>
@@ -81,7 +81,7 @@ export default function BalanceChart({ data, days = 30 }: BalanceChartProps) {
               wrapperStyle={{
                 color: 'currentColor'
               }}
-              className="text-gray-600 dark:text-gray-400"
+              className="text-muted-foreground"
             />
             <Line 
               yAxisId="left"

@@ -360,7 +360,7 @@ export default function HelpPage() {
               <div className="relative">
                 <Icon
                   icon="solar:magnifer-linear"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                 />
                 <Input
                   type="text"
@@ -384,17 +384,17 @@ export default function HelpPage() {
                     <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                       <Icon
                         icon={section.icon}
-                        className="text-2xl text-blue-600 dark:text-blue-400"
+                        className="text-2xl text-primary"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 dark:text-white mb-1">
+                      <h3 className="font-semibold text-foreground mb-1">
                         {section.title}
                       </h3>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2">
                         {section.description}
                       </p>
-                      <div className="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                      <div className="mt-2 text-xs text-primary">
                         {section.articles.length} {section.articles.length === 1 ? 'статья' : 'статей'} →
                       </div>
                     </div>
@@ -413,10 +413,10 @@ export default function HelpPage() {
                   />
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2">
+                  <h3 className="font-semibold text-foreground mb-2">
                     Документация API
                   </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                  <p className="text-sm text-muted-foreground mb-4">
                     Интерактивная документация REST API для интеграции и разработки. Полный список эндпоинтов с примерами запросов.
                   </p>
                   <div className="flex flex-wrap gap-3">
@@ -460,10 +460,10 @@ export default function HelpPage() {
                   className="text-3xl text-yellow-600 dark:text-yellow-400"
                 />
                 <div>
-                  <h3 className="font-semibold text-slate-900 dark:text-white mb-2">
+                  <h3 className="font-semibold text-foreground mb-2">
                     Быстрый старт
                   </h3>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
+                  <p className="text-sm text-muted-foreground mb-3">
                     Новый пользователь? Начните с этих статей:
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -496,11 +496,11 @@ export default function HelpPage() {
                       <div className="flex items-center gap-3 mb-4">
                         <button
                           onClick={() => setSelectedSection(null)}
-                          className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                          className="text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
                         >
                           <Icon icon="solar:arrow-left-linear" className="text-xl" />
                         </button>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                        <h2 className="text-xl font-bold text-foreground">
                           {section.title}
                         </h2>
                       </div>
@@ -512,10 +512,10 @@ export default function HelpPage() {
                             className="cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-all"
                             onClick={() => setSelectedArticle(article)}
                           >
-                            <h3 className="font-semibold text-slate-900 dark:text-white mb-2">
+                            <h3 className="font-semibold text-foreground mb-2">
                               {article.title}
                             </h3>
-                            <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mb-3">
+                            <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                               {article.content}
                             </p>
                             <div className="flex flex-wrap gap-1.5">
@@ -539,17 +539,17 @@ export default function HelpPage() {
             <div className="flex items-center gap-3 mb-6">
               <button
                 onClick={() => setSelectedArticle(null)}
-                className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                className="text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
               >
                 <Icon icon="solar:arrow-left-linear" className="text-xl" />
               </button>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+              <h2 className="text-2xl font-bold text-foreground">
                 {selectedArticle.title}
               </h2>
             </div>
 
             <Card className="prose dark:prose-invert max-w-none">
-              <p className="text-slate-700 dark:text-slate-300 leading-relaxed mb-6">
+              <p className="text-foreground leading-relaxed mb-6">
                 {selectedArticle.content}
               </p>
 
@@ -558,13 +558,13 @@ export default function HelpPage() {
                   <div className="flex items-start gap-3">
                     <Icon
                       icon="solar:clipboard-text-bold"
-                      className="text-xl text-blue-600 dark:text-blue-400 mt-0.5"
+                      className="text-xl text-primary mt-0.5"
                     />
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-white mb-2">
+                      <div className="font-semibold text-foreground mb-2">
                         Пример:
                       </div>
-                      <p className="text-sm text-slate-700 dark:text-slate-300">
+                      <p className="text-sm text-foreground">
                         {selectedArticle.example}
                       </p>
                     </div>
@@ -574,17 +574,17 @@ export default function HelpPage() {
 
               {selectedArticle.steps && selectedArticle.steps.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                    <Icon icon="solar:list-check-bold" className="text-xl text-green-600 dark:text-green-400" />
+                  <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Icon icon="solar:list-check-bold" className="text-xl text-success" />
                     Пошаговая инструкция:
                   </h3>
                   <ol className="space-y-2 list-none pl-0">
                     {selectedArticle.steps.map((step, idx) => (
                       <li key={idx} className="flex items-start gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center text-sm font-semibold">
+                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-primary rounded-full flex items-center justify-center text-sm font-semibold">
                           {idx + 1}
                         </span>
-                        <span className="text-slate-700 dark:text-slate-300 flex-1 pt-0.5">
+                        <span className="text-foreground flex-1 pt-0.5">
                           {step}
                         </span>
                       </li>
@@ -601,14 +601,14 @@ export default function HelpPage() {
                       className="text-xl text-yellow-600 dark:text-yellow-400 mt-0.5"
                     />
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-white mb-2">
+                      <div className="font-semibold text-foreground mb-2">
                         💡 Полезные советы:
                       </div>
                       <ul className="space-y-1.5 list-none pl-0">
                         {selectedArticle.tips.map((tip, idx) => (
                           <li key={idx} className="flex items-start gap-2">
                             <span className="text-yellow-600 dark:text-yellow-400 mt-1">•</span>
-                            <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">
+                            <span className="text-sm text-foreground flex-1">
                               {tip}
                             </span>
                           </li>
@@ -619,7 +619,7 @@ export default function HelpPage() {
                 </div>
               )}
 
-              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-wrap gap-2">
+              <div className="mt-6 pt-6 border-t border-border flex flex-wrap gap-2">
                 {selectedArticle.tags.map((tag) => (
                   <Badge key={tag} variant="gray">
                     {tag}
@@ -630,7 +630,7 @@ export default function HelpPage() {
 
             {/* Related Articles */}
             <div className="mt-6">
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-3">
+              <h3 className="text-lg font-semibold text-foreground mb-3">
                 Связанные статьи
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -647,10 +647,10 @@ export default function HelpPage() {
                       className="cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-all"
                       onClick={() => setSelectedArticle(article)}
                     >
-                      <h4 className="font-semibold text-slate-900 dark:text-white text-sm mb-1">
+                      <h4 className="font-semibold text-foreground text-sm mb-1">
                         {article.title}
                       </h4>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                      <p className="text-xs text-muted-foreground line-clamp-2">
                         {article.content}
                       </p>
                     </Card>

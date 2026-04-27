@@ -122,48 +122,63 @@ class TransactionService:
         self,
         wallet_name: Optional[str] = None,
         status: Optional[str] = None,
-        network: Optional[int] = None
+        network: Optional[int] = None,
+        org_ids: Optional[list] = None,
     ) -> int:
+        """Count transactions, scoped to org_ids when provided.
+
+        `org_ids=None` means "no scoping" (super_admin / internal). An empty
+        list means the caller has no organizations and the count is 0.
         """
-        Count total transactions with optional filtering.
-        
-        Args:
-            wallet_name: Optional filter by wallet name
-            status: Optional filter by status
-            network: Optional filter by network ID
-            
-        Returns:
-            Total count of transactions matching filters
-        """
+        if org_ids is not None and not org_ids:
+            return 0
+
         query = "SELECT COUNT(*) FROM transactions WHERE 1=1"
-        params = []
+        params: list = []
         param_idx = 1
-        
+
         if wallet_name:
             query += f" AND wallet_name = ${param_idx}"
             params.append(wallet_name)
             param_idx += 1
-        
+
         if status:
             query += f" AND status = ${param_idx}"
             params.append(status)
             param_idx += 1
-        
+
         if network:
             query += f" AND network = ${param_idx}"
             params.append(network)
             param_idx += 1
-        
+
+        if org_ids is not None:
+            placeholders = ", ".join(f"${param_idx + i}" for i in range(len(org_ids)))
+            query += f" AND organization_id IN ({placeholders})"
+            params.extend(org_ids)
+            param_idx += len(org_ids)
+
         result = await self._db.fetchrow(query, tuple(params))
         return result["count"] if result else 0
 
-    async def get_transaction(self, unid: str) -> dict | None:
-        """Get transaction details with signatures."""
+    async def get_transaction(
+        self,
+        unid: str,
+        org_ids: Optional[list] = None,
+    ) -> dict | None:
+        """Get transaction details with signatures, scoped to org_ids when provided.
+
+        Returns None when the row exists but is outside the caller's tenancy —
+        do not leak existence to wrong tenants.
+        """
         tx = await self._db.fetchrow("SELECT * FROM transactions WHERE unid = $1", params=(unid,))
-        if tx:
-            sigs = await self._db.fetch("SELECT * FROM tx_signatures WHERE tx_unid = $1", params=(unid,)
-            )
-            tx["signatures"] = sigs
+        if not tx:
+            return None
+        if org_ids is not None:
+            if not org_ids or tx.get("organization_id") not in org_ids:
+                return None
+        sigs = await self._db.fetch("SELECT * FROM tx_signatures WHERE tx_unid = $1", params=(unid,))
+        tx["signatures"] = sigs
         return tx
 
     # --- Validation and formatting helpers ---

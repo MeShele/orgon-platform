@@ -27,7 +27,7 @@ from backend.api.schemas_b2b import (
 # Import services (not used for instantiation, only for type hints)
 from backend.services.wallet_service import WalletService
 from backend.services.transaction_service import TransactionService
-from backend.services.signature_service import SignatureService
+from backend.services.signature_service import SignatureService, DuplicateSignatureError
 from backend.services.network_service import NetworkService
 from backend.services.audit_service import AuditService
 from backend.services.webhook_service import WebhookService
@@ -74,6 +74,33 @@ async def get_webhook_service(request: Request) -> WebhookService:
     if not hasattr(request.app.state, "webhook_service"):
         return None  # Webhooks not enabled
     return request.app.state.webhook_service
+
+
+# ============================================================================
+# TENANCY HELPER
+# ============================================================================
+
+async def _partner_org_ids(request: Request, partner: dict) -> list | None:
+    """Return the organization IDs visible to a partner-authenticated request.
+
+    Returns:
+        - `None` for internal/dashboard callers (JWT auth) — no scoping.
+        - `[<uuid>]` for an API-key partner that has been linked to an
+          organization (see migration 017_partner_org_link.sql).
+        - `[]`     for an API-key partner that exists but isn't linked yet —
+          treated as "sees nothing", which is the safe default.
+    """
+    if partner.get("partner_id") is None:
+        return None  # internal / JWT dashboard
+
+    db = request.app.state.db
+    row = await db.fetchrow(
+        "SELECT organization_id FROM partners WHERE id = $1",
+        params=(partner["partner_id"],),
+    )
+    if not row or not row.get("organization_id"):
+        return []
+    return [row["organization_id"]]
 
 
 # ============================================================================
@@ -222,19 +249,19 @@ async def list_wallets(
     **Returns:** Paginated wallet list.
     """
     partner = get_partner_from_request(request)
-    
-    # Fetch wallets
-    # TODO: Add partner_id filter when WalletService supports multi-tenancy
+    org_ids = await _partner_org_ids(request, partner)
+
     wallets_data = await wallet_service.list_wallets(
         network_id=network_id,
         limit=limit + 1,  # Fetch one extra to check has_more
-        offset=offset
+        offset=offset,
+        org_ids=org_ids,
     )
-    
+
     # Check if more results exist
     has_more = len(wallets_data) > limit
     wallets_data = wallets_data[:limit]  # Trim to limit
-    
+
     # Convert to response models
     wallets = [
         WalletResponse(
@@ -250,9 +277,8 @@ async def list_wallets(
         )
         for w in wallets_data
     ]
-    
-    # Get total count (expensive query, consider caching)
-    total = await wallet_service.count_wallets(network_id=network_id)
+
+    total = await wallet_service.count_wallets(network_id=network_id, org_ids=org_ids)
     
     return WalletListResponse(
         wallets=wallets,
@@ -287,18 +313,18 @@ async def get_wallet(
     **Returns:** Wallet details with token balances.
     """
     partner = get_partner_from_request(request)
-    
-    # Fetch wallet
-    wallet = await wallet_service.get_wallet_by_name(wallet_name)
-    
+    org_ids = await _partner_org_ids(request, partner)
+
+    wallet = await wallet_service.get_wallet_by_name(wallet_name, org_ids=org_ids)
+
     if not wallet:
+        # Returns 404 even when the wallet exists but is in a different org —
+        # we do not leak existence across tenants.
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "wallet_not_found", "message": f"Wallet '{wallet_name}' not found"}
         )
-    
-    # TODO: Add partner_id check when multi-tenancy is implemented
-    
+
     # Fetch token balances
     # TODO: Implement in WalletService
     tokens = []
@@ -455,16 +481,16 @@ async def list_transactions(
     **Returns:** Paginated transaction list.
     """
     partner = get_partner_from_request(request)
-    
-    # Fetch transactions
-    # TODO: Add partner_id filter when multi-tenancy is implemented
+    org_ids = await _partner_org_ids(request, partner)
+
     txs_data = await transaction_service.list_transactions(
         wallet_name=wallet_name,
         status=status,
         limit=limit + 1,
-        offset=offset
+        offset=offset,
+        org_ids=org_ids,
     )
-    
+
     has_more = len(txs_data) > limit
     txs_data = txs_data[:limit]
     
@@ -487,10 +513,10 @@ async def list_transactions(
         for tx in txs_data
     ]
     
-    # Get total count
     total = await transaction_service.count_transactions(
         wallet_name=wallet_name,
-        status=status
+        status=status,
+        org_ids=org_ids,
     )
     
     return TransactionListResponse(
@@ -526,17 +552,16 @@ async def get_transaction(
     **Returns:** Transaction details.
     """
     partner = get_partner_from_request(request)
-    
-    # Fetch transaction
-    tx = await transaction_service.get_transaction(unid)
-    
+    org_ids = await _partner_org_ids(request, partner)
+
+    tx = await transaction_service.get_transaction(unid, org_ids=org_ids)
+
     if not tx:
+        # 404 also when the row exists in a different org — no cross-tenant leak.
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "transaction_not_found", "message": f"Transaction '{unid}' not found"}
         )
-    
-    # TODO: Add partner_id check when multi-tenancy is implemented
     
     return TransactionResponse(
         unid=tx["unid"],
@@ -584,13 +609,11 @@ async def approve_signature(
     partner = get_partner_from_request(request)
     
     try:
-        # Approve signature via Safina API
-        result = await signature_service.approve_signature(
-            unid=unid,
-            ec_address=partner["ec_address"]
+        result = await signature_service.sign_transaction(
+            tx_unid=unid,
+            user_address=partner["ec_address"],
         )
-        
-        # Log action
+
         await audit_service.log_signature_action(
             partner_id=partner["partner_id"],
             user_id=partner["ec_address"],
@@ -600,8 +623,7 @@ async def approve_signature(
             user_agent=request.headers.get("user-agent"),
             result="success"
         )
-        
-        # Emit webhook event
+
         if webhook_service:
             await webhook_service.emit_event(
                 partner_id=partner["partner_id"],
@@ -612,15 +634,30 @@ async def approve_signature(
                     "approved_at": datetime.now(timezone.utc).isoformat()
                 }
             )
-        
+
         return {
             "success": True,
             "message": "Signature approved",
             "unid": unid
         }
-    
+
+    except DuplicateSignatureError as e:
+        await audit_service.log_signature_action(
+            partner_id=partner["partner_id"],
+            user_id=partner["ec_address"],
+            action="signature.approve",
+            tx_unid=unid,
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent"),
+            result="duplicate",
+            error_message=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "duplicate_signature", "message": str(e)},
+        )
+
     except ValueError as e:
-        # Log failed action
         await audit_service.log_signature_action(
             partner_id=partner["partner_id"],
             user_id=partner["ec_address"],
@@ -631,7 +668,7 @@ async def approve_signature(
             result="failure",
             error_message=str(e)
         )
-        
+
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error": "approval_failed", "message": str(e)}
@@ -668,14 +705,12 @@ async def reject_signature(
     partner = get_partner_from_request(request)
     
     try:
-        # Reject signature via Safina API
-        result = await signature_service.reject_signature(
-            unid=unid,
-            ec_address=partner["ec_address"],
-            reason=reject_data.reason
+        result = await signature_service.reject_transaction(
+            tx_unid=unid,
+            reason=reject_data.reason,
+            user_address=partner["ec_address"],
         )
-        
-        # Log action
+
         await audit_service.log_signature_action(
             partner_id=partner["partner_id"],
             user_id=partner["ec_address"],
@@ -685,8 +720,7 @@ async def reject_signature(
             user_agent=request.headers.get("user-agent"),
             result="success"
         )
-        
-        # Emit webhook event
+
         if webhook_service:
             await webhook_service.emit_event(
                 partner_id=partner["partner_id"],
@@ -698,14 +732,30 @@ async def reject_signature(
                     "rejected_at": datetime.now(timezone.utc).isoformat()
                 }
             )
-        
+
         return {
             "success": True,
             "message": "Signature rejected",
             "unid": unid,
             "reason": reject_data.reason
         }
-    
+
+    except DuplicateSignatureError as e:
+        await audit_service.log_signature_action(
+            partner_id=partner["partner_id"],
+            user_id=partner["ec_address"],
+            action="signature.reject",
+            tx_unid=unid,
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent"),
+            result="duplicate",
+            error_message=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "duplicate_signature", "message": str(e)},
+        )
+
     except ValueError as e:
         # Log failed action
         await audit_service.log_signature_action(

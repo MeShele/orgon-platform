@@ -11,72 +11,8 @@ router = APIRouter(prefix="/api/v1/compliance", tags=["Compliance"])
 async def get_compliance_service(pool = Depends(get_db_pool)) -> ComplianceService:
     return ComplianceService(pool)
 
-# ==================== KYC ====================
-
-@router.post("/kyc", status_code=status.HTTP_201_CREATED)
-async def create_kyc(
-    org_id: UUID, customer_name: str, customer_email: str,
-    id_type: str, id_number: str,
-    user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
-    service: ComplianceService = Depends(get_compliance_service)
-):
-    """Create KYC record."""
-    record = await service.create_kyc_record(
-        org_id, customer_name, customer_email, id_type, id_number, UUID(str(user['id']))
-    )
-    return record
-
-@router.get("/kyc")
-async def get_kyc_records(
-    org_id: UUID = Query(None),
-    status: Optional[str] = None,
-    limit: int = Query(50, le=100),
-    user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
-    service: ComplianceService = Depends(get_compliance_service)
-):
-    """Get KYC records."""
-    records = await service.get_kyc_records(org_id, status, limit)
-    return records
-
-@router.put("/kyc/{kyc_id}/status")
-async def update_kyc_status(
-    kyc_id: UUID, status: str, risk_level: Optional[str] = None,
-    user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
-    service: ComplianceService = Depends(get_compliance_service)
-):
-    """Approve/reject KYC."""
-    record = await service.update_kyc_status(kyc_id, status, UUID(str(user['id'])), risk_level)
-    if not record:
-        raise HTTPException(status_code=404, detail="KYC record not found")
-    return record
-
-# ==================== AML ====================
-
-@router.get("/aml/alerts")
-async def get_aml_alerts(
-    org_id: UUID = Query(None),
-    status: Optional[str] = None,
-    limit: int = Query(50, le=100),
-    user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
-    service: ComplianceService = Depends(get_compliance_service)
-):
-    """Get AML alerts."""
-    alerts = await service.get_aml_alerts(org_id, status, limit)
-    return alerts
-
-@router.put("/aml/alerts/{alert_id}/resolve")
-async def resolve_aml_alert(
-    alert_id: UUID, resolution: str,
-    user: dict = Depends(require_roles("company_admin", "platform_admin", "company_auditor")),
-    service: ComplianceService = Depends(get_compliance_service)
-):
-    """Resolve AML alert."""
-    alert = await service.update_aml_alert_status(
-        alert_id, "resolved", resolution, UUID(str(user['id']))
-    )
-    if not alert:
-        raise HTTPException(status_code=404, detail="AML alert not found")
-    return alert
+# KYC and AML endpoints are served by routes_kyc_kyb (mounted at /api/v1/kyc-kyb/*).
+# This module keeps only the report-generation endpoints, which are unique to it.
 
 # ==================== Reports ====================
 

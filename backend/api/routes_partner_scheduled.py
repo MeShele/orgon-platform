@@ -217,13 +217,14 @@ async def list_scheduled_transactions(
     **Returns:** List of scheduled transactions.
     """
     partner = get_partner_from_request(request)
-    
-    # Get scheduled transactions
-    # TODO: Filter by partner_id
+    from backend.api.routes_partner import _partner_org_ids  # local import — avoid cycle
+    org_ids = await _partner_org_ids(request, partner)
+
     scheduled_txs = await scheduled_tx_service.list_scheduled_transactions(
         status=status_filter,
         limit=limit,
-        offset=offset
+        offset=offset,
+        org_ids=org_ids,
     )
     
     transactions = [
@@ -272,17 +273,18 @@ async def get_scheduled_transaction(
     **Returns:** Scheduled transaction details.
     """
     partner = get_partner_from_request(request)
-    
-    tx = await scheduled_tx_service.get_scheduled_transaction(tx_id)
-    
+    from backend.api.routes_partner import _partner_org_ids
+    org_ids = await _partner_org_ids(request, partner)
+
+    tx = await scheduled_tx_service.get_scheduled_transaction(tx_id, org_ids=org_ids)
+
     if not tx:
+        # 404 also when row exists in a different org — no cross-tenant leak.
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": f"Scheduled transaction {tx_id} not found"}
         )
-    
-    # TODO: Verify partner owns this transaction
-    
+
     return ScheduledTransactionResponse(
         id=str(tx["id"]),
         wallet_name=tx.get("token", "").split("###")[-1] if "###" in tx.get("token", "") else "unknown",
@@ -321,20 +323,18 @@ async def cancel_scheduled_transaction(
     **Returns:** 204 No Content on success.
     """
     partner = get_partner_from_request(request)
-    
-    # Get transaction first to verify ownership
-    tx = await scheduled_tx_service.get_scheduled_transaction(tx_id)
-    
+    from backend.api.routes_partner import _partner_org_ids
+    org_ids = await _partner_org_ids(request, partner)
+
+    tx = await scheduled_tx_service.get_scheduled_transaction(tx_id, org_ids=org_ids)
+
     if not tx:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": f"Scheduled transaction {tx_id} not found"}
         )
-    
-    # TODO: Verify partner owns this transaction
-    
-    # Cancel transaction
-    success = await scheduled_tx_service.cancel_scheduled_transaction(tx_id)
+
+    success = await scheduled_tx_service.cancel_scheduled_transaction(tx_id, org_ids=org_ids)
     
     if not success:
         raise HTTPException(

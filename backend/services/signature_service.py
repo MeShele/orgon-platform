@@ -4,12 +4,18 @@ import logging
 from typing import Optional
 from datetime import datetime, timezone
 
+import asyncpg
+
 from backend.safina.client import SafinaPayClient
 from backend.safina.models import PendingSignature, Transaction
 from backend.database.db_postgres import AsyncDatabase
 from backend.events.manager import get_event_manager, EventType
 
 logger = logging.getLogger("orgon.services.signature")
+
+
+class DuplicateSignatureError(Exception):
+    """Raised when a signer tries to sign or reject the same tx twice."""
 
 
 class SignatureService:
@@ -86,16 +92,37 @@ class SignatureService:
             tx_unid, user_address
         )
 
+        # Replay guard: refuse if this signer already has a 'signed' or
+        # 'rejected' row for this tx. We check before calling Safina so a
+        # replayed request is a cheap 409, not a Safina round-trip.
+        prior = await self._db.fetchrow(
+            """SELECT action FROM signature_history
+                WHERE tx_unid = $1 AND signer_address = $2
+                  AND action IN ('signed', 'rejected')
+                LIMIT 1""",
+            params=(tx_unid, user_address),
+        )
+        if prior:
+            raise DuplicateSignatureError(
+                f"Signer {user_address} already {prior['action']} tx {tx_unid}"
+            )
+
         try:
             result = await self._client.sign_transaction(tx_unid)
 
-            # Record signature in local DB
-            await self._db.execute(
-                """INSERT INTO signature_history
-                   (tx_unid, signer_address, action, signed_at)
-                   VALUES ($1, $2, $3, $4)""",
-                (tx_unid, user_address, "signed", datetime.now(timezone.utc))
-            )
+            # Record signature — UNIQUE index on (tx_unid, signer, action)
+            # is the second line of defense against a race-condition replay.
+            try:
+                await self._db.execute(
+                    """INSERT INTO signature_history
+                       (tx_unid, signer_address, action, signed_at)
+                       VALUES ($1, $2, $3, $4)""",
+                    (tx_unid, user_address, "signed", datetime.now(timezone.utc))
+                )
+            except asyncpg.UniqueViolationError as exc:
+                raise DuplicateSignatureError(
+                    f"Signer {user_address} already signed tx {tx_unid}"
+                ) from exc
 
             # Check if transaction is now complete
             status = await self.get_signature_status(tx_unid)
@@ -142,22 +169,39 @@ class SignatureService:
             tx_unid, user_address, reason or "not provided"
         )
 
+        # Same replay guard as sign_transaction.
+        prior = await self._db.fetchrow(
+            """SELECT action FROM signature_history
+                WHERE tx_unid = $1 AND signer_address = $2
+                  AND action IN ('signed', 'rejected')
+                LIMIT 1""",
+            params=(tx_unid, user_address),
+        )
+        if prior:
+            raise DuplicateSignatureError(
+                f"Signer {user_address} already {prior['action']} tx {tx_unid}"
+            )
+
         try:
             result = await self._client.reject_transaction(tx_unid, reason)
 
-            # Record rejection in local DB
-            await self._db.execute(
-                """INSERT INTO signature_history
-                   (tx_unid, signer_address, action, reason, signed_at)
-                   VALUES ($1, $2, $3, $4, $5)""",
-                (
-                    tx_unid,
-                    user_address,
-                    "rejected",
-                    reason,
-                    datetime.now(timezone.utc)
+            try:
+                await self._db.execute(
+                    """INSERT INTO signature_history
+                       (tx_unid, signer_address, action, reason, signed_at)
+                       VALUES ($1, $2, $3, $4, $5)""",
+                    (
+                        tx_unid,
+                        user_address,
+                        "rejected",
+                        reason,
+                        datetime.now(timezone.utc)
+                    )
                 )
-            )
+            except asyncpg.UniqueViolationError as exc:
+                raise DuplicateSignatureError(
+                    f"Signer {user_address} already rejected tx {tx_unid}"
+                ) from exc
 
             # Notify rejection
             await self._notify_transaction_rejected(tx_unid, user_address, reason)

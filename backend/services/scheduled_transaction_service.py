@@ -102,51 +102,79 @@ class ScheduledTransactionService:
         
         return int(tx_id) if tx_id else 0
     
-    async def get_scheduled_transaction(self, tx_id: int) -> Optional[dict]:
-        """Get scheduled transaction by ID."""
-        row = await self._db.fetchrow("SELECT * FROM scheduled_transactions WHERE id = $1", params=(tx_id,)
+    async def get_scheduled_transaction(
+        self,
+        tx_id: int,
+        org_ids: Optional[list] = None,
+    ) -> Optional[dict]:
+        """Get scheduled transaction by ID, scoped to org_ids when provided.
+
+        Returns None when the row exists but is outside the caller's tenancy.
+        """
+        row = await self._db.fetchrow(
+            "SELECT * FROM scheduled_transactions WHERE id = $1",
+            params=(tx_id,),
         )
-        return dict(row) if row else None
-    
+        if not row:
+            return None
+        if org_ids is not None:
+            if not org_ids or row.get("organization_id") not in org_ids:
+                return None
+        return dict(row)
+
     async def list_scheduled_transactions(
         self,
         status: Optional[str] = None,
-        limit: int = 50
+        limit: int = 50,
+        offset: int = 0,
+        org_ids: Optional[list] = None,
     ) -> list[dict]:
-        """
-        List scheduled transactions with optional filtering.
-        
-        Args:
-            status: Filter by status (pending, sent, failed, cancelled)
-            limit: Maximum number of results
-        
-        Returns:
-            List of scheduled transactions
-        """
-        query = "SELECT * FROM scheduled_transactions"
-        params = []
-        
+        """List scheduled transactions, scoped to org_ids when provided."""
+        if org_ids is not None and not org_ids:
+            return []
+
+        conditions: list[str] = []
+        params: list = []
+        idx = 1
+
         if status:
-            query += " WHERE status = $1"
+            conditions.append(f"status = ${idx}")
             params.append(status)
-            query += " ORDER BY scheduled_at DESC LIMIT $2"
-        else:
-            query += " ORDER BY scheduled_at DESC LIMIT $1"
-        
-        params.append(limit)
-        
+            idx += 1
+
+        if org_ids is not None:
+            placeholders = ", ".join(f"${idx + i}" for i in range(len(org_ids)))
+            conditions.append(f"organization_id IN ({placeholders})")
+            params.extend(org_ids)
+            idx += len(org_ids)
+
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        query = (
+            f"SELECT * FROM scheduled_transactions{where}"
+            f" ORDER BY scheduled_at DESC LIMIT ${idx} OFFSET ${idx + 1}"
+        )
+        params.extend([limit, offset])
+
         rows = await self._db.fetch(query, params=tuple(params))
         return [dict(row) for row in rows]
-    
-    async def cancel_scheduled_transaction(self, tx_id: int) -> bool:
-        """Cancel a pending scheduled transaction."""
+
+    async def cancel_scheduled_transaction(
+        self,
+        tx_id: int,
+        org_ids: Optional[list] = None,
+    ) -> bool:
+        """Cancel a pending scheduled transaction, only if visible to org_ids."""
+        if org_ids is not None:
+            existing = await self.get_scheduled_transaction(tx_id, org_ids=org_ids)
+            if not existing:
+                return False
         await self._db.execute(
             """UPDATE scheduled_transactions
                SET status = 'cancelled', updated_at = $1
                WHERE id = $2 AND status = 'pending'""",
             (datetime.now(timezone.utc), tx_id)
         )
-        
+
         logger.info("Scheduled transaction cancelled: id=%s", tx_id)
         return True
     

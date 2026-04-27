@@ -139,6 +139,7 @@ async def sign_transaction(tx_unid: str, user_address: str | None = None, user: 
     Returns:
         Success confirmation
     """
+    from backend.services.signature_service import DuplicateSignatureError
     service = _get_signature_service()
     try:
         result = await service.sign_transaction(tx_unid, user_address)
@@ -147,6 +148,8 @@ async def sign_transaction(tx_unid: str, user_address: str | None = None, user: 
             "message": f"Transaction {tx_unid} signed successfully",
             "result": result
         }
+    except DuplicateSignatureError as e:
+        raise HTTPException(status_code=409, detail={"error": "duplicate_signature", "message": str(e)})
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:
@@ -174,6 +177,7 @@ async def reject_transaction(
     Returns:
         Success confirmation
     """
+    from backend.services.signature_service import DuplicateSignatureError
     service = _get_signature_service()
     try:
         result = await service.reject_transaction(
@@ -186,6 +190,8 @@ async def reject_transaction(
             "message": f"Transaction {tx_unid} rejected",
             "result": result
         }
+    except DuplicateSignatureError as e:
+        raise HTTPException(status_code=409, detail={"error": "duplicate_signature", "message": str(e)})
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:

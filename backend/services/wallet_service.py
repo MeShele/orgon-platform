@@ -67,40 +67,60 @@ class WalletService:
         
         return wallets
 
-    async def count_wallets(self, network_id: int | None = None) -> int:
+    async def count_wallets(
+        self,
+        network_id: int | None = None,
+        org_ids: list | None = None,
+    ) -> int:
+        """Count wallets, optionally filtered by network and/or organization scope.
+
+        `org_ids=None` means "no scoping" (super_admin / internal). An empty
+        list means the caller has no organizations and the count is 0.
         """
-        Count total wallets with optional network filter.
-        
-        Args:
-            network_id: Optional network filter
-            
-        Returns:
-            Total count of wallets
-        """
+        if org_ids is not None and not org_ids:
+            return 0
+
+        conditions: list[str] = []
+        params: list = []
+        idx = 1
+
         if network_id is not None:
-            query = "SELECT COUNT(*) FROM wallets WHERE network_id = $1"
-            result = await self._db.fetchrow(query, params=(network_id,))
-        else:
-            query = "SELECT COUNT(*) FROM wallets"
-            result = await self._db.fetchrow(query)
-        
+            conditions.append(f"network_id = ${idx}")
+            params.append(network_id)
+            idx += 1
+
+        if org_ids is not None:
+            placeholders = ", ".join(f"${idx + i}" for i in range(len(org_ids)))
+            conditions.append(f"organization_id IN ({placeholders})")
+            params.extend(org_ids)
+            idx += len(org_ids)
+
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        query = f"SELECT COUNT(*) FROM wallets{where}"
+        result = await self._db.fetchrow(query, params=tuple(params))
         return result["count"] if result else 0
-    
-    async def get_wallet_by_name(self, name: str) -> dict | None:
-        """
-        Get wallet from local database by name.
-        
-        Args:
-            name: Wallet name
-            
-        Returns:
-            Wallet dictionary or None if not found
+
+    async def get_wallet_by_name(
+        self,
+        name: str,
+        org_ids: list | None = None,
+    ) -> dict | None:
+        """Get wallet by name, optionally enforcing organization scope.
+
+        If `org_ids` is provided and the wallet's organization_id is not in
+        the list, returns None — same as if it didn't exist (avoids leaking
+        existence to a tenant that shouldn't see it).
         """
         wallet = await self._db.fetchrow(
             "SELECT * FROM wallets WHERE name = $1",
             params=(name,)
         )
-        return dict(wallet) if wallet else None
+        if not wallet:
+            return None
+        if org_ids is not None:
+            if not org_ids or wallet.get("organization_id") not in org_ids:
+                return None
+        return dict(wallet)
 
     async def get_wallet(self, name: str) -> dict | None:
         """Get wallet details from Safina + local DB."""

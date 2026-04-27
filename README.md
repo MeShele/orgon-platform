@@ -20,14 +20,16 @@ support          support@orgon.asystem.kg
 | Layer | What's wired | What's not yet |
 |---|---|---|
 | Auth | JWT + refresh + 2FA-ready, role hierarchy with legacy mapping | webhook-based JWT rotation |
-| Multi-tenancy | service-layer tenant context (`set_tenant_context`) | RLS policies have known SQL bugs in migration `005`; isolation is enforced at the Python layer until a follow-up migration |
-| Multi-signature | thresholds and signing flow live in Safina; ORGON records each step in `signature_history` (append-only via trigger from migration `015`) | local canonical-payload verification + nonce/timestamp replay protection — planned |
-| Compliance | KYC/KYB submission + admin review queue; AML alert table | regulator export (CSV/JSON) |
+| Multi-tenancy | service-layer tenant context (`set_tenant_context`) **and** Postgres RLS — migration `016` re-creates the policies that the buggy `005` failed to install, ENABLE+FORCE on `wallets` / `transactions` / `signatures` / `contacts` / `scheduled_transactions` / `audit_logs` | shared Coolify postgres serves both prod and preview — preview-DB split is on the runbook |
+| Multi-signature | thresholds and signing flow live in Safina; ORGON records each step in `signature_history` (append-only via trigger from migration `015`); replay/double-sign blocked at the application layer + UNIQUE index from migration `018` (409 Conflict on second attempt by the same signer) | full canonical-payload signature verification (currently we trust Safina's response); HMAC nonce/timestamp window in `middleware_b2b` |
+| Compliance | KYC/KYB submission + admin review queue (canonical at `/api/v1/kyc-kyb/*`); AML alert table; deduped — old `/api/v1/compliance/kyc` and `/api/auth/users` routes removed | regulator export (CSV/JSON) |
 | Audit log | append-only via migration `015` (UPDATE/DELETE blocked) | retention policy + cold storage |
-| Frontend | Crimson Ledger v2 design (light + composed dark), public marketing + 4 main authenticated screens | 25+ rest-of-app pages still on legacy density |
+| Frontend | Crimson Ledger v2 design — every page under `(authenticated)/*` and every public landing page now uses semantic tokens (no slate/blue/indigo hardcodes); mobile drawer for authenticated nav; inline `LogoWordmark`; shadcn-style Dialog primitives replacing Aceternity in Contacts | desktop sidebar still uses the Aceternity context API (functional, not visually problematic) |
+| Partner API | every endpoint in `routes_partner*.py` scopes by org via the new `partners.organization_id` link (migration `017`); cross-tenant lookup returns 404, not the row | partner-scoped analytics + address book (`AddressBookService` methods missing — broken endpoint, deferred) |
 | i18n | RU primary, EN parity, KY for navigation/dashboard | full KY parity for `landing.*`, `compliance.*` |
-| Security | rate-limit on auth (5/min/IP), CORS whitelist, no stack-trace leak in 500s, monitoring/debug routes admin-gated | RLS in Postgres, partner-id scoping in B2B API (work in progress) |
-| Deploy | Coolify on `asystem-proxmox` (10.30.30.132), nginx on `hetzner-ax41` + Cloudflare DNS | GitHub→Coolify webhook (manual `curl` deploy for now) |
+| Security | rate-limit on auth (5/min/IP), CORS whitelist, no stack-trace leak in 500s, monitoring/debug routes admin-gated; RLS active; partner-id scoping enforced | HMAC replay protection at middleware layer |
+| CI/CD | GitHub Actions: backend compile + migration replay against postgres:16 + pytest unit; frontend tsc + eslint + build; Playwright chromium smoke. `deploy.yml` curls Coolify deploy hooks on green CI for `main` / `preview-ready`. Nightly `pg_dump` script + retention | preview-DB separation, off-site backup mirror |
+| Deploy | Coolify on `asystem-proxmox` (10.30.30.132), nginx on `hetzner-ax41` + Cloudflare DNS; GitHub→Coolify deploy hooks via `.github/workflows/deploy.yml` | — |
 
 > Honest baseline. Anything not listed is not yet implemented — please don't
 > sell what isn't here.
@@ -92,7 +94,7 @@ backend/                      FastAPI app
   api/routes_*.py             routers grouped by domain
   services/                   business logic, Safina client, signature flow
   database/                   asyncpg pool, schema migrations under database/migrations/
-  migrations/                 multi-tenancy + RLS + seed migrations (001..015)
+  migrations/                 multi-tenancy + RLS + seed migrations (001..018)
   rbac.py                     role hierarchy + require_roles dependency
   middleware/                 LoginRateLimit, security headers
   api/middleware*.py          CORS, RLS context, auth, B2B partner-key
@@ -116,6 +118,8 @@ config/orgon.yaml             backend runtime config (read by backend/config.py)
 
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — actual stack, auth flow, multi-sig flow with honest disclaimers
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Coolify API procedures, redeploy, rollback, log access
+- [`CI-CD.md`](CI-CD.md) — GitHub Actions pipeline, secrets, deploy hooks, backup runbook
+- [`CHANGELOG.md`](CHANGELOG.md) — what shipped, sprint-by-sprint
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — branch strategy, PR process, tests
 - [`API.md`](API.md) — points at live Swagger / ReDoc
 - [`AGENTS.md`](AGENTS.md) — guidance for AI assistants working on the repo

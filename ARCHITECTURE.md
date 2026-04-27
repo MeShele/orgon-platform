@@ -93,15 +93,27 @@ detailed health, monitoring, billing admin actions).
   `organizations` with a per-org role.
 - Frontend sends `X-Organization-ID` on every request.
 - `RLSMiddleware` reads the header, validates the user belongs to that org,
-  and sets two Postgres session variables: `app.current_tenant` and
-  `app.is_super_admin`.
+  and sets two Postgres session variables: `app.current_organization_id`
+  and `app.is_super_admin`.
 - Service layer (`backend/services/*`) filters by `organization_id` in
-  every query that reads tenant-scoped data.
+  every query that reads tenant-scoped data — defense in depth.
+- **Database-level RLS is now active**: migration `016_fix_rls_policies.sql`
+  re-creates the policies that the buggy `005` failed to install (the
+  original had mismatched quotes around `current_setting('app.is_super_admin', true)`
+  on five of the six policies, so none of them were ever applied).
+  The new migration uses a `STABLE` SQL helper `orgon_current_org_or_super()`
+  and runs `ENABLE ROW LEVEL SECURITY` plus `FORCE ROW LEVEL SECURITY` on
+  `wallets`, `transactions`, `signatures`, `contacts`, `scheduled_transactions`,
+  `audit_logs`. A `DO $$ … $$` block at the end of the migration verifies
+  every policy was created — the migration aborts loudly if any policy is
+  missing.
 
-**RLS policies in migration `005_enable_rls_policies.sql` have known SQL
-syntax bugs** (mismatched quotes around `current_setting('app.is_super_admin', true)`).
-RLS is therefore not active at the database level — only the service layer
-enforces isolation. Fixing this is a planned migration.
+For B2B partners the link is migration `017_partner_org_link.sql`:
+`partners.organization_id` (nullable) ties an API-key principal to one
+organization, and `routes_partner*.py` resolves it via
+`_partner_org_ids(...)` before passing into the service layer's
+`org_ids=[…]` filter. A partner whose row has no `organization_id` sees
+nothing — that's the safe default.
 
 ### Multi-signature — actual implementation
 
@@ -113,10 +125,21 @@ enforces isolation. Fixing this is a planned migration.
   `signer_address`, `action`, `signed_at`).
 - When threshold reached, Safina broadcasts to chain.
 
-**ORGON does not currently verify signature payloads locally.** It trusts
-Safina's response. Replay protection (canonical payload hash + nonce +
-timestamp) is `(planned)`. For institutional deployments this needs to land
-before going live.
+**Replay / double-sign protection is enforced.** Migration `018` adds a
+`UNIQUE INDEX (tx_unid, signer_address, action)` on `signature_history`
+(partial — `WHERE signer_address IS NOT NULL`, so older system rows are
+exempt). `SignatureService.sign_transaction` and `reject_transaction`
+check for an existing row from the same signer **before** the Safina
+round-trip and raise `DuplicateSignatureError`, which the API surfaces as
+`409 Conflict`. The UNIQUE index is the second line of defence against
+race-condition replays.
+
+**ORGON does not currently verify signature payloads locally.** It still
+trusts Safina's response on the cryptographic side; full canonical-payload
+verification (hash of `tx_unid + network + value + to_address` checked
+against the EC-recovered signer) is on the next-sprint list. The
+HMAC-layer replay window in `middleware_b2b` (nonce + timestamp
+±5 min) is also not yet wired.
 
 ### Append-only audit
 
@@ -187,8 +210,10 @@ Coolify env vars (Coolify UI / API): `DATABASE_URL`, `JWT_SECRET_KEY`,
 `SAFINA_EC_PRIVATE_KEY`, `NEXT_PUBLIC_API_URL`. `.env` files in repo are
 **not** the source of truth for production — Coolify is.
 
-Backups: weekly `pg_dump` to `/backup/orgon-YYYY-MM-DD.sql.gz` `(planned —
-cron not yet wired)`.
+Backups: nightly `pg_dump` via [`scripts/backup_pg.sh`](scripts/backup_pg.sh)
+to `/var/backups/orgon/orgon-<utc-timestamp>.sql.gz`, retained 14 days.
+Wiring instructions live in [`CI-CD.md`](CI-CD.md#backups). The script is
+in repo; the cron entry on `asystem-proxmox` is the host-side step.
 
 ---
 

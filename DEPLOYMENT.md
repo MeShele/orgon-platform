@@ -41,8 +41,11 @@ Coolify builds the container from `git pull origin <branch>` + `docker build`.
 A Next.js full build is ~3–5 minutes; a Python build is ~1–2 minutes (most
 of which is `pip install`).
 
-GitHub → Coolify webhook is **not yet wired**, so a `git push` alone does
-nothing — you have to call the API. Setup is in CONTRIBUTING.md.
+GitHub Actions now triggers Coolify automatically on green CI for `main`
+and `preview-ready` — see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+and [`CI-CD.md`](CI-CD.md). The manual `curl` above stays useful for
+out-of-band redeploys (e.g. when the runner can't reach `c.asystem.kg`)
+and for branches outside the deploy mapping.
 
 ---
 
@@ -133,11 +136,16 @@ migration that adds a constraint or trigger).
 
 ## Backups
 
-Recommended (not yet wired): weekly `pg_dump` cron on coolify host →
-`/backup/orgon-YYYY-MM-DD.sql.gz`, retain 8 weeks, sync to off-site
-(Hetzner Storage Box or B2). See `CONTRIBUTING.md` for the implementation plan.
+The repo ships [`scripts/backup_pg.sh`](scripts/backup_pg.sh) — `pg_dump`
+piped through gzip, with mtime-based retention. Drop it in
+`/opt/orgon/scripts/` on the proxmox host and add a cron entry as
+described in [`CI-CD.md`](CI-CD.md#backups).
 
-To take a manual backup right now:
+Default behaviour: `/var/backups/orgon/orgon-<utc-timestamp>.sql.gz`,
+retain 14 days, refuse to keep dumps under 4 KiB (so a partial run can't
+silently age out the good copies).
+
+To take a manual one-off backup right now:
 
 ```bash
 ssh asystem-proxmox 'docker exec coolify-postgres-... pg_dump -U orgon -F c orgon \

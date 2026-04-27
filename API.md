@@ -43,7 +43,12 @@ Login is rate-limited to **5 attempts/min per IP** (`/api/auth/login`,
 
 Every authenticated request must include `X-Organization-ID: <uuid>` to scope
 the response to one organization. The middleware verifies the user belongs
-to that org before forwarding.
+to that org before forwarding it on as the Postgres session settings
+`app.current_organization_id` and `app.is_super_admin`. RLS policies
+(migration `016`) then enforce isolation at the database level on
+`wallets`, `transactions`, `signatures`, `contacts`,
+`scheduled_transactions`, `audit_logs`. The service layer also filters by
+`org_ids=[…]` — defense in depth.
 
 ---
 
@@ -51,8 +56,36 @@ to that org before forwarding.
 
 `/api/v1/partner/*` endpoints accept `X-Partner-API-Key: <key>` instead of a
 Bearer token. Partner keys are issued via the Coolify-side admin tooling
-(not exposed in UI yet); they are tier-rate-limited (`PartnerRateLimit`
-middleware).
+(not exposed in UI yet); they are tier-rate-limited
+(`PartnerRateLimitMiddleware`).
+
+Partner-org scoping (migration `017_partner_org_link.sql`):
+`partners.organization_id` ties one API-key principal to one organization.
+Every list/get/cancel call in `routes_partner*.py` resolves this via
+`_partner_org_ids(...)` and passes `org_ids=[…]` into the service layer;
+cross-tenant lookups return `404`, never the row from another org.
+A partner row with `organization_id IS NULL` sees nothing — that's the
+safe default for un-onboarded keys.
+
+---
+
+## Multi-signature endpoints
+
+`POST /api/v1/partner/transactions/{unid}/sign` and
+`POST /api/signatures/{tx_unid}/sign` now refuse double-sign / replay
+attempts:
+
+| Status | Body                                                              | When |
+|--------|-------------------------------------------------------------------|------|
+| 200    | `{ ok: true, … }`                                                 | first time this signer signs this tx |
+| 409    | `{ error: "duplicate_signature", message: "…already signed…" }`   | replay or retry — same `(tx_unid, signer, action)` row already exists |
+| 502    | `{ detail: "..." }`                                               | Safina round-trip failed                  |
+
+Implementation: SignatureService checks `signature_history` for an
+existing row from `(tx_unid, signer_address)` with `action IN ('signed',
+'rejected')` **before** touching Safina. The DB-side guarantee is the
+partial UNIQUE index from migration `018`
+(`uniq_sig_history_tx_signer_action`).
 
 ---
 

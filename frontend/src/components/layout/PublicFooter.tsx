@@ -5,6 +5,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Eyebrow, Mono } from "@/components/ui/primitives";
+import { LogoWordmark } from "@/components/ui/LogoWordmark";
 
 const COL_PRODUCT = [
   { href: "/features", label: "Возможности" },
@@ -32,13 +33,10 @@ export function PublicFooter() {
   return (
     <footer className="border-t border-border bg-card">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-12 lg:py-16">
-        {/* Brand top */}
-        <Link href="/" className="inline-flex items-center gap-3 text-foreground mb-10">
-          <Image src="/orgon-icon.png" alt="ORGON" width={32} height={32} />
-          <div className="flex flex-col leading-tight">
-            <span className="font-mono text-[10px] tracking-[0.18em] text-faint">ASYSTEM</span>
-            <span className="font-medium text-[15px] tracking-[0.06em]">ORGON</span>
-          </div>
+        {/* Brand top — icon + inline wordmark (currentColor inherits text-foreground) */}
+        <Link href="/" className="inline-flex items-center gap-4 text-foreground mb-10 group">
+          <Image src="/orgon-icon.png" alt="" width={32} height={32} aria-hidden />
+          <LogoWordmark height={18} className="opacity-90 group-hover:opacity-100 transition-opacity" />
         </Link>
 
         {/* Top — link columns */}

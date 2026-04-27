@@ -153,7 +153,7 @@ export default function WebhooksPage() {
         {/* Modal */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-lg rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card">
+            <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card">
               <h2 className="text-lg font-bold text-foreground mb-4">Новый вебхук</h2>
               
               <div className="space-y-4">
@@ -164,7 +164,7 @@ export default function WebhooksPage() {
                     value={newUrl}
                     onChange={(e) => setNewUrl(e.target.value)}
                     placeholder="https://example.com/webhook"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted"
                   />
                 </div>
 

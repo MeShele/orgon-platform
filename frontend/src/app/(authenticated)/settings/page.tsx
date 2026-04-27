@@ -116,20 +116,20 @@ export default function SettingsPage() {
         {/* Quick navigation grid */}
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {[
-            { href: "/profile", label: "Профиль", icon: "solar:user-bold", color: "bg-blue-100 dark:bg-blue-900/30 text-primary" },
-            { href: "/settings", label: "Безопасность (2FA)", icon: "solar:shield-keyhole-bold", color: "bg-green-100 dark:bg-green-900/30 text-success", active: true },
-            { href: "/settings/keys", label: "API ключи", icon: "solar:key-bold", color: "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400" },
-            { href: "/settings/organization", label: "Организация", icon: "solar:buildings-bold", color: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" },
-            { href: "/settings/platform", label: "Платформа", icon: "solar:server-bold", color: "bg-indigo-100 dark:bg-indigo-900/30 text-primary dark:text-primary", admin: true },
-            { href: "/settings/webhooks", label: "Webhooks", icon: "solar:link-bold", color: "bg-pink-100 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400", admin: true },
-            { href: "/settings/system/monitoring", label: "Мониторинг", icon: "solar:monitor-bold", color: "bg-red-100 dark:bg-red-900/30 text-destructive", admin: true },
+            { href: "/profile", label: "Профиль", icon: "solar:user-bold", color: "bg-primary/10 text-primary" },
+            { href: "/settings", label: "Безопасность (2FA)", icon: "solar:shield-keyhole-bold", color: "bg-success/10 text-success", active: true },
+            { href: "/settings/keys", label: "API ключи", icon: "solar:key-bold", color: "bg-muted text-foreground" },
+            { href: "/settings/organization", label: "Организация", icon: "solar:buildings-bold", color: "bg-warning/10 text-warning" },
+            { href: "/settings/platform", label: "Платформа", icon: "solar:server-bold", color: "bg-primary/10 text-primary dark:text-primary", admin: true },
+            { href: "/settings/webhooks", label: "Webhooks", icon: "solar:link-bold", color: "bg-muted text-foreground", admin: true },
+            { href: "/settings/system/monitoring", label: "Мониторинг", icon: "solar:monitor-bold", color: "bg-destructive/10 text-destructive", admin: true },
           ].map((item) => (
             <a
               key={item.href}
               href={item.href}
               className={clsx(
-                "flex items-center gap-3 rounded-xl border border-border bg-white p-4 transition-all hover:shadow-md dark:border-border dark:bg-card",
-                item.active && "ring-2 ring-blue-500"
+                "flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-all hover:shadow-md dark:border-border dark:bg-card",
+                item.active && "ring-2 ring-primary"
               )}
             >
               <div className={clsx("rounded-lg p-2", item.color)}>
@@ -180,10 +180,10 @@ export default function SettingsPage() {
               />
               <div className="p-4 space-y-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-2xl font-bold">
+                  <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold">
                     {profile.fullName.charAt(0)}
                   </div>
-                  <button className="px-4 py-2 text-sm rounded-lg border border-slate-300 hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
+                  <button className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
                     {t('profile.changeAvatar')}
                   </button>
                 </div>
@@ -197,7 +197,7 @@ export default function SettingsPage() {
                       type="text"
                       value={profile.fullName}
                       onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
-                      className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     />
                   </div>
 
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                       type="email"
                       value={profile.email}
                       onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     />
                   </div>
 
@@ -221,7 +221,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <button className="px-4 py-2 text-sm rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors">
+                <button className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted transition-colors">
                   {t('profile.saveChanges')}
                 </button>
               </div>
@@ -247,7 +247,7 @@ export default function SettingsPage() {
                       onClick={() => setSecurity({ ...security, twoFactorEnabled: !security.twoFactorEnabled })}
                       className={clsx(
                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        security.twoFactorEnabled ? "bg-green-500" : "bg-slate-300 dark:bg-slate-700"
+                        security.twoFactorEnabled ? "bg-success" : "bg-muted"
                       )}
                     >
                       <span
@@ -265,19 +265,19 @@ export default function SettingsPage() {
                       <input
                         type="password"
                         placeholder={t('security.currentPassword')}
-                        className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                       />
                       <input
                         type="password"
                         placeholder={t('security.newPassword')}
-                        className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                       />
                       <input
                         type="password"
                         placeholder={t('security.confirmPassword')}
-                        className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                       />
-                      <button className="px-4 py-2 text-sm rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted">
+                      <button className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted">
                         {t('security.updatePassword')}
                       </button>
                     </div>
@@ -288,7 +288,7 @@ export default function SettingsPage() {
                     <p className="text-xs text-muted-foreground">
                       {security.activeSessions} {t('security.activeSessionsCount')}
                     </p>
-                    <button className="mt-2 text-xs text-red-600 hover:text-destructive">
+                    <button className="mt-2 text-xs text-destructive hover:text-destructive">
                       {t('security.logoutAllSessions')}
                     </button>
                   </div>
@@ -306,7 +306,7 @@ export default function SettingsPage() {
                 helpTips={helpContent.settings.apiKeys.tips}
               />
               <div className="p-4 space-y-4">
-                <button className="px-4 py-2 text-sm rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted">
+                <button className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted">
                   <Icon icon="solar:add-circle-linear" className="inline mr-2" />
                   {t('apiKeys.createNew')}
                 </button>
@@ -320,7 +320,7 @@ export default function SettingsPage() {
                       <div className="flex items-center justify-between">
                         <p className="text-sm font-medium text-foreground">{key.name}</p>
                         <div className="flex gap-2">
-                          <button className="text-xs text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white">
+                          <button className="text-xs text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground">
                             {t('apiKeys.revoke')}
                           </button>
                         </div>
@@ -363,7 +363,7 @@ export default function SettingsPage() {
                       onClick={() => setNotifications({ ...notifications, [item.key]: !notifications[item.key] })}
                       className={clsx(
                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        notifications[item.key] ? "bg-green-500" : "bg-slate-300 dark:bg-slate-700"
+                        notifications[item.key] ? "bg-success" : "bg-muted"
                       )}
                     >
                       <span
@@ -396,8 +396,8 @@ export default function SettingsPage() {
                       className={clsx(
                         "p-4 rounded-lg border-2 transition-all",
                         theme === themeOption
-                          ? "border-slate-900 dark:border-white"
-                          : "border-border hover:border-slate-300 dark:hover:border-border"
+                          ? "border-foreground"
+                          : "border-border hover:border-border dark:hover:border-border"
                       )}
                     >
                       <Icon
@@ -438,7 +438,7 @@ export default function SettingsPage() {
                     className={clsx(
                       "w-full flex items-center justify-between p-3 rounded-lg border transition-colors",
                       language === lang.code
-                        ? "border-slate-900 bg-muted dark:border-white dark:bg-muted"
+                        ? "border-foreground bg-muted"
                         : "border-border hover:bg-muted dark:border-border dark:hover:bg-muted"
                     )}
                   >
@@ -447,7 +447,7 @@ export default function SettingsPage() {
                       <p className="text-xs text-muted-foreground">{lang.name}</p>
                     </div>
                     {language === lang.code && (
-                      <Icon icon="solar:check-circle-bold" className="text-green-500" />
+                      <Icon icon="solar:check-circle-bold" className="text-success" />
                     )}
                   </button>
                 ))}
@@ -472,9 +472,9 @@ export default function SettingsPage() {
                         {limits.usedWallets} / {limits.maxWallets}
                       </p>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-muted rounded-full h-2">
+                    <div className="w-full bg-muted dark:bg-muted rounded-full h-2">
                       <div
-                        className="bg-blue-500 h-2 rounded-full transition-all"
+                        className="bg-primary h-2 rounded-full transition-all"
                         style={{ width: `${(limits.usedWallets / limits.maxWallets) * 100}%` }}
                       />
                     </div>
@@ -487,9 +487,9 @@ export default function SettingsPage() {
                         ${limits.usedVolume.toLocaleString()} / ${limits.maxMonthlyVolume.toLocaleString()}
                       </p>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-muted rounded-full h-2">
+                    <div className="w-full bg-muted dark:bg-muted rounded-full h-2">
                       <div
-                        className="bg-green-500 h-2 rounded-full transition-all"
+                        className="bg-success h-2 rounded-full transition-all"
                         style={{ width: `${(limits.usedVolume / limits.maxMonthlyVolume) * 100}%` }}
                       />
                     </div>
@@ -503,7 +503,7 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <button className="w-full px-4 py-2 text-sm rounded-lg border border-slate-300 hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
+                <button className="w-full px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
                   {t('limits.upgrade')}
                 </button>
               </div>
@@ -519,8 +519,8 @@ export default function SettingsPage() {
                 helpTips={helpContent.settings.backup.tips}
               />
               <div className="p-4 space-y-4">
-                <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
-                  <p className="text-sm text-blue-900 dark:text-blue-200">
+                <div className="p-4 rounded-lg bg-primary/5 border border-primary/30">
+                  <p className="text-sm text-foreground">
                     <Icon icon="solar:info-circle-bold" className="inline mr-2" />
                     {t('backup.description')}
                   </p>
@@ -574,8 +574,8 @@ export default function SettingsPage() {
               />
               <div className="p-4 space-y-4">
                 <div className="text-center py-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 mb-4">
-                    <span className="text-2xl font-bold text-white">O</span>
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary mb-4">
+                    <span className="text-2xl font-bold text-primary-foreground">O</span>
                   </div>
                   <h3 className="text-lg font-bold text-foreground">ORGON</h3>
                   <p className="text-sm text-muted-foreground">{t('about.version')}: 1.0.0-beta</p>

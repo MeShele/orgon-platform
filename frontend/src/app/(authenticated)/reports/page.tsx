@@ -17,15 +17,15 @@ interface Report {
 }
 
 const statusBadge: Record<string, { bg: string; text: string }> = {
-  available: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-success" },
-  pending: { bg: "bg-yellow-100 dark:bg-yellow-900/30", text: "text-warning" },
-  generating: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-primary" },
-  error: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-destructive" },
+  available: { bg: "bg-success/10", text: "text-success" },
+  pending: { bg: "bg-warning/10", text: "text-warning" },
+  generating: { bg: "bg-primary/10", text: "text-primary" },
+  error: { bg: "bg-destructive/10", text: "text-destructive" },
 };
 
 const typeBadge: Record<string, { bg: string; text: string; icon: string }> = {
-  financial: { bg: "bg-indigo-100 dark:bg-indigo-900/30", text: "text-primary dark:text-primary", icon: "solar:chart-bold" },
-  compliance: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-warning", icon: "solar:shield-check-bold" },
+  financial: { bg: "bg-primary/10", text: "text-primary dark:text-primary", icon: "solar:chart-bold" },
+  compliance: { bg: "bg-warning/10", text: "text-warning", icon: "solar:shield-check-bold" },
   tax: { bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-success", icon: "solar:document-text-bold" },
 };
 
@@ -60,7 +60,7 @@ export default function ReportsPage() {
           <div className={pageLayout.grid.cols3}>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2.5">
+                <div className="rounded-lg bg-primary/10 p-2.5">
                   <Icon icon="solar:document-bold" className="text-xl text-primary dark:text-primary" />
                 </div>
                 <div>
@@ -71,7 +71,7 @@ export default function ReportsPage() {
             </Card>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2.5">
+                <div className="rounded-lg bg-success/10 p-2.5">
                   <Icon icon="solar:check-circle-bold" className="text-xl text-success" />
                 </div>
                 <div>
@@ -82,8 +82,8 @@ export default function ReportsPage() {
             </Card>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2.5">
-                  <Icon icon="solar:clock-circle-bold" className="text-xl text-amber-600 dark:text-amber-400" />
+                <div className="rounded-lg bg-warning/10 p-2.5">
+                  <Icon icon="solar:clock-circle-bold" className="text-xl text-warning" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-foreground">{reports.filter(r => r.status === "pending" || r.status === "generating").length}</p>
@@ -119,7 +119,7 @@ export default function ReportsPage() {
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-1.5">
+                          <div className="rounded-lg bg-primary/10 p-1.5">
                             <Icon icon={type.icon} className="text-sm text-primary dark:text-primary" />
                           </div>
                           <p className="text-sm font-medium text-foreground">{r.title || r.id}</p>
@@ -159,7 +159,7 @@ export default function ReportsPage() {
                         <th className="px-4 py-3 text-xs font-medium text-muted-foreground">Действие</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-border">
                       {reports.map((r) => {
                         const type = typeBadge[r.type || ""] || typeBadge.financial;
                         const status = statusBadge[r.status || ""] || statusBadge.pending;
@@ -167,7 +167,7 @@ export default function ReportsPage() {
                           <tr key={r.id} className="hover:bg-muted dark:hover:bg-muted/50 transition-colors">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
-                                <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2">
+                                <div className="rounded-lg bg-primary/10 p-2">
                                   <Icon icon={type.icon} className="text-base text-primary dark:text-primary" />
                                 </div>
                                 <p className="text-sm font-medium text-foreground">{r.title || r.id}</p>
@@ -188,7 +188,7 @@ export default function ReportsPage() {
                             </td>
                             <td className="px-4 py-3">
                               {r.status === "available" && (
-                                <button className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 dark:bg-indigo-900/20 px-3 py-1.5 text-xs font-medium text-primary dark:text-primary hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors">
+                                <button className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 transition-colors">
                                   <Icon icon="solar:download-minimalistic-bold" className="text-sm" />
                                   Скачать
                                 </button>

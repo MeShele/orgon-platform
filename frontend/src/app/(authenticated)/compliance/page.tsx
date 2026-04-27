@@ -45,8 +45,8 @@ export default function CompliancePage() {
         <div className={pageLayout.grid.cols4}>
           <Card>
             <div className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2.5">
-                <Icon icon="solar:shield-warning-bold" className="text-xl text-amber-600 dark:text-amber-400" />
+              <div className="rounded-lg bg-warning/10 p-2.5">
+                <Icon icon="solar:shield-warning-bold" className="text-xl text-warning" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">0</p>
@@ -56,7 +56,7 @@ export default function CompliancePage() {
           </Card>
           <Card>
             <div className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2.5">
+              <div className="rounded-lg bg-success/10 p-2.5">
                 <Icon icon="solar:user-check-bold" className="text-xl text-success" />
               </div>
               <div>
@@ -67,7 +67,7 @@ export default function CompliancePage() {
           </Card>
           <Card>
             <div className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-blue-100 dark:bg-blue-900/30 p-2.5">
+              <div className="rounded-lg bg-primary/10 p-2.5">
                 <Icon icon="solar:document-text-bold" className="text-xl text-primary" />
               </div>
               <div>
@@ -78,7 +78,7 @@ export default function CompliancePage() {
           </Card>
           <Card>
             <div className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2.5">
+              <div className="rounded-lg bg-primary/10 p-2.5">
                 <Icon icon="solar:graph-up-bold" className="text-xl text-primary dark:text-primary" />
               </div>
               <div>
@@ -116,10 +116,10 @@ export default function CompliancePage() {
                 {/* Мобильные карточки */}
                 <div className="space-y-3 md:hidden">
                   {[
-                    { type: "Оператор обмена ВА", desc: "Фиат ↔ крипто обмен", capital: "400 000 ед.", tier: "Tier A", color: "bg-blue-100 dark:bg-blue-900/30 text-primary" },
-                    { type: "Оператор торговли ВА", desc: "Крипто-биржа", capital: "Повышенный", tier: "Tier B", color: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300" },
+                    { type: "Оператор обмена ВА", desc: "Фиат ↔ крипто обмен", capital: "400 000 ед.", tier: "Tier A", color: "bg-primary/10 text-primary" },
+                    { type: "Оператор торговли ВА", desc: "Крипто-биржа", capital: "Повышенный", tier: "Tier B", color: "bg-muted text-foreground" },
                     { type: "Кастодиан", desc: "Хранение ВА третьих лиц", capital: "По требованию", tier: "ASYSTEM", color: "bg-emerald-100 dark:bg-emerald-900/30 text-success dark:text-emerald-300" },
-                    { type: "Эмитент ВА", desc: "Выпуск токенов/стейблкоинов", capital: "По требованию", tier: "Tier C", color: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" },
+                    { type: "Эмитент ВА", desc: "Выпуск токенов/стейблкоинов", capital: "По требованию", tier: "Tier C", color: "bg-warning/10 text-warning" },
                   ].map((l) => (
                     <div key={l.type} className="rounded-lg border border-border p-3">
                       <div className="flex items-center justify-between mb-1">
@@ -142,19 +142,19 @@ export default function CompliancePage() {
                       </tr>
                     </thead>
                     <tbody className="text-foreground">
-                      <tr className="border-b border-slate-100 dark:border-border">
+                      <tr className="border-b border-border">
                         <td className="py-2 font-medium">Оператор обмена ВА</td>
                         <td className="py-2">Фиат ↔ крипто обмен</td>
                         <td className="py-2">400 000 единиц</td>
-                        <td className="py-2"><span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-primary rounded text-xs">Tier A</span></td>
+                        <td className="py-2"><span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">Tier A</span></td>
                       </tr>
-                      <tr className="border-b border-slate-100 dark:border-border">
+                      <tr className="border-b border-border">
                         <td className="py-2 font-medium">Оператор торговли ВА</td>
                         <td className="py-2">Крипто-биржа, листинг/делистинг</td>
                         <td className="py-2">Повышенный</td>
-                        <td className="py-2"><span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded text-xs">Tier B</span></td>
+                        <td className="py-2"><span className="px-2 py-0.5 bg-muted text-foreground rounded text-xs">Tier B</span></td>
                       </tr>
-                      <tr className="border-b border-slate-100 dark:border-border">
+                      <tr className="border-b border-border">
                         <td className="py-2 font-medium">Кастодиан</td>
                         <td className="py-2">Хранение ВА третьих лиц</td>
                         <td className="py-2">По требованию</td>
@@ -164,7 +164,7 @@ export default function CompliancePage() {
                         <td className="py-2 font-medium">Эмитент ВА</td>
                         <td className="py-2">Выпуск токенов/стейблкоинов</td>
                         <td className="py-2">По требованию</td>
-                        <td className="py-2"><span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded text-xs">Tier C</span></td>
+                        <td className="py-2"><span className="px-2 py-0.5 bg-warning/10 text-warning rounded text-xs">Tier C</span></td>
                       </tr>
                     </tbody>
                   </table>
@@ -211,8 +211,8 @@ export default function CompliancePage() {
                 <div className={pageLayout.grid.cols3}>
                   {[
                     { level: "Низкий риск", color: "bg-emerald-500", range: "0-30%", desc: "Автоматическое одобрение" },
-                    { level: "Средний риск", color: "bg-amber-500", range: "31-70%", desc: "Ручная проверка" },
-                    { level: "Высокий риск", color: "bg-red-500", range: "71-100%", desc: "Блокировка, подача SAR" },
+                    { level: "Средний риск", color: "bg-warning", range: "31-70%", desc: "Ручная проверка" },
+                    { level: "Высокий риск", color: "bg-destructive", range: "71-100%", desc: "Блокировка, подача SAR" },
                   ].map((r) => (
                     <div key={r.level} className="rounded-lg border border-border p-3">
                       <div className="flex items-center gap-2 mb-1">
@@ -284,7 +284,7 @@ export default function CompliancePage() {
                   { report: "Отчёт об объёмах транзакций", freq: "Квартальный", status: "Актуален", next: "Q2 2026", color: "bg-emerald-100 dark:bg-emerald-900/30 text-success dark:text-emerald-300" },
                   { report: "SAR (Подозрительная активность)", freq: "По необходимости", status: "Нет ожидающих", next: "—", color: "bg-emerald-100 dark:bg-emerald-900/30 text-success dark:text-emerald-300" },
                   { report: "Сегрегация активов клиентов", freq: "Квартальный", status: "Актуален", next: "Q2 2026", color: "bg-emerald-100 dark:bg-emerald-900/30 text-success dark:text-emerald-300" },
-                  { report: "Годовой аудит комплаенса", freq: "Годовой", status: "Запланирован", next: "Дек 2026", color: "bg-blue-100 dark:bg-blue-900/30 text-primary" },
+                  { report: "Годовой аудит комплаенса", freq: "Годовой", status: "Запланирован", next: "Дек 2026", color: "bg-primary/10 text-primary" },
                 ].map((r) => (
                   <div key={r.report} className="rounded-lg border border-border p-3">
                     <p className="text-sm font-medium text-foreground">{r.report}</p>
@@ -307,19 +307,19 @@ export default function CompliancePage() {
                     </tr>
                   </thead>
                   <tbody className="text-foreground">
-                    <tr className="border-b border-slate-100 dark:border-border">
+                    <tr className="border-b border-border">
                       <td className="py-2">Отчёт об объёмах транзакций</td>
                       <td className="py-2">Квартальный</td>
                       <td className="py-2"><span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-success dark:text-emerald-300 rounded text-xs">Актуален</span></td>
                       <td className="py-2">Q2 2026</td>
                     </tr>
-                    <tr className="border-b border-slate-100 dark:border-border">
+                    <tr className="border-b border-border">
                       <td className="py-2">SAR (Подозрительная активность)</td>
                       <td className="py-2">По необходимости</td>
                       <td className="py-2"><span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-success dark:text-emerald-300 rounded text-xs">Нет ожидающих</span></td>
                       <td className="py-2">—</td>
                     </tr>
-                    <tr className="border-b border-slate-100 dark:border-border">
+                    <tr className="border-b border-border">
                       <td className="py-2">Сегрегация активов клиентов</td>
                       <td className="py-2">Квартальный</td>
                       <td className="py-2"><span className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-success dark:text-emerald-300 rounded text-xs">Актуален</span></td>
@@ -328,7 +328,7 @@ export default function CompliancePage() {
                     <tr>
                       <td className="py-2">Годовой аудит комплаенса</td>
                       <td className="py-2">Годовой</td>
-                      <td className="py-2"><span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-primary rounded text-xs">Запланирован</span></td>
+                      <td className="py-2"><span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs">Запланирован</span></td>
                       <td className="py-2">Дек 2026</td>
                     </tr>
                   </tbody>

@@ -113,7 +113,7 @@ export default function OrganizationsPage() {
           
           <Link
             href="/organizations/new"
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted transition-colors"
           >
             <Icon icon="solar:add-circle-linear" />
             New Organization
@@ -126,9 +126,9 @@ export default function OrganizationsPage() {
             {[1, 2, 3].map((i) => (
               <Card key={i}>
                 <div className="p-4 space-y-3 animate-pulse">
-                  <div className="h-6 bg-slate-200 dark:bg-muted rounded" />
-                  <div className="h-4 bg-slate-200 dark:bg-muted rounded w-2/3" />
-                  <div className="h-4 bg-slate-200 dark:bg-muted rounded w-1/2" />
+                  <div className="h-6 bg-muted dark:bg-muted rounded" />
+                  <div className="h-4 bg-muted dark:bg-muted rounded w-2/3" />
+                  <div className="h-4 bg-muted dark:bg-muted rounded w-1/2" />
                 </div>
               </Card>
             ))}
@@ -146,7 +146,7 @@ export default function OrganizationsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {organizations.map((org) => (
               <Link key={org.id} href={`/organizations/${org.id}`}>
-                <Card className="h-full hover:border-slate-300 dark:hover:border-border transition-colors cursor-pointer">
+                <Card className="h-full hover:border-border dark:hover:border-border transition-colors cursor-pointer">
                   <div className="p-4 space-y-3">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-3">

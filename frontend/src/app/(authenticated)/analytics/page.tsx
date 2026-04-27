@@ -99,7 +99,7 @@ export default function AnalyticsPage() {
           {/* Days Filter Skeleton */}
           <div className="flex gap-2">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-10 w-16 bg-slate-700/50 rounded-lg animate-pulse" />
+              <div key={i} className="h-10 w-16 bg-muted/50 rounded-lg animate-pulse" />
             ))}
           </div>
 
@@ -129,7 +129,7 @@ export default function AnalyticsPage() {
       <>
         <Header title={t('title')} />
         <div className={pageLayout.container}>
-          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-border">
+          <div className="text-center py-12 bg-muted dark:bg-muted rounded-2xl border border-border">
             <div className="mb-4">
               <Icon icon="solar:danger-circle-linear" className="text-5xl text-destructive mx-auto" />
             </div>
@@ -171,8 +171,8 @@ export default function AnalyticsPage() {
                 onClick={() => setDays(d)}
                 className={`px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base ${
                   days === d
-                    ? "bg-blue-600 text-white dark:bg-blue-500"
-                    : "bg-gray-100 text-foreground hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                    ? "bg-primary text-primary-foreground dark:bg-primary"
+                    : "bg-muted text-foreground hover:bg-muted"
                 }`}
               >
                 {d}d
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
                   {data.wallet_summary.total}
                 </p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                 <Icon icon="solar:wallet-linear" className="text-2xl text-primary" />
               </div>
             </div>
@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
                   {data.signature_stats.total}
                 </p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-success/10 rounded-full flex items-center justify-center flex-shrink-0">
                 <Icon icon="solar:pen-linear" className="text-2xl text-success" />
               </div>
             </div>
@@ -235,7 +235,7 @@ export default function AnalyticsPage() {
               <span className="text-success">
                 {t('stats.signed')}: {data.signature_stats.signed}
               </span>
-              <span className="text-yellow-600 dark:text-yellow-400">
+              <span className="text-warning">
                 {t('stats.pending')}: {data.signature_stats.pending}
               </span>
             </div>
@@ -256,8 +256,8 @@ export default function AnalyticsPage() {
                   {data.token_distribution.length}
                 </p>
               </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                <Icon icon="solar:dollar-minimalistic-linear" className="text-2xl text-purple-600 dark:text-purple-400" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                <Icon icon="solar:dollar-minimalistic-linear" className="text-2xl text-foreground" />
               </div>
             </div>
             <div className="mt-4 text-xs sm:text-sm text-muted-foreground">

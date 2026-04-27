@@ -143,8 +143,8 @@ export default function PartnerPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
-                  : "text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                  ? "bg-white text-foreground shadow-sm dark:bg-muted"
+                  : "text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
               }`}
             >
               <Icon icon={tab.icon} className="text-base" />
@@ -168,7 +168,7 @@ export default function PartnerPage() {
               <Card>
                 <div className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-blue-100 p-2.5 dark:bg-blue-900/30">
+                    <div className="rounded-lg bg-primary/10 p-2.5">
                       <Icon icon="solar:chart-bold" className="text-xl text-primary" />
                     </div>
                     <div>
@@ -181,7 +181,7 @@ export default function PartnerPage() {
               <Card>
                 <div className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-green-100 p-2.5 dark:bg-green-900/30">
+                    <div className="rounded-lg bg-success/10 p-2.5">
                       <Icon icon="solar:pie-chart-bold" className="text-xl text-success" />
                     </div>
                     <div>
@@ -194,8 +194,8 @@ export default function PartnerPage() {
               <Card>
                 <div className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-amber-100 p-2.5 dark:bg-amber-900/30">
-                      <Icon icon="solar:tag-price-bold" className="text-xl text-amber-600 dark:text-amber-400" />
+                    <div className="rounded-lg bg-warning/10 p-2.5">
+                      <Icon icon="solar:tag-price-bold" className="text-xl text-warning" />
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-foreground">{fees?.total_fees ?? "—"}</p>
@@ -211,7 +211,7 @@ export default function PartnerPage() {
                   <h4 className="mb-3 font-semibold text-foreground">Детали объёма</h4>
                   <div className="space-y-2">
                     {volume.data.map((item: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-border last:border-0">
+                      <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                         <span className="text-sm text-muted-foreground">{item.network_name || `Network ${item.network_id}`}</span>
                         <div className="text-right">
                           <span className="text-sm font-medium text-foreground">{item.tx_count} tx</span>

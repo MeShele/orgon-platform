@@ -135,7 +135,7 @@ export default function KycPage() {
       </div>
 
       {/* Current Status */}
-      <div className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card">
+      <div className="rounded-xl border border-border bg-card p-5 dark:border-border dark:bg-card">
         <h3 className="text-sm font-medium text-muted-foreground mb-2">Текущий статус</h3>
         <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${statusColors[currentStatus]}`}>
           {statusLabels[currentStatus]}
@@ -150,7 +150,7 @@ export default function KycPage() {
       {/* Submission Form */}
       {canSubmit && (
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+          <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
             <h3 className="font-semibold text-foreground">Личные данные</h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -202,7 +202,7 @@ export default function KycPage() {
           </div>
 
           {/* Documents */}
-          <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+          <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
             <h3 className="font-semibold text-foreground">Документы</h3>
             <p className="text-sm text-muted-foreground">Загрузите необходимые документы для верификации</p>
 
@@ -229,7 +229,7 @@ export default function KycPage() {
                     ) : (
                       <button
                         type="button" onClick={() => addDocument(doc.value)}
-                        className="px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary"
+                        className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary"
                       >
                         Загрузить
                       </button>
@@ -253,7 +253,7 @@ export default function KycPage() {
 
           <button
             type="submit" disabled={submitting || !fullName || documents.length === 0}
-            className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? "Отправка..." : "Отправить на верификацию"}
           </button>

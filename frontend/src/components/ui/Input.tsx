@@ -22,7 +22,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className={cn(
               'block mb-1.5',
               eyebrowLabel
-                ? 'eyebrow'
+                ? 'font-mono text-[11px] tracking-[0.12em] uppercase text-faint'
                 : 'text-xs font-medium text-muted-foreground',
             )}
           >

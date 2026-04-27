@@ -54,7 +54,7 @@ export default function MonitoringPage() {
 
         {/* Overall Status */}
         {health && (
-          <div className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card">
+          <div className="rounded-xl border border-border bg-card p-5 dark:border-border dark:bg-card">
             <div className="flex items-center gap-3 mb-4">
               <Icon icon="solar:heart-pulse-bold" className="text-2xl text-primary" />
               <h2 className="text-lg font-bold text-foreground">Статус сервисов</h2>
@@ -82,7 +82,7 @@ export default function MonitoringPage() {
 
         {/* Metrics */}
         {metrics && (
-          <div className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card">
+          <div className="rounded-xl border border-border bg-card p-5 dark:border-border dark:bg-card">
             <div className="flex items-center gap-3 mb-4">
               <Icon icon="solar:chart-bold" className="text-2xl text-primary" />
               <h2 className="text-lg font-bold text-foreground">Метрики</h2>

@@ -111,7 +111,7 @@ export default function KybPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Company Info */}
-        <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+        <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
           <h3 className="font-semibold text-foreground">Данные компании</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -160,7 +160,7 @@ export default function KybPage() {
         </div>
 
         {/* Documents */}
-        <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+        <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
           <h3 className="font-semibold text-foreground">Документы</h3>
           <div className="space-y-3">
             {DOC_TYPES.map((doc) => {
@@ -176,7 +176,7 @@ export default function KybPage() {
                   {added ? (
                     <button type="button" onClick={() => removeDocument(doc.value)} className="text-destructive text-sm">Удалить</button>
                   ) : (
-                    <button type="button" onClick={() => addDocument(doc.value)} className="px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary">Загрузить</button>
+                    <button type="button" onClick={() => addDocument(doc.value)} className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary">Загрузить</button>
                   )}
                 </div>
               );
@@ -185,7 +185,7 @@ export default function KybPage() {
         </div>
 
         {/* Beneficiaries */}
-        <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+        <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-foreground">Бенефициары</h3>
             <button type="button" onClick={addBeneficiary} className="text-sm text-primary hover:underline">+ Добавить</button>
@@ -214,12 +214,12 @@ export default function KybPage() {
           ))}
         </div>
 
-        {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
+        {error && <div className="rounded-lg bg-destructive/5 border border-destructive/30 p-3 text-sm text-destructive">{error}</div>}
         {success && <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-success">{success}</div>}
 
         <button
           type="submit" disabled={submitting || !companyName}
-          className="w-full py-3 bg-primary text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50"
+          className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 disabled:opacity-50"
         >
           {submitting ? "Отправка..." : "Отправить на верификацию"}
         </button>

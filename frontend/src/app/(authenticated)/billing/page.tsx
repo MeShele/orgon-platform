@@ -61,7 +61,7 @@ export default function BillingPage() {
           <div className={pageLayout.grid.cols3}>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2.5">
+                <div className="rounded-lg bg-primary/10 p-2.5">
                   <Icon icon="solar:star-bold" className="text-xl text-primary dark:text-primary" />
                 </div>
                 <div>
@@ -72,7 +72,7 @@ export default function BillingPage() {
             </Card>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2.5">
+                <div className="rounded-lg bg-success/10 p-2.5">
                   <Icon icon="solar:wallet-bold" className="text-xl text-success" />
                 </div>
                 <div>
@@ -83,8 +83,8 @@ export default function BillingPage() {
             </Card>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2.5">
-                  <Icon icon="solar:calendar-bold" className="text-xl text-amber-600 dark:text-amber-400" />
+                <div className="rounded-lg bg-warning/10 p-2.5">
+                  <Icon icon="solar:calendar-bold" className="text-xl text-warning" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-foreground">{usage.billing_cycle === "monthly" ? "Месячный" : "Годовой"}</p>
@@ -122,7 +122,7 @@ export default function BillingPage() {
                       <div className="h-2 rounded-full bg-muted">
                         <div
                           className={`h-2 rounded-full transition-all ${
-                            pct > 80 ? "bg-red-500" : pct > 50 ? "bg-amber-500" : "bg-primary"
+                            pct > 80 ? "bg-destructive" : pct > 50 ? "bg-warning" : "bg-primary"
                           }`}
                           style={{ width: `${pct}%` }}
                         />
@@ -147,7 +147,7 @@ export default function BillingPage() {
                     <div className="flex items-center justify-between mb-3">
                       <h4 className="text-lg font-bold text-foreground">{planLabel[plan.id] || plan.name}</h4>
                       {isCurrent && (
-                        <span className="inline-flex items-center rounded-full bg-indigo-100 dark:bg-indigo-900/30 px-2.5 py-0.5 text-xs font-medium text-primary dark:text-primary">
+                        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary dark:text-primary">
                           Текущий
                         </span>
                       )}
@@ -163,14 +163,14 @@ export default function BillingPage() {
                       <ul className="mt-4 space-y-2">
                         {plan.features.map((f, i) => (
                           <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Icon icon="solar:check-circle-bold" className="text-green-500 text-sm flex-shrink-0" />
+                            <Icon icon="solar:check-circle-bold" className="text-success text-sm flex-shrink-0" />
                             {f}
                           </li>
                         ))}
                       </ul>
                     )}
                     {!isCurrent && (
-                      <button className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors">
+                      <button className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-colors">
                         Выбрать план
                       </button>
                     )}

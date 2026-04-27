@@ -222,7 +222,7 @@ export default function AuditPage() {
                     {stats.total}
                   </p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <Icon icon="solar:chart-linear" className="text-2xl text-primary" />
                 </div>
               </div>
@@ -238,7 +238,7 @@ export default function AuditPage() {
                     {stats.recent_24h}
                   </p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-success/10 rounded-full flex items-center justify-center flex-shrink-0">
                   <Icon icon="solar:clock-circle-linear" className="text-2xl text-success" />
                 </div>
               </div>
@@ -254,8 +254,8 @@ export default function AuditPage() {
                     {Object.keys(stats.by_action).length}
                   </p>
                 </div>
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon icon="solar:target-linear" className="text-2xl text-purple-600 dark:text-purple-400" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                  <Icon icon="solar:target-linear" className="text-2xl text-foreground" />
                 </div>
               </div>
             </Card>
@@ -492,7 +492,7 @@ export default function AuditPage() {
                           <p className="text-xs text-muted-foreground mb-1">
                             {t('fields.resourceId')}
                           </p>
-                          <code className="text-xs bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
+                          <code className="text-xs bg-muted dark:bg-muted text-foreground px-2 py-1 rounded block truncate font-mono">
                             {log.resource_id}
                           </code>
                         </div>
@@ -514,7 +514,7 @@ export default function AuditPage() {
                           <p className="text-xs text-muted-foreground mb-1">
                             {t('fields.ipAddress')}
                           </p>
-                          <code className="text-xs bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
+                          <code className="text-xs bg-muted dark:bg-muted text-foreground px-2 py-1 rounded block truncate font-mono">
                             {log.ip_address}
                           </code>
                         </div>

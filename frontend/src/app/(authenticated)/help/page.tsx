@@ -377,11 +377,11 @@ export default function HelpPage() {
               {filteredSections.map((section) => (
                 <Card
                   key={section.id}
-                  className="cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-all"
+                  className="cursor-pointer hover:border-primary dark:hover:border-blue-400 transition-all"
                   onClick={() => setSelectedSection(section.id)}
                 >
                   <div className="flex items-start gap-4">
-                    <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                    <div className="p-3 bg-primary/10 rounded-lg">
                       <Icon
                         icon={section.icon}
                         className="text-2xl text-primary"
@@ -406,10 +406,10 @@ export default function HelpPage() {
             {/* API Documentation */}
             <Card className="mt-6">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <div className="p-3 bg-muted rounded-lg">
                   <Icon
                     icon="solar:code-bold"
-                    className="text-2xl text-purple-600 dark:text-purple-400"
+                    className="text-2xl text-foreground"
                   />
                 </div>
                 <div className="flex-1">
@@ -424,7 +424,7 @@ export default function HelpPage() {
                       href="/api/docs"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-success hover:opacity-90 text-primary-foreground rounded-lg text-sm font-medium transition-colors"
                     >
                       <Icon icon="solar:document-bold" className="text-lg" />
                       Swagger UI
@@ -433,7 +433,7 @@ export default function HelpPage() {
                       href="/api/redoc"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-primary-foreground rounded-lg text-sm font-medium transition-colors"
                     >
                       <Icon icon="solar:book-bold" className="text-lg" />
                       ReDoc
@@ -442,7 +442,7 @@ export default function HelpPage() {
                       href="/api/openapi.json"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-foreground hover:bg-muted text-primary-foreground rounded-lg text-sm font-medium transition-colors"
                     >
                       <Icon icon="solar:code-square-bold" className="text-lg" />
                       OpenAPI JSON
@@ -457,7 +457,7 @@ export default function HelpPage() {
               <div className="flex items-start gap-4">
                 <Icon
                   icon="solar:light-bulb-bold"
-                  className="text-3xl text-yellow-600 dark:text-yellow-400"
+                  className="text-3xl text-warning"
                 />
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">
@@ -475,7 +475,7 @@ export default function HelpPage() {
                         <Badge
                           key={article.id}
                           variant="gray"
-                          className="cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800"
+                          className="cursor-pointer hover:bg-primary/15"
                           onClick={() => setSelectedArticle(article)}
                         >
                           {article.title}
@@ -496,7 +496,7 @@ export default function HelpPage() {
                       <div className="flex items-center gap-3 mb-4">
                         <button
                           onClick={() => setSelectedSection(null)}
-                          className="text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                          className="text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
                         >
                           <Icon icon="solar:arrow-left-linear" className="text-xl" />
                         </button>
@@ -509,7 +509,7 @@ export default function HelpPage() {
                         {section.articles.map((article) => (
                           <Card
                             key={article.id}
-                            className="cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-all"
+                            className="cursor-pointer hover:border-primary dark:hover:border-blue-400 transition-all"
                             onClick={() => setSelectedArticle(article)}
                           >
                             <h3 className="font-semibold text-foreground mb-2">
@@ -539,7 +539,7 @@ export default function HelpPage() {
             <div className="flex items-center gap-3 mb-6">
               <button
                 onClick={() => setSelectedArticle(null)}
-                className="text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                className="text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
               >
                 <Icon icon="solar:arrow-left-linear" className="text-xl" />
               </button>
@@ -554,7 +554,7 @@ export default function HelpPage() {
               </p>
 
               {selectedArticle.example && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-4 mb-6">
+                <div className="bg-primary/5 rounded-lg p-4 mb-6">
                   <div className="flex items-start gap-3">
                     <Icon
                       icon="solar:clipboard-text-bold"
@@ -581,7 +581,7 @@ export default function HelpPage() {
                   <ol className="space-y-2 list-none pl-0">
                     {selectedArticle.steps.map((step, idx) => (
                       <li key={idx} className="flex items-start gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 dark:bg-blue-900/30 text-primary rounded-full flex items-center justify-center text-sm font-semibold">
+                        <span className="flex-shrink-0 w-6 h-6 bg-primary/10 text-primary rounded-full flex items-center justify-center text-sm font-semibold">
                           {idx + 1}
                         </span>
                         <span className="text-foreground flex-1 pt-0.5">
@@ -598,7 +598,7 @@ export default function HelpPage() {
                   <div className="flex items-start gap-3">
                     <Icon
                       icon="solar:light-bulb-bold"
-                      className="text-xl text-yellow-600 dark:text-yellow-400 mt-0.5"
+                      className="text-xl text-warning mt-0.5"
                     />
                     <div>
                       <div className="font-semibold text-foreground mb-2">
@@ -607,7 +607,7 @@ export default function HelpPage() {
                       <ul className="space-y-1.5 list-none pl-0">
                         {selectedArticle.tips.map((tip, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <span className="text-yellow-600 dark:text-yellow-400 mt-1">•</span>
+                            <span className="text-warning mt-1">•</span>
                             <span className="text-sm text-foreground flex-1">
                               {tip}
                             </span>
@@ -644,7 +644,7 @@ export default function HelpPage() {
                   .map((article) => (
                     <Card
                       key={article.id}
-                      className="cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 transition-all"
+                      className="cursor-pointer hover:border-primary dark:hover:border-blue-400 transition-all"
                       onClick={() => setSelectedArticle(article)}
                     >
                       <h4 className="font-semibold text-foreground text-sm mb-1">

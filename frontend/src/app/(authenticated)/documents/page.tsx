@@ -114,14 +114,14 @@ export default function DocumentsPage() {
                     type="checkbox"
                     checked={editable}
                     onChange={(e) => setEditable(e.target.checked)}
-                    className="rounded border-slate-300 text-primary focus:ring-primary/30"
+                    className="rounded border-border text-primary focus:ring-primary/30"
                   />
                   Режим редактирования
                 </label>
                 <button
                   onClick={openDocument}
                   disabled={!fileUrl || !fileName || loading}
-                  className={`${buttonStyles.primary || 'px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90'} flex items-center gap-2 disabled:opacity-50`}
+                  className={`${buttonStyles.primary || 'px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90'} flex items-center gap-2 disabled:opacity-50`}
                 >
                   {loading ? (
                     <Icon icon="solar:refresh-linear" className="animate-spin" />
@@ -169,7 +169,7 @@ export default function DocumentsPage() {
                 <Icon icon={getFileIcon(fileType)} className="text-primary" />
                 <span className="font-medium text-foreground">{fileName}</span>
                 {editable && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-warning">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">
                     Редактирование
                   </span>
                 )}

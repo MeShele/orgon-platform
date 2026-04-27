@@ -175,7 +175,7 @@ export default function ScheduledPage() {
                     <p className="text-xs text-muted-foreground mb-1">
                       {t('fields.recipient')}
                     </p>
-                    <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
+                    <code className="text-sm bg-muted dark:bg-muted text-foreground px-2 py-1 rounded block truncate font-mono">
                       {tx.to_address}
                     </code>
                   </div>
@@ -247,7 +247,7 @@ export default function ScheduledPage() {
                       <p className="text-xs text-muted-foreground mb-1">
                         {t('fields.transactionId')}
                       </p>
-                      <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
+                      <code className="text-sm bg-muted dark:bg-muted text-foreground px-2 py-1 rounded block truncate font-mono">
                         {tx.tx_unid}
                       </code>
                     </div>

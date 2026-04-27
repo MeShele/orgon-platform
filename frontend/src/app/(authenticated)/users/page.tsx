@@ -18,9 +18,9 @@ interface User {
 }
 
 const roleBadge: Record<string, { bg: string; text: string; icon: string }> = {
-  admin: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-destructive", icon: "solar:shield-user-bold" },
-  signer: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-warning", icon: "solar:pen-new-square-bold" },
-  viewer: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-primary", icon: "solar:eye-bold" },
+  admin: { bg: "bg-destructive/10", text: "text-destructive", icon: "solar:shield-user-bold" },
+  signer: { bg: "bg-warning/10", text: "text-warning", icon: "solar:pen-new-square-bold" },
+  viewer: { bg: "bg-primary/10", text: "text-primary", icon: "solar:eye-bold" },
 };
 
 export default function UsersPage() {
@@ -41,7 +41,7 @@ export default function UsersPage() {
           <div className={pageLayout.grid.cols3}>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2.5">
+                <div className="rounded-lg bg-primary/10 p-2.5">
                   <Icon icon="solar:users-group-rounded-bold" className="text-xl text-primary dark:text-primary" />
                 </div>
                 <div>
@@ -52,7 +52,7 @@ export default function UsersPage() {
             </Card>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2.5">
+                <div className="rounded-lg bg-success/10 p-2.5">
                   <Icon icon="solar:check-circle-bold" className="text-xl text-success" />
                 </div>
                 <div>
@@ -63,7 +63,7 @@ export default function UsersPage() {
             </Card>
             <Card>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-red-100 dark:bg-red-900/30 p-2.5">
+                <div className="rounded-lg bg-destructive/10 p-2.5">
                   <Icon icon="solar:shield-user-bold" className="text-xl text-destructive" />
                 </div>
                 <div>
@@ -85,7 +85,7 @@ export default function UsersPage() {
         )}
 
         {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
             <p className="text-sm text-destructive">Не удалось загрузить пользователей</p>
           </div>
         )}
@@ -102,7 +102,7 @@ export default function UsersPage() {
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                             <span className="text-sm font-bold text-primary dark:text-primary">
                               {(u.full_name || u.email)[0].toUpperCase()}
                             </span>
@@ -112,8 +112,8 @@ export default function UsersPage() {
                             <p className="text-xs text-muted-foreground">{u.email}</p>
                           </div>
                         </div>
-                        <span className={`inline-flex items-center gap-1 text-xs ${u.is_active ? "text-green-600" : "text-destructive"}`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${u.is_active ? "bg-green-500" : "bg-red-500"}`} />
+                        <span className={`inline-flex items-center gap-1 text-xs ${u.is_active ? "text-success" : "text-destructive"}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${u.is_active ? "bg-success" : "bg-destructive"}`} />
                           {u.is_active ? "Активен" : "Неактивен"}
                         </span>
                       </div>
@@ -146,14 +146,14 @@ export default function UsersPage() {
                         <th className="px-4 py-3 text-xs font-medium text-muted-foreground">Создан</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-border">
                       {users.map((u) => {
                         const badge = roleBadge[u.role] || roleBadge.viewer;
                         return (
                           <tr key={u.id} className="hover:bg-muted dark:hover:bg-muted/50 transition-colors">
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                                   <span className="text-sm font-bold text-primary dark:text-primary">
                                     {(u.full_name || u.email)[0].toUpperCase()}
                                   </span>
@@ -171,8 +171,8 @@ export default function UsersPage() {
                               </span>
                             </td>
                             <td className="px-4 py-3">
-                              <span className={`inline-flex items-center gap-1.5 text-xs ${u.is_active ? "text-green-600" : "text-destructive"}`}>
-                                <span className={`h-2 w-2 rounded-full ${u.is_active ? "bg-green-500" : "bg-red-500"}`} />
+                              <span className={`inline-flex items-center gap-1.5 text-xs ${u.is_active ? "text-success" : "text-destructive"}`}>
+                                <span className={`h-2 w-2 rounded-full ${u.is_active ? "bg-success" : "bg-destructive"}`} />
                                 {u.is_active ? "Активен" : "Неактивен"}
                               </span>
                             </td>

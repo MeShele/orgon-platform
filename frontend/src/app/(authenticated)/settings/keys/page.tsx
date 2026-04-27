@@ -18,9 +18,9 @@ export default function KeysPage() {
             action={<HelpTooltip text={helpContent.keys.ecKey.text} diagram={helpContent.keys.ecKey.diagram} />}
           />
           <div className="space-y-3 p-4">
-            <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-500/20 dark:bg-amber-500/10">
-              <Icon icon="solar:shield-keyhole-linear" className="mt-0.5 text-base text-amber-600 dark:text-amber-400" />
-              <p className="text-xs text-amber-800 dark:text-amber-300">
+            <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3">
+              <Icon icon="solar:shield-keyhole-linear" className="mt-0.5 text-base text-warning" />
+              <p className="text-xs text-warning">
                 The EC private key is stored securely in the ASAGENT CredentialVault
                 (AES-256-GCM encrypted). It is never exposed through the API.
               </p>

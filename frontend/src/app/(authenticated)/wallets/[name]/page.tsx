@@ -30,7 +30,7 @@ export default function WalletDetailPage() {
       <>
         <Header title="Wallet Detail" />
         <div className="p-4 sm:p-6 lg:p-8">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-xs text-destructive">
             {error}
           </div>
         </div>
@@ -117,7 +117,7 @@ export default function WalletDetailPage() {
                   const tokenStr = String(t.token || "");
                   const tokenName = tokenStr.includes(":::") ? tokenStr.split(":::")[1] : tokenStr;
                   return (
-                    <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 dark:border-border">
+                    <div key={i} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
                       <div className="flex items-center gap-3">
                         <CryptoIcon token={tokenName} size="md" />
                         <div>

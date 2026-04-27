@@ -96,9 +96,9 @@ export default function OrganizationDetailPage() {
         <div className="p-8">
           <Card>
             <div className="p-8 animate-pulse space-y-4">
-              <div className="h-8 bg-slate-200 dark:bg-muted rounded w-1/3" />
-              <div className="h-4 bg-slate-200 dark:bg-muted rounded w-1/2" />
-              <div className="h-4 bg-slate-200 dark:bg-muted rounded w-2/3" />
+              <div className="h-8 bg-muted dark:bg-muted rounded w-1/3" />
+              <div className="h-4 bg-muted dark:bg-muted rounded w-1/2" />
+              <div className="h-4 bg-muted dark:bg-muted rounded w-2/3" />
             </div>
           </Card>
         </div>
@@ -193,8 +193,8 @@ export default function OrganizationDetailPage() {
             className={clsx(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'overview'
-                ? "border-slate-900 text-foreground dark:border-white dark:text-white"
-                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
             )}
           >
             <Icon icon="solar:document-text-linear" className="inline mr-2" />
@@ -205,8 +205,8 @@ export default function OrganizationDetailPage() {
             className={clsx(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'members'
-                ? "border-slate-900 text-foreground dark:border-white dark:text-white"
-                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
             )}
           >
             <Icon icon="solar:users-group-rounded-linear" className="inline mr-2" />
@@ -217,8 +217,8 @@ export default function OrganizationDetailPage() {
             className={clsx(
               "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'settings'
-                ? "border-slate-900 text-foreground dark:border-white dark:text-white"
-                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                ? "border-foreground text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
             )}
           >
             <Icon icon="solar:settings-linear" className="inline mr-2" />
@@ -278,7 +278,7 @@ export default function OrganizationDetailPage() {
                 </h3>
                 <button 
                   onClick={() => setShowAddMemberModal(true)}
-                  className="px-4 py-2 text-sm font-medium rounded-lg bg-foreground text-background hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted"
+                  className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted"
                 >
                   <Icon icon="solar:add-circle-linear" className="inline mr-2" />
                   Add Member
@@ -292,7 +292,7 @@ export default function OrganizationDetailPage() {
                     className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted dark:hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
                         {member.email.charAt(0).toUpperCase()}
                       </div>
                       <div>

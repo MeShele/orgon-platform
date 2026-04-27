@@ -55,7 +55,7 @@ export default function TransactionDetailPage() {
       <>
         <Header title="Transaction Detail" />
         <div className="p-4 sm:p-6 lg:p-8">
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-xs text-red-700 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-xs text-destructive">
             {error}
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function TransactionDetailPage() {
                 <button
                   onClick={handleSign}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-success px-4 py-2 text-xs font-medium text-white hover:bg-success disabled:opacity-50 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-lg bg-success px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-success disabled:opacity-50 transition-colors"
                 >
                   <Icon icon="solar:pen-new-square-linear" className="text-sm" />
                   {actionLoading ? "Processing..." : "Sign Transaction"}
@@ -141,7 +141,7 @@ export default function TransactionDetailPage() {
                 <button
                   onClick={handleReject}
                   disabled={actionLoading}
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-4 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
                 >
                   <Icon icon="solar:close-circle-linear" className="text-sm" />
                   Reject
@@ -157,7 +157,7 @@ export default function TransactionDetailPage() {
             <CardHeader title="Signatures" action={<HelpTooltip text={helpContent.transactionDetail.signatures.text} />} />
             <div className="space-y-2 p-4">
               {(tx.signatures as Record<string, unknown>[]).map((sig, i) => (
-                <div key={i} className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 dark:border-border">
+                <div key={i} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
                   <p className="font-mono text-xs text-muted-foreground">{String(sig.ec_address)}</p>
                   <StatusBadge status={String(sig.sig_type)} />
                 </div>

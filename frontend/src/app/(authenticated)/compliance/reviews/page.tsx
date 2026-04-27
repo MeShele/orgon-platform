@@ -121,7 +121,7 @@ export default function ReviewsPage() {
       ) : (
         <div className="space-y-3">
           {submissions.map((s) => (
-            <div key={s.id} className="rounded-xl border border-border bg-white p-4 dark:border-border dark:bg-card">
+            <div key={s.id} className="rounded-xl border border-border bg-card p-4 dark:border-border dark:bg-card">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-foreground">
@@ -136,7 +136,7 @@ export default function ReviewsPage() {
                   {s.status === "pending" && (
                     <button
                       onClick={() => setReviewingId(reviewingId === s.id ? null : s.id)}
-                      className="px-3 py-1 text-sm bg-primary text-white rounded-lg hover:bg-primary"
+                      className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary"
                     >
                       Проверить
                     </button>
@@ -180,19 +180,19 @@ export default function ReviewsPage() {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleReview(s.id, "approved")}
-                      className="px-4 py-2 bg-success text-white rounded-lg text-sm hover:bg-success"
+                      className="px-4 py-2 bg-success text-primary-foreground rounded-lg text-sm hover:bg-success"
                     >
                       ✅ Одобрить
                     </button>
                     <button
                       onClick={() => handleReview(s.id, "rejected")}
-                      className="px-4 py-2 bg-destructive text-white rounded-lg text-sm hover:opacity-90"
+                      className="px-4 py-2 bg-destructive text-primary-foreground rounded-lg text-sm hover:opacity-90"
                     >
                       ❌ Отклонить
                     </button>
                     <button
                       onClick={() => setReviewingId(null)}
-                      className="px-4 py-2 bg-slate-200 text-foreground rounded-lg text-sm"
+                      className="px-4 py-2 bg-muted text-foreground rounded-lg text-sm"
                     >
                       Отмена
                     </button>

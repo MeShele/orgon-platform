@@ -29,10 +29,10 @@ interface Session {
 }
 
 const roleBadge: Record<string, { bg: string; text: string; label: string }> = {
-  admin: { bg: "bg-red-100 dark:bg-red-900/30", text: "text-destructive", label: "Администратор" },
-  signer: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-warning", label: "Подписант" },
-  viewer: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-primary", label: "Наблюдатель" },
-  super_admin: { bg: "bg-purple-100 dark:bg-purple-900/30", text: "text-purple-700 dark:text-purple-400", label: "Суперадмин" },
+  admin: { bg: "bg-destructive/10", text: "text-destructive", label: "Администратор" },
+  signer: { bg: "bg-warning/10", text: "text-warning", label: "Подписант" },
+  viewer: { bg: "bg-primary/10", text: "text-primary", label: "Наблюдатель" },
+  super_admin: { bg: "bg-muted", text: "text-foreground", label: "Суперадмин" },
 };
 
 export default function ProfilePage() {
@@ -111,7 +111,7 @@ export default function ProfilePage() {
             <Card>
               <div className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex-shrink-0 w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="text-2xl font-bold text-primary dark:text-primary">
                       {(profile.full_name || profile.email)[0].toUpperCase()}
                     </span>
@@ -142,7 +142,7 @@ export default function ProfilePage() {
               <Card>
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2">
+                    <div className="rounded-lg bg-primary/10 p-2">
                       <Icon icon="solar:letter-bold" className="text-base text-primary dark:text-primary" />
                     </div>
                     <div>
@@ -155,7 +155,7 @@ export default function ProfilePage() {
               <Card>
                 <div className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2">
+                    <div className="rounded-lg bg-success/10 p-2">
                       <Icon icon="solar:login-bold" className="text-base text-success" />
                     </div>
                     <div>
@@ -181,7 +181,7 @@ export default function ProfilePage() {
                   </div>
                   <button
                     onClick={() => setShowPasswordForm(!showPasswordForm)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted dark:hover:bg-slate-700 transition-colors"
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-muted dark:hover:bg-muted transition-colors"
                   >
                     <Icon icon="solar:key-linear" />
                     {showPasswordForm ? "Отмена" : "Сменить пароль"}
@@ -229,7 +229,7 @@ export default function ProfilePage() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition-colors"
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-colors"
                     >
                       {saving && <Icon icon="solar:refresh-linear" className="animate-spin" />}
                       Сохранить
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                                 {s.user_agent?.includes("Mobile") ? "Мобильное устройство" : "Десктоп"}
                               </span>
                               {s.is_current && (
-                                <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-[10px] font-medium text-success">
+                                <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
                                   Текущая
                                 </span>
                               )}

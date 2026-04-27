@@ -17,7 +17,7 @@ export default function OrganizationSettingsPage() {
           { title: "Fiat Gateway", desc: "Bank API keys, payment processor integration" },
           { title: "API Keys", desc: "Programmatic access to wallets and transactions" },
         ].map((s) => (
-          <div key={s.title} className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
+          <div key={s.title} className="rounded-xl border border-border bg-card p-5 dark:border-border dark:bg-card hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
             <h3 className="font-semibold text-foreground">{s.title}</h3>
             <p className="text-sm text-muted-foreground">{s.desc}</p>
           </div>

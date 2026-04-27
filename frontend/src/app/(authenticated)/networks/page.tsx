@@ -56,7 +56,7 @@ export default function NetworksPage() {
           {networks.map((net) => (
             <div
               key={net.network_id}
-              className="rounded-xl border border-border bg-white p-4 shadow-sm transition-all hover:border-slate-300 dark:border-border dark:bg-card/40 dark:shadow-none dark:hover:border-border"
+              className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:border-border dark:bg-card/40 dark:shadow-none dark:hover:border-border"
             >
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
@@ -70,12 +70,12 @@ export default function NetworksPage() {
               </div>
 
               {net.link && (
-                <a href={net.link} target="_blank" rel="noreferrer" className="text-[10px] text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors">
+                <a href={net.link} target="_blank" rel="noreferrer" className="text-[10px] text-muted-foreground hover:text-foreground dark:hover:text-primary-foreground transition-colors">
                   {net.link}
                 </a>
               )}
 
-              <div className="mt-3 border-t border-slate-100 pt-3 dark:border-border">
+              <div className="mt-3 border-t border-border pt-3">
                 <p className="text-[10px] font-medium text-muted-foreground mb-2">{t('supportedTokens')}</p>
                 <div className="flex flex-wrap gap-1">
                   {tokensInfo

@@ -224,7 +224,7 @@ export default function ContactsPage() {
                       >
                         <Icon 
                           icon={contact.favorite ? "solar:star-bold" : "solar:star-linear"} 
-                          className={`text-xl ${contact.favorite ? 'text-yellow-500' : 'text-muted-foreground'}`}
+                          className={`text-xl ${contact.favorite ? 'text-warning' : 'text-muted-foreground'}`}
                         />
                       </button>
                       <HelpTooltip
@@ -252,7 +252,7 @@ export default function ContactsPage() {
                     <p className="text-xs text-muted-foreground mb-1">
                       {t('fields.address')}
                     </p>
-                    <code className="text-sm bg-gray-100 dark:bg-gray-700 text-foreground px-2 py-1 rounded block truncate font-mono">
+                    <code className="text-sm bg-muted dark:bg-muted text-foreground px-2 py-1 rounded block truncate font-mono">
                       {contact.address}
                     </code>
                   </div>

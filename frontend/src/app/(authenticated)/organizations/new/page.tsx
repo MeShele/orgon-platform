@@ -92,7 +92,7 @@ export default function NewOrganizationPage() {
                     required
                     value={formData.name}
                     onChange={(e) => handleChange("name", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     placeholder="Acme Exchange"
                   />
                 </div>
@@ -105,7 +105,7 @@ export default function NewOrganizationPage() {
                     type="text"
                     value={formData.display_name}
                     onChange={(e) => handleChange("display_name", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     placeholder="Acme"
                   />
                 </div>
@@ -119,7 +119,7 @@ export default function NewOrganizationPage() {
                     required
                     value={formData.slug}
                     onChange={(e) => handleChange("slug", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     placeholder="acme-exchange"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
@@ -134,7 +134,7 @@ export default function NewOrganizationPage() {
                   <select
                     value={formData.license_type}
                     onChange={(e) => handleChange("license_type", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                   >
                     <option value="free">Free (10 wallets, $10K/mo)</option>
                     <option value="pro">Pro (50 wallets, $100K/mo)</option>
@@ -159,7 +159,7 @@ export default function NewOrganizationPage() {
                     required
                     value={formData.email}
                     onChange={(e) => handleChange("email", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     placeholder="info@acme.kg"
                   />
                 </div>
@@ -172,7 +172,7 @@ export default function NewOrganizationPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => handleChange("phone", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     placeholder="+996 555 123456"
                   />
                 </div>
@@ -185,7 +185,7 @@ export default function NewOrganizationPage() {
                     type="text"
                     value={formData.address}
                     onChange={(e) => handleChange("address", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     placeholder="ул. Финансовая, 123"
                   />
                 </div>
@@ -199,7 +199,7 @@ export default function NewOrganizationPage() {
                     required
                     value={formData.city}
                     onChange={(e) => handleChange("city", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     placeholder="Bishkek"
                   />
                 </div>
@@ -211,7 +211,7 @@ export default function NewOrganizationPage() {
                   <select
                     value={formData.country}
                     onChange={(e) => handleChange("country", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                   >
                     <option value="KG">Kyrgyzstan</option>
                     <option value="KZ">Kazakhstan</option>
@@ -238,7 +238,7 @@ export default function NewOrganizationPage() {
                     min="1"
                     value={formData.max_wallets}
                     onChange={(e) => handleChange("max_wallets", parseInt(e.target.value))}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                   />
                 </div>
 
@@ -252,7 +252,7 @@ export default function NewOrganizationPage() {
                     step="1000"
                     value={formData.max_monthly_volume}
                     onChange={(e) => handleChange("max_monthly_volume", parseInt(e.target.value))}
-                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card dark:text-white"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                   />
                 </div>
 
@@ -262,7 +262,7 @@ export default function NewOrganizationPage() {
                       type="checkbox"
                       checked={formData.kyc_required}
                       onChange={(e) => handleChange("kyc_required", e.target.checked)}
-                      className="w-5 h-5 rounded border-slate-300 text-foreground focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
+                      className="w-5 h-5 rounded border-border text-foreground focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                     />
                     <div>
                       <span className="text-sm font-medium text-foreground">
@@ -280,14 +280,14 @@ export default function NewOrganizationPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-4 dark:bg-red-950/20 dark:border-red-900">
+            <div className="rounded-lg bg-destructive/5 border border-destructive/30 p-4">
               <div className="flex items-start gap-3">
                 <Icon icon="solar:danger-circle-bold" className="text-destructive text-xl flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-red-900 dark:text-red-200">
+                  <p className="text-sm font-medium text-destructive">
                     Error Creating Organization
                   </p>
-                  <p className="text-xs text-red-700 dark:text-red-300 mt-1">
+                  <p className="text-xs text-destructive mt-1">
                     {error}
                   </p>
                 </div>
@@ -301,7 +301,7 @@ export default function NewOrganizationPage() {
               type="button"
               onClick={() => router.push("/organizations")}
               disabled={loading}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 text-foreground hover:bg-muted dark:border-border dark:text-faint dark:hover:bg-muted transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted dark:border-border dark:text-faint dark:hover:bg-muted transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
@@ -309,10 +309,10 @@ export default function NewOrganizationPage() {
               type="submit"
               disabled={loading}
               className={clsx(
-                "px-6 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50",
+                "px-6 py-2 text-sm font-medium rounded-lg text-primary-foreground transition-colors disabled:opacity-50",
                 loading
-                  ? "bg-slate-400 cursor-not-allowed"
-                  : "bg-card hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted"
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : "bg-card hover:bg-muted dark:bg-white dark:text-foreground dark:hover:bg-muted"
               )}
             >
               {loading ? (

@@ -27,8 +27,8 @@ const statusLabel: Record<string, string> = {
 };
 
 const statusBadge: Record<string, string> = {
-  open: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-  in_progress: "bg-primary/10 text-primary dark:bg-blue-900/30 dark:text-blue-400",
+  open: "bg-success/10 text-success",
+  in_progress: "bg-primary/10 text-primary",
   closed: "bg-muted text-muted-foreground",
   resolved: "bg-emerald-100 text-success dark:bg-emerald-900/30 dark:text-emerald-400",
 };
@@ -42,9 +42,9 @@ const priorityLabel: Record<string, string> = {
 
 const priorityBadge: Record<string, string> = {
   low: "bg-muted text-muted-foreground",
-  medium: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-  high: "bg-destructive/10 text-destructive dark:bg-red-900/30 dark:text-red-400",
-  urgent: "bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-300",
+  medium: "bg-warning/10 text-warning",
+  high: "bg-destructive/10 text-destructive",
+  urgent: "bg-destructive/15 text-destructive",
 };
 
 export default function SupportPage() {
@@ -88,7 +88,7 @@ export default function SupportPage() {
         <div className={pageLayout.grid.cols3}>
           <Card>
             <div className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-indigo-100 dark:bg-indigo-900/30 p-2.5">
+              <div className="rounded-lg bg-primary/10 p-2.5">
                 <Icon icon="solar:chat-round-dots-bold" className="text-xl text-primary dark:text-primary" />
               </div>
               <div>
@@ -99,7 +99,7 @@ export default function SupportPage() {
           </Card>
           <Card>
             <div className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2.5">
+              <div className="rounded-lg bg-success/10 p-2.5">
                 <Icon icon="solar:chat-round-check-bold" className="text-xl text-success" />
               </div>
               <div>
@@ -110,8 +110,8 @@ export default function SupportPage() {
           </Card>
           <Card>
             <div className="p-4 flex items-center gap-3">
-              <div className="rounded-lg bg-amber-100 dark:bg-amber-900/30 p-2.5">
-                <Icon icon="solar:clock-circle-bold" className="text-xl text-amber-600 dark:text-amber-400" />
+              <div className="rounded-lg bg-warning/10 p-2.5">
+                <Icon icon="solar:clock-circle-bold" className="text-xl text-warning" />
               </div>
               <div>
                 <p className="text-2xl font-bold text-foreground">{tickets?.filter(t => t.status === "in_progress").length || 0}</p>
@@ -126,7 +126,7 @@ export default function SupportPage() {
           <div />
           <button
             onClick={() => setShowForm(!showForm)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-colors"
           >
             <Icon icon={showForm ? "solar:close-circle-bold" : "solar:add-circle-bold"} />
             {showForm ? "Отмена" : "Создать тикет"}
@@ -145,7 +145,7 @@ export default function SupportPage() {
                   onChange={(e) => setSubject(e.target.value)}
                   placeholder="Опишите проблему кратко"
                   required
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-faint focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none"
                 />
               </div>
               <div>
@@ -168,13 +168,13 @@ export default function SupportPage() {
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Подробно опишите вашу проблему..."
                   rows={4}
-                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder-slate-400 focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none resize-none"
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-faint focus:border-primary focus:ring-1 focus:ring-primary/30 outline-none resize-none"
                 />
               </div>
               <button
                 type="submit"
                 disabled={submitting || !subject.trim()}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? (
                   <Icon icon="solar:refresh-linear" className="animate-spin" />
@@ -241,7 +241,7 @@ export default function SupportPage() {
                         <th className="px-4 py-3 text-xs font-medium text-muted-foreground">Создан</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-border">
                       {tickets.map((t, i) => (
                         <tr key={t.id || i} className="hover:bg-muted dark:hover:bg-muted/50 transition-colors">
                           <td className="px-4 py-3">
@@ -280,7 +280,7 @@ export default function SupportPage() {
               <p className="text-sm text-muted-foreground mb-4">Создайте тикет, если вам нужна помощь</p>
               <button
                 onClick={() => setShowForm(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-colors"
               >
                 <Icon icon="solar:add-circle-bold" />
                 Создать тикет

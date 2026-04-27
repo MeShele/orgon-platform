@@ -46,8 +46,8 @@ export default function PlatformSettingsPage() {
             onClick={() => setActiveTab(tab.key as any)}
             className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
               activeTab === tab.key
-                ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
-                : "text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                ? "bg-white text-foreground shadow-sm dark:bg-muted"
+                : "text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
             }`}
           >
             <Icon icon={tab.icon} />
@@ -72,7 +72,7 @@ function GeneralSection() {
         { title: "Фиат шлюзы", desc: "Банковские интеграции, платёжные процессоры", icon: "solar:card-bold" },
         { title: "IP Whitelist", desc: "Ограничение доступа по IP", icon: "solar:shield-network-bold" },
       ].map((s) => (
-        <div key={s.title} className="rounded-xl border border-border bg-white p-5 dark:border-border dark:bg-card flex items-center gap-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
+        <div key={s.title} className="rounded-xl border border-border bg-card p-5 dark:border-border dark:bg-card flex items-center gap-4 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors cursor-pointer">
           <Icon icon={s.icon} className="text-2xl text-muted-foreground" />
           <div>
             <h3 className="font-semibold text-foreground">{s.title}</h3>
@@ -116,19 +116,19 @@ function BrandingSection({ notify }: { notify: (t: "success" | "error", m: strin
   if (isLoading) return <div className={pageLayout.loading}><LoadingSpinner /></div>;
 
   return (
-    <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+    <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
       <h3 className="text-lg font-bold text-foreground">Брендинг</h3>
       {form && (
         <>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">Название компании</label>
             <input value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white" />
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted" />
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">URL логотипа</label>
             <input value={form.logo_url} onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-              placeholder="https://..." className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white" />
+              placeholder="https://..." className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -137,7 +137,7 @@ function BrandingSection({ notify }: { notify: (t: "success" | "error", m: strin
                 <input type="color" value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
                   className="w-10 h-10 rounded cursor-pointer" />
                 <input value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
-                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white" />
+                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted" />
               </div>
             </div>
             <div>
@@ -146,7 +146,7 @@ function BrandingSection({ notify }: { notify: (t: "success" | "error", m: strin
                 <input type="color" value={form.secondary_color} onChange={(e) => setForm({ ...form, secondary_color: e.target.value })}
                   className="w-10 h-10 rounded cursor-pointer" />
                 <input value={form.secondary_color} onChange={(e) => setForm({ ...form, secondary_color: e.target.value })}
-                  className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white" />
+                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted" />
               </div>
             </div>
           </div>
@@ -192,11 +192,11 @@ function DomainsSection({ notify }: { notify: (t: "success" | "error", m: string
   if (isLoading) return <div className={pageLayout.loading}><LoadingSpinner /></div>;
 
   return (
-    <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+    <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
       <h3 className="text-lg font-bold text-foreground">Кастомные домены</h3>
       <div className="flex gap-2">
         <input value={newDomain} onChange={(e) => setNewDomain(e.target.value)} placeholder="example.com"
-          className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white" />
+          className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted" />
         <button onClick={handleAdd} disabled={adding || !newDomain} className={buttonStyles.primary}>
           {adding ? "..." : "Добавить"}
         </button>
@@ -266,7 +266,7 @@ function EmailsSection({ notify }: { notify: (t: "success" | "error", m: string)
   if (isLoading) return <div className={pageLayout.loading}><LoadingSpinner /></div>;
 
   return (
-    <div className="rounded-xl border border-border bg-white p-6 dark:border-border dark:bg-card space-y-4">
+    <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
       <h3 className="text-lg font-bold text-foreground">Email шаблоны</h3>
       {Array.isArray(templates) && templates.map((tpl: any) => (
         <div key={tpl.type} className="rounded-lg border border-border p-4 dark:border-border">
@@ -279,9 +279,9 @@ function EmailsSection({ notify }: { notify: (t: "success" | "error", m: string)
           {editing === tpl.type ? (
             <div className="space-y-3">
               <input value={editForm.subject} onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
-                placeholder="Тема" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white" />
+                placeholder="Тема" className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted" />
               <textarea value={editForm.body} onChange={(e) => setEditForm({ ...editForm, body: e.target.value })}
-                rows={6} placeholder="Тело письма" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-muted dark:text-white" />
+                rows={6} placeholder="Тело письма" className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:bg-muted" />
               <div className="flex gap-2">
                 <button onClick={handleSave} disabled={saving} className={buttonStyles.primary + " text-xs"}>
                   {saving ? "..." : "Сохранить"}

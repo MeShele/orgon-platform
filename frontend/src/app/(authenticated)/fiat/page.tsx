@@ -167,8 +167,8 @@ export default function FiatPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "bg-white text-foreground shadow-sm dark:bg-slate-700 dark:text-white"
-                  : "text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-white"
+                  ? "bg-white text-foreground shadow-sm dark:bg-muted"
+                  : "text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
               }`}
             >
               <Icon icon={tab.icon} className="text-base" />
@@ -189,19 +189,19 @@ export default function FiatPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm text-muted-foreground">Валюта</label>
-                  <select value={onrampFiat} onChange={(e) => setOnrampFiat(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-white">
+                  <select value={onrampFiat} onChange={(e) => setOnrampFiat(e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:border-border dark:bg-muted">
                     {fiats.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm text-muted-foreground">Целевая крипто</label>
-                  <select value={onrampCrypto} onChange={(e) => setOnrampCrypto(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-white">
+                  <select value={onrampCrypto} onChange={(e) => setOnrampCrypto(e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:border-border dark:bg-muted">
                     {cryptos.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
               {rate !== null && (
-                <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">
+                <div className="rounded-lg bg-primary/5 p-3 text-sm text-primary">
                   <Icon icon="solar:info-circle-linear" className="mr-1 inline" />
                   Курс: 1 {onrampCrypto} = {rate} {onrampFiat}
                   {onrampAmount && ` → Вы получите ~${(parseFloat(onrampAmount) / rate).toFixed(6)} ${onrampCrypto}`}
@@ -227,19 +227,19 @@ export default function FiatPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-sm text-muted-foreground">Криптовалюта</label>
-                  <select value={offrampCrypto} onChange={(e) => setOfframpCrypto(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-white">
+                  <select value={offrampCrypto} onChange={(e) => setOfframpCrypto(e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:border-border dark:bg-muted">
                     {cryptos.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm text-muted-foreground">Целевая валюта</label>
-                  <select value={offrampFiat} onChange={(e) => setOfframpFiat(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-white">
+                  <select value={offrampFiat} onChange={(e) => setOfframpFiat(e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:border-border dark:bg-muted">
                     {fiats.map(f => <option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm text-muted-foreground">Банковский счёт</label>
-                  <select value={offrampAccount} onChange={(e) => setOfframpAccount(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-border dark:bg-muted dark:text-white">
+                  <select value={offrampAccount} onChange={(e) => setOfframpAccount(e.target.value)} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm dark:border-border dark:bg-muted">
                     <option value="">Выберите счёт</option>
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.bank_name} — {a.iban}</option>)}
                   </select>

@@ -272,6 +272,12 @@ class WalletService:
         if self._client is None:
             logger.debug("Skipping wallet sync: Safina client not configured")
             return
+        # Stub client returns canned data without organization_id — syncing it
+        # into shared `wallets` would pollute the table with rows invisible
+        # under RLS. Demo data lives in migration 013 instead.
+        if getattr(self._client, "is_stub", False):
+            logger.debug("Skipping wallet sync: stub Safina client active")
+            return
         wallets = await self._client.get_wallets()
         now = datetime.now(timezone.utc)
 

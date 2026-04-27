@@ -44,6 +44,11 @@ class _Signer:
 class SafinaStubClient:
     """Drop-in replacement for SafinaPayClient with canned responses."""
 
+    # Marker so service-layer code can detect stub mode and skip operations
+    # that would write canned data into shared tables (e.g. sync_wallets
+    # and sync_transactions). Real SafinaPayClient does not set this.
+    is_stub: bool = True
+
     # Canned demo data — mirrors a small Tron-mainnet treasury setup.
     _NETWORKS = [
         {"network_id": 5000, "network_name": "Tron",          "status": 1, "info": "Tron mainnet"},

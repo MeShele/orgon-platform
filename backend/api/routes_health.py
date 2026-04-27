@@ -206,6 +206,9 @@ async def check_services(
         "async_db": _async_db is not None,
         "async_db_pool": (_async_db._pool is not None) if _async_db else False,
         "safina_client": _safina_client is not None,
+        # True when running with SafinaStubClient (canned data, no live calls).
+        # On prod this should always be False.
+        "safina_stub": getattr(_safina_client, "is_stub", False),
         "wallet_service": _wallet_service is not None,
         "transaction_service": _transaction_service is not None,
         "dashboard_service": _dashboard_service is not None,

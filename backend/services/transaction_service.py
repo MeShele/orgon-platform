@@ -479,6 +479,14 @@ class TransactionService:
 
     async def sync_transactions(self):
         """Sync transactions from Safina API to local DB."""
+        if self._client is None:
+            logger.debug("Skipping transaction sync: Safina client not configured")
+            return
+        # Stub client returns canned data without organization_id — see the
+        # matching guard in WalletService.sync_wallets for the full rationale.
+        if getattr(self._client, "is_stub", False):
+            logger.debug("Skipping transaction sync: stub Safina client active")
+            return
         txs = await self._client.get_transactions()
         now = datetime.now(timezone.utc)
 

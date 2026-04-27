@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, preview-ready]
+
+# Only one deploy at a time per environment.
+concurrency:
+  group: deploy-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  trigger-coolify:
+    name: Trigger Coolify deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Only when CI itself was green AND the push that triggered it landed on
+    # one of our deployable branches.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Pick deploy hooks based on branch
+        id: pick
+        run: |
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          case "$BRANCH" in
+            main)
+              echo "frontend=${{ secrets.COOLIFY_HOOK_PROD_FRONTEND }}" >> "$GITHUB_OUTPUT"
+              echo "backend=${{ secrets.COOLIFY_HOOK_PROD_BACKEND }}" >> "$GITHUB_OUTPUT"
+              echo "env=prod" >> "$GITHUB_OUTPUT"
+              ;;
+            preview-ready)
+              echo "frontend=${{ secrets.COOLIFY_HOOK_PREVIEW_FRONTEND }}" >> "$GITHUB_OUTPUT"
+              echo "backend=${{ secrets.COOLIFY_HOOK_PREVIEW_BACKEND }}" >> "$GITHUB_OUTPUT"
+              echo "env=preview" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "no deploy mapping for branch '$BRANCH' — skipping" >&2
+              exit 0
+              ;;
+          esac
+
+      - name: Trigger frontend deploy
+        if: steps.pick.outputs.frontend != ''
+        run: |
+          curl -fsSL -X GET "${{ steps.pick.outputs.frontend }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            && echo "→ ${{ steps.pick.outputs.env }} frontend deploy queued"
+
+      - name: Trigger backend deploy
+        if: steps.pick.outputs.backend != ''
+        run: |
+          curl -fsSL -X GET "${{ steps.pick.outputs.backend }}" \
+            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            && echo "→ ${{ steps.pick.outputs.env }} backend deploy queued"

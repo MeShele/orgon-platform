@@ -93,17 +93,17 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* LEFT — navy block, brand promise */}
-      <aside className="hidden lg:flex flex-col justify-between bg-navy text-navy-foreground p-14 relative overflow-hidden">
-        <Link href="/" className="inline-flex items-center gap-3 relative z-10">
+      {/* LEFT — light brand panel, paper */}
+      <aside className="hidden lg:flex flex-col justify-between bg-muted border-r border-border p-14 relative overflow-hidden">
+        <Link href="/" className="inline-flex items-center gap-3 relative z-10 text-foreground">
           <Image src="/orgon-icon.png" alt="ORGON" width={36} height={36} priority />
           <div className="flex flex-col leading-tight">
-            <span className="font-mono text-[10px] tracking-[0.18em] text-white/55">ASYSTEM</span>
-            <span className="font-medium text-[16px] tracking-[0.06em] text-white">ORGON</span>
+            <span className="font-mono text-[10px] tracking-[0.18em] text-faint">ASYSTEM</span>
+            <span className="font-medium text-[16px] tracking-[0.06em] text-foreground">ORGON</span>
           </div>
         </Link>
 
-        {/* Decorative concentric ring */}
+        {/* Decorative concentric ring (crimson, low-opacity) */}
         <svg
           width={460}
           height={460}
@@ -111,23 +111,23 @@ export default function LoginPage() {
           className="absolute -top-20 -right-32 pointer-events-none"
           aria-hidden="true"
         >
-          <circle cx={230} cy={230} r={220} fill="none" stroke="var(--primary)" strokeWidth={1.2} opacity={0.18} />
-          <circle cx={230} cy={230} r={155} fill="none" stroke="var(--primary)" strokeWidth={1.2} opacity={0.18} />
-          <circle cx={230} cy={230} r={95}  fill="none" stroke="var(--primary)" strokeWidth={1.2} opacity={0.18} />
-          <circle cx={230} cy={230} r={35}  fill="var(--primary)" opacity={0.20} />
+          <circle cx={230} cy={230} r={220} fill="none" stroke="var(--primary)" strokeWidth={1.2} opacity={0.10} />
+          <circle cx={230} cy={230} r={155} fill="none" stroke="var(--primary)" strokeWidth={1.2} opacity={0.12} />
+          <circle cx={230} cy={230} r={95}  fill="none" stroke="var(--primary)" strokeWidth={1.2} opacity={0.16} />
+          <circle cx={230} cy={230} r={35}  fill="var(--primary)" opacity={0.10} />
         </svg>
 
         <div className="relative z-10 max-w-lg">
           <Eyebrow tone="primary" dash>Институциональное кастоди</Eyebrow>
-          <h2 className="mt-5 text-[40px] xl:text-[48px] font-medium tracking-[-0.025em] leading-[1.05]">
+          <h2 className="mt-5 text-[40px] xl:text-[48px] font-medium tracking-[-0.025em] leading-[1.05] text-foreground">
             «Деньги в надёжных руках. Всегда — вместе.»
           </h2>
-          <Mono size="md" className="mt-5 text-white/55 block">
+          <Mono size="md" className="mt-5 block text-muted-foreground">
             ASYSTEM · ORGON · институциональная мульти-подписная кастоди
           </Mono>
         </div>
 
-        <div className="relative z-10 grid grid-cols-3 gap-3 font-mono text-[10px] tracking-[0.10em] uppercase text-white/50">
+        <div className="relative z-10 grid grid-cols-3 gap-3 font-mono text-[10px] tracking-[0.10em] uppercase text-faint">
           <div>M-of-N подписи</div>
           <div>FATF Travel Rule</div>
           <div>White-label API</div>

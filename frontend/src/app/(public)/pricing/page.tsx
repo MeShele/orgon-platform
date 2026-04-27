@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
 import { Icon } from "@/lib/icons";
-import { API_BASE } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface Plan {
@@ -59,7 +58,7 @@ export default function PricingPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/api/v1/billing/plans`)
+    fetch(`/api/v1/billing/plans`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -146,58 +145,35 @@ export default function PricingPage() {
                   <article
                     key={plan.id}
                     className={cn(
-                      "p-8 lg:p-10 relative flex flex-col",
-                      featured ? "bg-navy text-navy-foreground" : "bg-card text-card-foreground",
+                      "p-8 lg:p-10 relative flex flex-col bg-card text-card-foreground",
+                      featured && "ring-2 ring-primary -m-px",
                     )}
                   >
                     {featured && (
-                      <div className="absolute top-6 right-6 font-mono text-[10px] tracking-[0.16em] uppercase text-primary border border-primary px-2 py-0.5">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.16em] uppercase text-primary-foreground bg-primary px-3 py-1">
                         Популярный
                       </div>
                     )}
-                    <div
-                      className={cn(
-                        "font-mono text-[11px] tracking-[0.12em] uppercase",
-                        featured ? "text-primary" : "text-primary",
-                      )}
-                    >
+                    <div className="font-mono text-[11px] tracking-[0.12em] uppercase text-primary">
                       0{i + 1} / {plan.name.toUpperCase()}
                     </div>
-                    <h2
-                      className={cn(
-                        "mt-6 text-[32px] font-medium tracking-[-0.02em]",
-                        featured ? "text-white" : "text-foreground",
-                      )}
-                    >
+                    <h2 className="mt-6 text-[32px] font-medium tracking-[-0.02em] text-foreground">
                       {plan.name}
                     </h2>
-                    <p
-                      className={cn(
-                        "mt-2 text-[13px] leading-[1.5]",
-                        featured ? "text-white/65" : "text-muted-foreground",
-                      )}
-                    >
+                    <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
                       {plan.description}
                     </p>
 
                     <div className="mt-7">
                       <div className="flex items-baseline gap-2">
-                        <BigNum size="xxl" className={featured ? "text-white" : "text-foreground"}>
+                        <BigNum size="xxl" className="text-foreground">
                           {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Number(price))}
                         </BigNum>
-                        <span
-                          className={cn(
-                            "font-mono text-[12px]",
-                            featured ? "text-white/55" : "text-muted-foreground",
-                          )}
-                        >
+                        <span className="font-mono text-[12px] text-muted-foreground">
                           {plan.currency}
                         </span>
                       </div>
-                      <Mono
-                        size="sm"
-                        className={cn("mt-1 block", featured ? "text-white/55" : "text-muted-foreground")}
-                      >
+                      <Mono size="sm" className="mt-1 block text-muted-foreground">
                         {billing === "monthly" ? "/ месяц" : "/ год"}
                         {plan.margin_min ? ` · комиссия от ${plan.margin_min}%` : ""}
                       </Mono>
@@ -215,31 +191,16 @@ export default function PricingPage() {
                       </a>
                     ) : (
                       <Link href="/register" className="mt-8">
-                        <Button
-                          variant={featured ? "primary" : "secondary"}
-                          fullWidth
-                          size="md"
-                          className={featured ? "" : ""}
-                        >
+                        <Button variant={featured ? "primary" : "secondary"} fullWidth size="md">
                           Выбрать план
                           <Icon icon="solar:arrow-right-linear" className="text-[14px]" />
                         </Button>
                       </Link>
                     )}
 
-                    <ul
-                      className={cn(
-                        "mt-8 pt-7 border-t space-y-3",
-                        featured ? "border-white/15" : "border-border",
-                      )}
-                    >
+                    <ul className="mt-8 pt-7 border-t border-border space-y-3">
                       {features.length === 0 && (
-                        <li
-                          className={cn(
-                            "text-[13px]",
-                            featured ? "text-white/55" : "text-muted-foreground",
-                          )}
-                        >
+                        <li className="text-[13px] text-muted-foreground">
                           Свяжитесь с нами для подробностей
                         </li>
                       )}
@@ -247,17 +208,9 @@ export default function PricingPage() {
                         <li key={f} className="flex items-start gap-2.5">
                           <Icon
                             icon="solar:check-circle-bold"
-                            className={cn(
-                              "text-[16px] shrink-0 mt-0.5",
-                              featured ? "text-primary" : "text-success",
-                            )}
+                            className="text-[16px] shrink-0 mt-0.5 text-success"
                           />
-                          <span
-                            className={cn(
-                              "text-[13px] leading-[1.5]",
-                              featured ? "text-white/85" : "text-foreground",
-                            )}
-                          >
+                          <span className="text-[13px] leading-[1.5] text-foreground">
                             {f}
                           </span>
                         </li>

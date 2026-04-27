@@ -65,12 +65,12 @@ function Hero() {
           </div>
         </div>
 
-        {/* Right: navy demo block — multi-sig in action */}
-        <div className="bg-navy text-navy-foreground p-7 lg:p-8 self-start">
+        {/* Right: light demo block — multi-sig in action */}
+        <div className="bg-card border border-border p-7 lg:p-8 self-start">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <Eyebrow tone="muted" className="!text-white/55">WALLET · TREASURY-COLD</Eyebrow>
-              <Mono size="md" className="mt-1 text-white/85">0x4f2a··b81c</Mono>
+              <Eyebrow>WALLET · TREASURY-COLD</Eyebrow>
+              <Mono size="md" className="mt-1 text-foreground">0x4f2a··b81c</Mono>
             </div>
             <Badge variant="primary">2 / 5 SIGNED</Badge>
           </div>
@@ -80,25 +80,25 @@ function Hero() {
               signers={HERO_SIGNERS}
               size={260}
               accentColor="var(--primary)"
-              ringColor="rgba(255,255,255,0.30)"
-              labelColor="#ffffff"
+              ringColor="var(--border-strong)"
+              labelColor="var(--foreground)"
             />
           </div>
 
-          <Divider className="!bg-white/12 mt-4" />
+          <Divider className="mt-4" />
 
           <dl className="mt-4 space-y-2">
             <div className="flex justify-between font-mono text-[11px]">
-              <dt className="uppercase tracking-[0.10em] text-white/55">Amount</dt>
-              <dd className="text-white">0.482 BTC · $45 720</dd>
+              <dt className="uppercase tracking-[0.10em] text-faint">Amount</dt>
+              <dd className="text-foreground">0.482 BTC · $45 720</dd>
             </div>
             <div className="flex justify-between font-mono text-[11px]">
-              <dt className="uppercase tracking-[0.10em] text-white/55">Destination</dt>
-              <dd className="text-white">TWmh8N··aLpQ</dd>
+              <dt className="uppercase tracking-[0.10em] text-faint">Destination</dt>
+              <dd className="text-foreground">TWmh8N··aLpQ</dd>
             </div>
             <div className="flex justify-between font-mono text-[11px]">
-              <dt className="uppercase tracking-[0.10em] text-white/55">Network</dt>
-              <dd className="text-white">Tron mainnet</dd>
+              <dt className="uppercase tracking-[0.10em] text-faint">Network</dt>
+              <dd className="text-foreground">Tron mainnet</dd>
             </div>
           </dl>
         </div>
@@ -224,13 +224,13 @@ function BottomCTA() {
   return (
     <section className="border-b border-border">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-20 lg:py-24">
-        <div className="bg-navy text-navy-foreground p-10 lg:p-16 grid lg:grid-cols-[1.4fr_1fr] gap-10 items-center">
+        <div className="bg-card border-l-4 border-l-primary border-t border-r border-b border-border p-10 lg:p-16 grid lg:grid-cols-[1.4fr_1fr] gap-10 items-center">
           <div>
-            <Eyebrow tone="muted" className="!text-white/55">Готовы начать</Eyebrow>
-            <h2 className="mt-4 text-[32px] lg:text-[44px] font-medium tracking-[-0.025em] leading-[1.05]">
+            <Eyebrow tone="primary">Готовы начать</Eyebrow>
+            <h2 className="mt-4 text-[32px] lg:text-[44px] font-medium tracking-[-0.025em] leading-[1.05] text-foreground">
               Подключите ORGON<br />за один разговор
             </h2>
-            <p className="mt-4 text-white/70 text-[15px] leading-[1.55] max-w-xl">
+            <p className="mt-4 text-muted-foreground text-[15px] leading-[1.55] max-w-xl">
               Покажем платформу, обсудим интеграцию с вашей системой,
               согласуем условия. Без обязательств.
             </p>
@@ -243,14 +243,7 @@ function BottomCTA() {
               </Button>
             </a>
             <Link href="/pricing">
-              <Button
-                variant="secondary"
-                size="lg"
-                fullWidth
-                className="!bg-transparent !border-white/30 !text-white hover:!bg-white/10"
-              >
-                Сравнить тарифы
-              </Button>
+              <Button variant="secondary" size="lg" fullWidth>Сравнить тарифы</Button>
             </Link>
           </div>
         </div>

@@ -59,28 +59,28 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      {/* LEFT — navy block */}
-      <aside className="hidden lg:flex flex-col justify-between bg-navy text-navy-foreground p-14 relative overflow-hidden">
-        <Link href="/" className="inline-flex items-center gap-3 relative z-10">
+      {/* LEFT — light brand panel */}
+      <aside className="hidden lg:flex flex-col justify-between bg-muted border-r border-border p-14 relative overflow-hidden">
+        <Link href="/" className="inline-flex items-center gap-3 relative z-10 text-foreground">
           <Image src="/orgon-icon.png" alt="ORGON" width={36} height={36} priority />
           <div className="flex flex-col leading-tight">
-            <span className="font-mono text-[10px] tracking-[0.18em] text-white/55">ASYSTEM</span>
-            <span className="font-medium text-[16px] tracking-[0.06em] text-white">ORGON</span>
+            <span className="font-mono text-[10px] tracking-[0.18em] text-faint">ASYSTEM</span>
+            <span className="font-medium text-[16px] tracking-[0.06em] text-foreground">ORGON</span>
           </div>
         </Link>
 
         <div className="relative z-10 max-w-lg">
           <Eyebrow tone="primary" dash>Создание аккаунта</Eyebrow>
-          <h2 className="mt-5 text-[40px] xl:text-[44px] font-medium tracking-[-0.025em] leading-[1.05]">
+          <h2 className="mt-5 text-[40px] xl:text-[44px] font-medium tracking-[-0.025em] leading-[1.05] text-foreground">
             Подключитесь к ORGON
           </h2>
-          <p className="mt-4 text-white/70 text-[15px] leading-[1.55]">
+          <p className="mt-4 text-muted-foreground text-[15px] leading-[1.55]">
             После регистрации сможете создать первую организацию и пригласить
             подписантов. Полный доступ к B2B API сразу после KYB-верификации.
           </p>
         </div>
 
-        <ul className="relative z-10 space-y-2 text-[12px] font-mono tracking-[0.04em] text-white/55">
+        <ul className="relative z-10 space-y-2 text-[12px] font-mono tracking-[0.04em] text-faint">
           <li>· Multi-signature M-of-N до 7-of-15</li>
           <li>· White-label под собственный домен</li>
           <li>· FATF-совместимый аудит-лог</li>

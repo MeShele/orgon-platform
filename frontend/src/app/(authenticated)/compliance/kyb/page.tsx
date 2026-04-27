@@ -162,21 +162,32 @@ export default function KybPage() {
         {/* Documents */}
         <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
           <h3 className="font-semibold text-foreground">Документы</h3>
+
+          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-[13px]">
+            <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0" />
+            <div className="text-foreground">
+              Прямая загрузка файлов через интерфейс — в разработке. Отметьте перечень,
+              сами копии отправьте на{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="mailto:compliance@orgon.asystem.kg">compliance@orgon.asystem.kg</a>{" "}
+              с темой «KYB submission · {`{название компании}`}». Compliance-команда привяжет их к заявке.
+            </div>
+          </div>
+
           <div className="space-y-3">
             {DOC_TYPES.map((doc) => {
               const added = documents.find((d) => d.type === doc.value);
               return (
                 <div key={doc.value} className={`flex items-center justify-between p-3 rounded-lg border ${
-                  added ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" : "border-border"
+                  added ? "border-success/40 bg-success/5" : "border-border"
                 }`}>
                   <div className="flex items-center gap-3">
                     <Icon icon={doc.icon} className={added ? "text-success" : "text-muted-foreground"} />
                     <span className="text-sm text-foreground">{doc.label}</span>
                   </div>
                   {added ? (
-                    <button type="button" onClick={() => removeDocument(doc.value)} className="text-destructive text-sm">Удалить</button>
+                    <button type="button" onClick={() => removeDocument(doc.value)} className="text-destructive text-sm hover:underline">Снять отметку</button>
                   ) : (
-                    <button type="button" onClick={() => addDocument(doc.value)} className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary">Загрузить</button>
+                    <button type="button" onClick={() => addDocument(doc.value)} className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity">Отметить как готовый</button>
                   )}
                 </div>
               );

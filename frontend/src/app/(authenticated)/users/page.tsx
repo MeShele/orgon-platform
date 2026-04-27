@@ -36,6 +36,30 @@ export default function UsersPage() {
     <>
       <Header title="Пользователи" />
       <div className={pageLayout.container}>
+        {/* Read-only notice — invite/edit-role/deactivate flows live in
+            backend services but are not yet wired to a UI. Clients onboard
+            new team members by registering directly, then the org admin
+            links them via the Coolify-side admin tools or by request to
+            support@. Removing this banner is a Sprint-7 deliverable. */}
+        <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4 text-[13px]">
+          <Icon icon="solar:info-circle-bold" className="text-primary mt-0.5 shrink-0 text-base" />
+          <div className="text-foreground">
+            <div className="font-medium">Управление командой — режим просмотра</div>
+            <div className="mt-1 text-muted-foreground">
+              Полные функции (приглашение по e-mail, смена ролей, деактивация) — в разработке.
+              Сейчас, чтобы добавить участника, попросите его пройти регистрацию по{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="/register">
+                /register
+              </a>
+              , после чего напишите на{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="mailto:support@orgon.asystem.kg">
+                support@orgon.asystem.kg
+              </a>{" "}
+              для привязки к вашей организации.
+            </div>
+          </div>
+        </div>
+
         {/* Stats */}
         {users && users.length > 0 && (
           <div className={pageLayout.grid.cols3}>

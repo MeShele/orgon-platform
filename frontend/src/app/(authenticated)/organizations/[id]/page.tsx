@@ -38,7 +38,7 @@ interface Member {
   joined_at: string;
 }
 
-type Tab = 'overview' | 'members' | 'settings';
+type Tab = 'overview' | 'members';
 
 export default function OrganizationDetailPage() {
   const params = useParams();
@@ -212,18 +212,9 @@ export default function OrganizationDetailPage() {
             <Icon icon="solar:users-group-rounded-linear" className="inline mr-2" />
             Members ({members.length})
           </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={clsx(
-              "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-              activeTab === 'settings'
-                ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground"
-            )}
-          >
-            <Icon icon="solar:settings-linear" className="inline mr-2" />
-            Settings
-          </button>
+          {/* Settings tab removed — was a "coming soon" placeholder. Org-level
+              settings live under /settings/organization until the per-org
+              detail page gets a real settings panel. */}
         </div>
 
         {/* Tab Content */}
@@ -320,16 +311,6 @@ export default function OrganizationDetailPage() {
           </Card>
         )}
 
-        {activeTab === 'settings' && (
-          <Card>
-            <CardHeader title="Organization Settings" />
-            <div className="p-6">
-              <p className="text-sm text-muted-foreground">
-                Settings panel coming soon...
-              </p>
-            </div>
-          </Card>
-        )}
       </div>
 
       {/* Add Member Modal */}

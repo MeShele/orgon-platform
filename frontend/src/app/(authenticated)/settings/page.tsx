@@ -111,8 +111,26 @@ export default function SettingsPage() {
   return (
     <>
       <Header title={t('title')} />
-      
+
       <div className="p-2 sm:p-4 md:p-6 lg:p-8 space-y-6">
+        {/* Disclaimer — many sub-sections on this page are previews of
+            future settings; the working flows live on dedicated pages.
+            Removing this banner is a Sprint-7 deliverable. */}
+        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-4 text-[13px]">
+          <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0 text-base" />
+          <div className="text-foreground">
+            <div className="font-medium">Часть настроек — превью</div>
+            <div className="mt-1 text-muted-foreground">
+              Рабочие действия живут на профильных страницах:{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="/profile">/profile</a> — смена пароля и сессии,{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="/settings/keys">/settings/keys</a> — API-ключи,{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="/settings/system/monitoring">/settings/system/monitoring</a> — мониторинг,{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="/settings/webhooks">/settings/webhooks</a> — webhooks.
+              Поля ниже без активных кнопок — в разработке.
+            </div>
+          </div>
+        </div>
+
         {/* Quick navigation grid */}
         <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {[
@@ -183,7 +201,12 @@ export default function SettingsPage() {
                   <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl font-bold">
                     {profile.fullName.charAt(0)}
                   </div>
-                  <button className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
+                  <button
+                    type="button"
+                    disabled
+                    title="В разработке"
+                    className="px-4 py-2 text-sm rounded-lg border border-border opacity-50 cursor-not-allowed"
+                  >
                     {t('profile.changeAvatar')}
                   </button>
                 </div>
@@ -221,8 +244,13 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <button className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted transition-colors">
-                  {t('profile.saveChanges')}
+                <button
+                  type="button"
+                  disabled
+                  title="В разработке"
+                  className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg opacity-50 cursor-not-allowed"
+                >
+                  {t('profile.saveChanges')} · в разработке
                 </button>
               </div>
             </Card>
@@ -238,15 +266,26 @@ export default function SettingsPage() {
                   helpTips={helpContent.settings.security.tips}
                 />
                 <div className="p-4 space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-[12px] text-foreground">
+                    <Icon icon="solar:info-circle-bold" className="text-primary mt-0.5 shrink-0" />
+                    <div>
+                      Полное управление паролями, 2FA и сессиями — на странице{" "}
+                      <a className="text-primary underline-offset-4 hover:underline" href="/profile">/profile</a>.
+                      Поля ниже — превью.
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between opacity-60">
                     <div>
                       <p className="text-sm font-medium text-foreground">{t('security.twoFactor')}</p>
                       <p className="text-xs text-muted-foreground">{t('security.twoFactorDesc')}</p>
                     </div>
                     <button
-                      onClick={() => setSecurity({ ...security, twoFactorEnabled: !security.twoFactorEnabled })}
+                      type="button"
+                      disabled
+                      title="Управляется на /profile"
                       className={clsx(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-not-allowed",
                         security.twoFactorEnabled ? "bg-success" : "bg-muted"
                       )}
                     >
@@ -259,37 +298,50 @@ export default function SettingsPage() {
                     </button>
                   </div>
 
-                  <div className="border-t border-border pt-4">
+                  <div className="border-t border-border pt-4 opacity-60">
                     <p className="text-sm font-medium text-foreground mb-2">{t('security.changePassword')}</p>
                     <div className="space-y-2">
                       <input
                         type="password"
+                        disabled
                         placeholder={t('security.currentPassword')}
-                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none cursor-not-allowed"
                       />
                       <input
                         type="password"
+                        disabled
                         placeholder={t('security.newPassword')}
-                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none cursor-not-allowed"
                       />
                       <input
                         type="password"
+                        disabled
                         placeholder={t('security.confirmPassword')}
-                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
+                        className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none cursor-not-allowed"
                       />
-                      <button className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted">
-                        {t('security.updatePassword')}
+                      <button
+                        type="button"
+                        disabled
+                        title="Доступно на /profile"
+                        className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg opacity-50 cursor-not-allowed"
+                      >
+                        {t('security.updatePassword')} · на /profile
                       </button>
                     </div>
                   </div>
 
-                  <div className="border-t border-border pt-4">
+                  <div className="border-t border-border pt-4 opacity-60">
                     <p className="text-sm font-medium text-foreground mb-2">{t('security.activeSessions')}</p>
                     <p className="text-xs text-muted-foreground">
                       {security.activeSessions} {t('security.activeSessionsCount')}
                     </p>
-                    <button className="mt-2 text-xs text-destructive hover:text-destructive">
-                      {t('security.logoutAllSessions')}
+                    <button
+                      type="button"
+                      disabled
+                      title="Доступно на /profile"
+                      className="mt-2 text-xs text-destructive cursor-not-allowed opacity-70"
+                    >
+                      {t('security.logoutAllSessions')} · на /profile
                     </button>
                   </div>
                 </div>
@@ -306,9 +358,22 @@ export default function SettingsPage() {
                 helpTips={helpContent.settings.apiKeys.tips}
               />
               <div className="p-4 space-y-4">
-                <button className="px-4 py-2 text-sm bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted">
+                <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-[12px] text-foreground">
+                  <Icon icon="solar:info-circle-bold" className="text-primary mt-0.5 shrink-0" />
+                  <div>
+                    Самостоятельный выпуск/ротация API-ключей — в разработке. Сейчас ключи
+                    провизионит команда поддержки. Напишите на{" "}
+                    <a className="text-primary underline-offset-4 hover:underline" href="mailto:support@orgon.asystem.kg">support@orgon.asystem.kg</a>.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  title="В разработке"
+                  className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg opacity-50 cursor-not-allowed"
+                >
                   <Icon icon="solar:add-circle-linear" className="inline mr-2" />
-                  {t('apiKeys.createNew')}
+                  {t('apiKeys.createNew')} · в разработке
                 </button>
 
                 <div className="space-y-3">
@@ -346,6 +411,14 @@ export default function SettingsPage() {
                 helpTips={helpContent.settings.notifications.tips}
               />
               <div className="p-4 space-y-4">
+                <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-[12px] text-foreground">
+                  <Icon icon="solar:info-circle-bold" className="text-primary mt-0.5 shrink-0" />
+                  <div>
+                    Настройки уведомлений — превью. Изменения пока не сохраняются.
+                    Email-/Telegram-каналы для transaction- и security-событий
+                    подключаются командой поддержки по запросу.
+                  </div>
+                </div>
                 {[
                   { key: "emailNotifications" as const, label: t('notifications.email'), desc: t('notifications.emailDesc') },
                   { key: "pushNotifications" as const, label: t('notifications.push'), desc: t('notifications.pushDesc') },
@@ -354,15 +427,17 @@ export default function SettingsPage() {
                   { key: "securityAlerts" as const, label: t('notifications.security'), desc: t('notifications.securityDesc') },
                   { key: "weeklyReport" as const, label: t('notifications.weekly'), desc: t('notifications.weeklyDesc') },
                 ].map((item) => (
-                  <div key={item.key} className="flex items-center justify-between">
+                  <div key={item.key} className="flex items-center justify-between opacity-60">
                     <div>
                       <p className="text-sm font-medium text-foreground">{item.label}</p>
                       <p className="text-xs text-muted-foreground">{item.desc}</p>
                     </div>
                     <button
-                      onClick={() => setNotifications({ ...notifications, [item.key]: !notifications[item.key] })}
+                      type="button"
+                      disabled
+                      title="Изменения не сохраняются — превью"
                       className={clsx(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-not-allowed",
                         notifications[item.key] ? "bg-success" : "bg-muted"
                       )}
                     >
@@ -526,39 +601,40 @@ export default function SettingsPage() {
                   </p>
                 </div>
 
+                <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-[12px] text-foreground">
+                  <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0" />
+                  <div>
+                    Кнопки экспорта — превью. CSV-выгрузка кошельков и транзакций
+                    реально работает на страницах{" "}
+                    <a className="text-primary underline-offset-4 hover:underline" href="/wallets">/wallets</a>
+                    {" "}и{" "}
+                    <a className="text-primary underline-offset-4 hover:underline" href="/transactions">/transactions</a>{" "}
+                    — кнопка «Экспорт CSV» в шапке таблицы.
+                  </div>
+                </div>
                 <div className="space-y-3">
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Icon icon="solar:folder-linear" className="text-xl" />
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-foreground">{t('backup.exportWallets')}</p>
-                        <p className="text-xs text-muted-foreground">{t('backup.exportWalletsDesc')}</p>
+                  {[
+                    { icon: "solar:folder-linear",                label: t('backup.exportWallets'),       desc: t('backup.exportWalletsDesc') },
+                    { icon: "solar:document-text-linear",         label: t('backup.exportTransactions'),  desc: t('backup.exportTransactionsDesc') },
+                    { icon: "solar:users-group-rounded-linear",   label: t('backup.exportContacts'),       desc: t('backup.exportContactsDesc') },
+                  ].map((row) => (
+                    <button
+                      key={row.label}
+                      type="button"
+                      disabled
+                      title="В разработке"
+                      className="w-full flex items-center justify-between p-3 rounded-lg border border-border opacity-60 cursor-not-allowed"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon icon={row.icon} className="text-xl" />
+                        <div className="text-left">
+                          <p className="text-sm font-medium text-foreground">{row.label}</p>
+                          <p className="text-xs text-muted-foreground">{row.desc}</p>
+                        </div>
                       </div>
-                    </div>
-                    <Icon icon="solar:download-linear" className="text-muted-foreground" />
-                  </button>
-
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Icon icon="solar:document-text-linear" className="text-xl" />
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-foreground">{t('backup.exportTransactions')}</p>
-                        <p className="text-xs text-muted-foreground">{t('backup.exportTransactionsDesc')}</p>
-                      </div>
-                    </div>
-                    <Icon icon="solar:download-linear" className="text-muted-foreground" />
-                  </button>
-
-                  <button className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted dark:border-border dark:hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-3">
-                      <Icon icon="solar:users-group-rounded-linear" className="text-xl" />
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-foreground">{t('backup.exportContacts')}</p>
-                        <p className="text-xs text-muted-foreground">{t('backup.exportContactsDesc')}</p>
-                      </div>
-                    </div>
-                    <Icon icon="solar:download-linear" className="text-muted-foreground" />
-                  </button>
+                      <Icon icon="solar:download-linear" className="text-muted-foreground" />
+                    </button>
+                  ))}
                 </div>
               </div>
             </Card>

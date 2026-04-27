@@ -204,7 +204,17 @@ export default function KycPage() {
           {/* Documents */}
           <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
             <h3 className="font-semibold text-foreground">Документы</h3>
-            <p className="text-sm text-muted-foreground">Загрузите необходимые документы для верификации</p>
+            <p className="text-sm text-muted-foreground">Отметьте, какие документы вы готовы предоставить для верификации</p>
+
+            <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-[13px]">
+              <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0" />
+              <div className="text-foreground">
+                Прямая загрузка файлов через интерфейс — в разработке. Сейчас отметьте список,
+                а сами копии отправьте на{" "}
+                <a className="text-primary underline-offset-4 hover:underline" href="mailto:compliance@orgon.asystem.kg">compliance@orgon.asystem.kg</a>{" "}
+                с темой «KYC submission · ваше ФИО». Compliance-команда привяжет их к вашей заявке.
+              </div>
+            </div>
 
             <div className="space-y-3">
               {DOC_TYPES.map((doc) => {
@@ -213,9 +223,7 @@ export default function KycPage() {
                   <div
                     key={doc.value}
                     className={`flex items-center justify-between p-3 rounded-lg border ${
-                      added
-                        ? "border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20"
-                        : "border-border"
+                      added ? "border-success/40 bg-success/5" : "border-border"
                     }`}
                   >
                     <div className="flex items-center gap-3">
@@ -224,14 +232,14 @@ export default function KycPage() {
                     </div>
                     {added ? (
                       <button type="button" onClick={() => removeDocument(doc.value)} className="text-destructive text-sm hover:underline">
-                        Удалить
+                        Снять отметку
                       </button>
                     ) : (
                       <button
                         type="button" onClick={() => addDocument(doc.value)}
-                        className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary"
+                        className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
                       >
-                        Загрузить
+                        Отметить как готовый
                       </button>
                     )}
                   </div>

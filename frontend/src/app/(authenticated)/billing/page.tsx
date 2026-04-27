@@ -170,9 +170,12 @@ export default function BillingPage() {
                       </ul>
                     )}
                     {!isCurrent && (
-                      <button className="mt-4 w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-colors">
-                        Выбрать план
-                      </button>
+                      <a
+                        href={`mailto:sales@orgon.asystem.kg?subject=ORGON%20%E2%80%94%20%D0%BF%D0%B5%D1%80%D0%B5%D1%85%D0%BE%D0%B4%20%D0%BD%D0%B0%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%20${encodeURIComponent(plan.name)}`}
+                        className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-colors"
+                      >
+                        Связаться с менеджером
+                      </a>
                     )}
                   </div>
                 </Card>

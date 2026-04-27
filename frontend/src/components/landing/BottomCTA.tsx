@@ -6,6 +6,7 @@
 import { Button } from "@/components/ui/Button";
 import { Mono } from "@/components/ui/primitives";
 import { Reveal } from "./Reveal";
+import { MagneticButton } from "@/components/ui/MagneticButton";
 
 export function BottomCTA() {
   return (
@@ -25,9 +26,13 @@ export function BottomCTA() {
             </div>
 
             <div className="flex flex-col gap-3 lg:items-end">
-              <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
-                <Button variant="primary" size="lg">Запросить демо&nbsp;→</Button>
-              </a>
+              <MagneticButton>
+                <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
+                  <Button variant="primary" size="lg" className="hover:scale-[1.03] active:scale-[0.98] transition-transform">
+                    Запросить демо&nbsp;→
+                  </Button>
+                </a>
+              </MagneticButton>
               <Mono size="xs" className="text-faint">
                 sales · ответ в течение 1 рабочего дня
               </Mono>

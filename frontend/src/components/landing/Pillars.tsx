@@ -5,6 +5,7 @@
 
 import { Eyebrow, Mono } from "@/components/ui/primitives";
 import { Reveal, RevealItem } from "./Reveal";
+import { TiltCard } from "@/components/ui/TiltCard";
 
 export function Pillars() {
   return (
@@ -55,8 +56,9 @@ export function Pillars() {
             </ul>
           </RevealItem>
 
-          <RevealItem as="article" className="bg-card p-8 lg:p-10 transition-colors hover:border-strong border border-transparent hover:bg-muted/40">
-            <Mono size="xs" className="text-faint tracking-[0.18em]">02 / COMPLIANCE</Mono>
+          <RevealItem as="article" className="bg-card transition-colors hover:bg-muted/40">
+            <TiltCard className="p-8 lg:p-10">
+              <Mono size="xs" className="text-faint tracking-[0.18em]">02 / COMPLIANCE</Mono>
             <h3 className="mt-5 text-[22px] lg:text-[26px] font-medium tracking-[-0.015em] text-foreground">
               KYC · KYB · AML
             </h3>
@@ -69,10 +71,12 @@ export function Pillars() {
               <li>· Travel Rule (Sumsub / Notabene)</li>
               <li>· Risk scoring + manual review</li>
             </ul>
+            </TiltCard>
           </RevealItem>
 
-          <RevealItem as="article" className="bg-card p-8 lg:p-10 transition-colors hover:border-strong border border-transparent hover:bg-muted/40">
-            <Mono size="xs" className="text-faint tracking-[0.18em]">03 / ИНТЕГРАЦИИ</Mono>
+          <RevealItem as="article" className="bg-card transition-colors hover:bg-muted/40">
+            <TiltCard className="p-8 lg:p-10">
+              <Mono size="xs" className="text-faint tracking-[0.18em]">03 / ИНТЕГРАЦИИ</Mono>
             <h3 className="mt-5 text-[22px] lg:text-[26px] font-medium tracking-[-0.015em] text-foreground">
               API & White-label
             </h3>
@@ -86,6 +90,7 @@ export function Pillars() {
               <li>· Webhook events (signed · broadcast · failed)</li>
               <li>· White-label · custom domain · SSO</li>
             </ul>
+            </TiltCard>
           </RevealItem>
         </Reveal>
       </div>

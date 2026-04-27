@@ -6,6 +6,8 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow, BigNum, Mono, StatusPill } from "@/components/ui/primitives";
+import { MagneticButton } from "@/components/ui/MagneticButton";
+import { TextEffect } from "@/components/motion-primitives/text-effect";
 
 export function Hero() {
   const reduce = useReducedMotion();
@@ -27,12 +29,15 @@ export function Hero() {
             <motion.div {...fadeUp(0)}>
               <Eyebrow dash>Институциональная кастоди-платформа</Eyebrow>
             </motion.div>
-            <motion.h1
-              {...fadeUp(0.05)}
+            <TextEffect
+              as="h1"
+              per="word"
+              delay={0.1}
+              duration={0.55}
               className="mt-5 text-[40px] sm:text-[56px] lg:text-[72px] font-medium leading-[1.02] tracking-[-0.025em] text-foreground text-balance"
             >
-              Multi-signature кастоди<br />для регулируемых&nbsp;операторов.
-            </motion.h1>
+              Multi-signature кастоди для регулируемых операторов.
+            </TextEffect>
             <motion.p
               {...fadeUp(0.12)}
               className="mt-6 max-w-[58ch] text-[16px] sm:text-[17px] leading-[1.55] text-muted-foreground text-pretty"
@@ -43,9 +48,13 @@ export function Hero() {
             </motion.p>
 
             <motion.div {...fadeUp(0.2)} className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
-                <Button variant="primary" size="lg">Запросить демо</Button>
-              </a>
+              <MagneticButton>
+                <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
+                  <Button variant="primary" size="lg" className="hover:scale-[1.03] active:scale-[0.98] transition-transform">
+                    Запросить демо
+                  </Button>
+                </a>
+              </MagneticButton>
               <Link
                 href="/pricing"
                 className="text-[15px] text-foreground hover:text-primary underline-offset-4 hover:underline transition-colors"

@@ -1,16 +1,18 @@
-// TrustRow — placeholder client logos (anonymized) + compliance badges
-// Replace CLIENTS[] with real names once contracts allow disclosure.
+// TrustRow v3 — pilot logos as Magic UI Marquee + compliance cards.
 
 "use client";
 
 import { Eyebrow, Mono } from "@/components/ui/primitives";
 import { Reveal, RevealItem } from "./Reveal";
+import { Marquee } from "@/components/magicui/marquee";
 
 const CLIENTS = [
   { name: "PILOT 01", kind: "PILOT" },
   { name: "PILOT 02", kind: "PILOT" },
   { name: "PILOT 03", kind: "PARTNER" },
   { name: "PILOT 04", kind: "PILOT" },
+  { name: "PILOT 05", kind: "PARTNER" },
+  { name: "PILOT 06", kind: "PILOT" },
 ];
 
 const COMPLIANCE = [
@@ -28,22 +30,25 @@ export function TrustRow() {
           <Mono size="xs" className="text-faint">пилотные интеграции · 2026</Mono>
         </div>
 
-        <Reveal stagger={0.06}>
-          <ul className="mt-5 grid grid-cols-2 md:grid-cols-4 gap-px bg-border border border-border">
+        {/* Edge-to-edge marquee */}
+        <div className="mt-5 relative border-y border-border bg-card overflow-hidden">
+          <Marquee pauseOnHover className="[--duration:35s] [--gap:0px] py-0">
             {CLIENTS.map((c) => (
-              <RevealItem
+              <div
                 key={c.name}
-                as="li"
-                className="bg-card px-5 py-6 flex flex-col justify-between min-h-[88px] transition-colors hover:bg-muted"
+                className="px-8 py-7 min-w-[220px] border-r border-border flex flex-col justify-between gap-3"
               >
                 <div className="font-medium tracking-[0.04em] text-[14px] text-foreground">
                   {c.name}
                 </div>
-                <Mono size="xs" className="mt-3 text-faint">{c.kind}</Mono>
-              </RevealItem>
+                <Mono size="xs" className="text-faint">{c.kind}</Mono>
+              </div>
             ))}
-          </ul>
-        </Reveal>
+          </Marquee>
+          {/* Edge fades */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-card to-transparent" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-card to-transparent" />
+        </div>
 
         <div className="mt-10 flex items-baseline justify-between flex-wrap gap-2">
           <Eyebrow dash>Соответствие</Eyebrow>

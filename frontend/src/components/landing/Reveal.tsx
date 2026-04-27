@@ -7,7 +7,7 @@
  */
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { type ReactNode } from "react";
+import { type ReactNode, forwardRef } from "react";
 
 interface RevealProps {
   children: ReactNode;
@@ -64,38 +64,37 @@ export function Reveal({
   );
 }
 
-/**
- * Item — child of a Reveal-with-stagger. Inherits parent stagger timing.
- * Use for grids/lists where children should pop in sequentially.
- */
-export function RevealItem({
-  children,
-  y = 16,
-  className,
-  as = "div",
-}: {
+interface RevealItemProps {
   children: ReactNode;
   y?: number;
   className?: string;
   as?: "div" | "li" | "article";
-}) {
-  const reduce = useReducedMotion();
-  const Tag = motion[as] as typeof motion.div;
-
-  const variants: Variants = reduce
-    ? { hidden: { opacity: 1, y: 0 }, visible: { opacity: 1, y: 0 } }
-    : {
-        hidden: { opacity: 0, y },
-        visible: {
-          opacity: 1,
-          y: 0,
-          transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
-        },
-      };
-
-  return (
-    <Tag variants={variants} className={className}>
-      {children}
-    </Tag>
-  );
 }
+
+/**
+ * Item — child of a Reveal-with-stagger. Inherits parent stagger timing.
+ * forwardRef so callers (e.g. AnimatedBeam) can attach a DOM ref.
+ */
+export const RevealItem = forwardRef<HTMLElement, RevealItemProps>(
+  function RevealItem({ children, y = 16, className, as = "div" }, ref) {
+    const reduce = useReducedMotion();
+    const Tag = motion[as] as typeof motion.div;
+
+    const variants: Variants = reduce
+      ? { hidden: { opacity: 1, y: 0 }, visible: { opacity: 1, y: 0 } }
+      : {
+          hidden: { opacity: 0, y },
+          visible: {
+            opacity: 1,
+            y: 0,
+            transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+          },
+        };
+
+    return (
+      <Tag ref={ref as never} variants={variants} className={className}>
+        {children}
+      </Tag>
+    );
+  },
+);

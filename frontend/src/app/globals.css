@@ -17,6 +17,7 @@
    ============================================================ */
 
 @import "tailwindcss";
+@plugin "tailwindcss-animate";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -300,6 +301,22 @@
   }
   .animate-spotlight {
     animation: spotlight 2s ease .75s 1 forwards;
+  }
+
+  /* Magic UI · Marquee — horizontal & vertical infinite loops */
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(calc(-100% - var(--gap, 1rem))); }
+  }
+  @keyframes marquee-vertical {
+    from { transform: translateY(0); }
+    to   { transform: translateY(calc(-100% - var(--gap, 1rem))); }
+  }
+  .animate-marquee {
+    animation: marquee var(--duration, 40s) linear infinite;
+  }
+  .animate-marquee-vertical {
+    animation: marquee-vertical var(--duration, 40s) linear infinite;
   }
 
   /* Address / hash mono shortcut for places where importing <Mono> is overkill */

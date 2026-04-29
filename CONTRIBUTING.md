@@ -39,10 +39,15 @@ and `preview` on every push to `preview-ready`.
 
 See `README.md` for the quick start. Key points:
 
-- Use `docker compose up postgres` for a local Postgres (matches prod schema
-  via migrations).
-- Backend `uvicorn ... --reload` picks up changes instantly.
-- Frontend `npm run dev` uses Turbopack; full reload on type errors.
+- `docker compose up -d postgres` for a local Postgres.
+- First time on a fresh DB: apply the canonical schema once:
+  ```bash
+  psql -v ON_ERROR_STOP=1 \
+       "postgresql://orgon_user:orgon_dev_password@localhost:5432/orgon_db" \
+       -f backend/migrations/000_canonical_schema.sql
+  ```
+- Backend `uvicorn ... --reload` picks up changes instantly. Port 8890.
+- Frontend `npm run dev` uses Turbopack; port 3000.
 - Run `pip install -r backend/requirements.txt` and `npm install` in
   frontend after pulling.
 
@@ -51,25 +56,35 @@ See `README.md` for the quick start. Key points:
 ## Tests
 
 ```bash
-# Backend
-cd backend
-pytest -v
+# Backend (152 tests, 0 skipped, must stay green)
+.venv/bin/python -m pytest backend/tests/ -v
 
-# Frontend (Playwright E2E, smoke)
-cd frontend
-npx playwright test
+# Backend compile-check (catches import errors fast)
+.venv/bin/python -m compileall -q backend
+
+# Frontend
+cd frontend && npx tsc --noEmit
+cd frontend && npm run build
+cd frontend && npx playwright test       # smoke E2E
 ```
 
-CI (GitHub Actions, when wired): every PR runs `pytest backend/tests` and
-`npm run build` in frontend. PR cannot merge with red tests.
+CI (GitHub Actions): every PR runs four jobs:
+1. `backend` — compileall + canonical schema apply against postgres:16 + 152 unit tests
+2. `frontend` — tsc + eslint + Next.js build
+3. `fresh-install` — clean Postgres → canonical → uvicorn → assert `/api/health=200` within 30s
+4. `e2e` — Playwright chromium
+
+PR cannot merge with red tests.
 
 When you add a feature:
 
 - Backend route → corresponding `tests/test_<area>.py` with at least
   `200 happy path`, `401 unauthenticated`, `403 wrong role`, `400 invalid
-  input`.
-- Migration → integration test that runs it on a fresh DB and asserts the
-  new constraint / trigger / data.
+  input`. Use `AsyncMock` for db and Safina client; never `MagicMock`
+  for awaitable methods.
+- Schema change → new `backend/migrations/0NN_xxx.sql`, idempotent, with
+  a `schema_migrations` insert at the bottom. Verify locally on a clean
+  Postgres before opening the PR.
 - Frontend page → at least Playwright `goto + assert h1`.
 
 ---

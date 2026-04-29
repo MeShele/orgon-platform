@@ -7,19 +7,25 @@ when something breaks.
 
 ## Topology
 
-| App | Coolify uuid | Branch | Domain | Internal port | Host port |
-|---|---|---|---|---|---|
-| `orgon-frontend` | `p10p6tfvyl5b86zlfizowp79` | `main` | https://orgon.asystem.kg | 3000 | 3100 |
-| `orgon-backend` | `g5ktpm7dy1abguwpy4tm7dpv` | `main` | https://orgon-api.asystem.kg | 8890 | 8891 |
-| `orgon-preview-frontend` | `ngsw9w49kjn2qrgchaw850jg` | `preview-ready` | https://orgon-preview.asystem.kg | 3000 | 3200 |
-| `orgon-preview-backend` | `kvdb0wtgo8ysyzchbjjo7n8o` | `preview-ready` | https://orgon-preview-api.asystem.kg | 8890 | 8892 |
+| App | Branch | Domain | Internal port |
+|---|---|---|---|
+| `orgon-frontend` | `main` | `https://<prod-domain>` | 3000 |
+| `orgon-backend` | `main` | `https://<prod-api-domain>` | 8890 |
+| `orgon-preview-frontend` | `preview-ready` | `https://<preview-domain>` | 3000 |
+| `orgon-preview-backend` | `preview-ready` | `https://<preview-api-domain>` | 8890 |
+| `orgon-pg-prod` | — | (internal, Coolify network) | 5432 |
+| `orgon-pg-preview` | — | (internal, Coolify network) | 5432 |
 
-Coolify UI: <https://c.asystem.kg> (Authentik OIDC).
+Concrete domains and Coolify UUIDs are filled in once the new server is
+provisioned. Update this table with the actual values — don't leave
+placeholders in production.
+
+Coolify UI: `https://<coolify-host>` (auth as configured per host).
 API token: store at `~/.config/orgon/coolify-token` with mode `0600`.
 
-DB: shared `coolify-postgres` container on `asystem-proxmox` (10.30.30.132).
-Both prod and preview hit it; demo migrations are idempotent and isolated
-to `Demo Exchange KG` / `Demo Broker KG` orgs.
+DB: per-environment Postgres in Coolify (no shared container — each
+env owns its own). Demo migrations are idempotent and isolated to
+`Demo Exchange KG` / `Demo Broker KG` orgs.
 
 ---
 
@@ -28,39 +34,34 @@ to `Demo Exchange KG` / `Demo Broker KG` orgs.
 ```bash
 TOKEN=$(cat ~/.config/orgon/coolify-token)
 
-# Frontend
+# Frontend (replace <APP_UUID> with the one from Coolify UI)
 curl -X GET -H "Authorization: Bearer $TOKEN" \
-  "https://c.asystem.kg/api/v1/deploy?uuid=ngsw9w49kjn2qrgchaw850jg"
-
-# Backend
-curl -X GET -H "Authorization: Bearer $TOKEN" \
-  "https://c.asystem.kg/api/v1/deploy?uuid=kvdb0wtgo8ysyzchbjjo7n8o"
+  "https://<coolify-host>/api/v1/deploy?uuid=<APP_UUID>"
 ```
 
 Coolify builds the container from `git pull origin <branch>` + `docker build`.
 A Next.js full build is ~3–5 minutes; a Python build is ~1–2 minutes (most
 of which is `pip install`).
 
-GitHub Actions now triggers Coolify automatically on green CI for `main`
-and `preview-ready` — see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+GitHub Actions triggers Coolify automatically on green CI for `main` and
+`preview-ready` — see [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
 and [`CI-CD.md`](CI-CD.md). The manual `curl` above stays useful for
-out-of-band redeploys (e.g. when the runner can't reach `c.asystem.kg`)
-and for branches outside the deploy mapping.
+out-of-band redeploys and for branches outside the deploy mapping.
 
 ---
 
 ## Watch a deploy
 
 ```bash
-# Container status
-ssh asystem-proxmox 'docker ps --filter name=ngsw9w49kjn2qrgchaw850jg --format "{{.Status}} | {{.Image}}"'
+# Container status (run on the Coolify host)
+ssh <coolify-host> 'docker ps --filter name=<APP_UUID> --format "{{.Status}} | {{.Image}}"'
 
-# Live logs (tail)
-ssh asystem-proxmox 'docker logs -f $(docker ps --filter name=g5ktpm7dy1abguwpy4tm7dpv -q)'
+# Live logs
+ssh <coolify-host> 'docker logs -f $(docker ps --filter name=<APP_UUID> -q)'
 
 # Coolify deployment record
 curl -sS -H "Authorization: Bearer $TOKEN" \
-  "https://c.asystem.kg/api/v1/deployments/<deployment_uuid>"
+  "https://<coolify-host>/api/v1/deployments/<deployment_uuid>"
 ```
 
 If a deploy stalls or fails, the build container leaves logs accessible via
@@ -76,7 +77,7 @@ rotate on container restart and silently invalidate live tokens.
 
 | Var | Required for | Notes |
 |---|---|---|
-| `DATABASE_URL` | always | `postgresql://user:pw@host:port/db` — coolify-postgres on `asystem-proxmox` for shared DB |
+| `DATABASE_URL` | always | `postgresql://user:pw@host:port/db` — points at the per-env Postgres provisioned in Coolify |
 | `JWT_SECRET_KEY` | always | 32+ bytes random hex (`openssl rand -hex 32`). **Don't rely on the auto-generated default** — every restart kicks every user back to login. |
 | `SAFINA_BASE_URL` | always | `https://my.safina.pro/ece/` for prod Safina, partner-issued for staging |
 | `SAFINA_EC_PRIVATE_KEY` | env-backend signer | EC SECP256k1 private key (hex). Required when `ORGON_SIGNER_BACKEND=env` (default). Stored in Coolify env, not in repo. **For institutional production: switch to `kms` or `vault` backend** — see `backend/safina/signer_backends.py`. |
@@ -176,21 +177,23 @@ admin-gated since this branch.
 Coolify keeps previous Docker images. Quickest rollback:
 
 ```bash
-# 1. Identify the previous good image tag
-ssh asystem-proxmox 'docker images | grep g5ktpm7dy1abguwpy4tm7dpv | head -5'
+# 1. On the Coolify host, list previous good image tags
+ssh <coolify-host> 'docker images | grep <APP_UUID> | head -5'
 
-# 2. Stop current container, run previous image
-ssh asystem-proxmox 'docker stop g5ktpm7dy1abguwpy4tm7dpv-... && \
-                     docker run -d --name <name> <prev-image-id> ...'
+# 2. From Coolify UI: Deployments → pick the last green one → "Rollback".
+#    This is preferred over manual docker run — Coolify re-attaches the
+#    network, env vars, and volumes correctly.
 ```
 
-For a clean rollback via Coolify: redeploy from a previous git commit by
-temporarily setting `git_commit_sha` in the application config, then
-calling `/deploy`.
+For a clean rollback to a specific commit: in the Coolify app config,
+temporarily set `git_commit_sha` to the target SHA, then trigger
+`/deploy`. Reset to `auto` once the rollback is verified.
 
-For DB schema rollback: every migration should ship with a paired
-`<n>_revert.sql` (we don't always have these — write one for any
-migration that adds a constraint or trigger).
+For DB schema rollback: future `0NN_*.sql` migrations should ship with
+either an explicit revert path inside the same migration (e.g.
+`DROP IF EXISTS` matching the new objects) or a paired
+`0NN_xxx_revert.sql`. Backups (see § Backups) are the ultimate
+fallback for irreversible data changes.
 
 ---
 
@@ -198,13 +201,13 @@ migration that adds a constraint or trigger).
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `ssh: Operation timed out` to ax41 | Hetzner network blip or host overload | wait 60–120s, check Hetzner Cloud Console; if persistent, reboot from console |
-| Coolify API returns `error code: 522` | Coolify backend overloaded (usually during a heavy build) | wait 30s and retry; check `c.asystem.kg` itself |
-| Deploy build fails on `npm install` | New dep conflict with Tailwind 4 | use `--legacy-peer-deps` in Dockerfile RUN, or pin offending dep |
-| Container in `running:unhealthy` | Healthcheck path requires auth or returned 500 | check the healthcheck command in Coolify; ensure it hits `/api/health` (no auth) |
-| All `*.asystem.kg` 522 / dead | ax41 down. SSH itself won't connect. | reboot from Hetzner Console; check disk space; check RAM exhaustion |
+| Coolify API returns `522` / 5xx | Coolify host overloaded (often during a heavy build) | wait 30–60s and retry; check the Coolify host itself |
+| Deploy build fails on `npm install` | new dep conflict with Tailwind 4 | use `--legacy-peer-deps` in Dockerfile RUN, or pin the offending dep |
+| Container in `running:unhealthy` | healthcheck path requires auth or returned 500 | check the healthcheck command in Coolify; ensure it hits `/api/health` (no auth) |
 | Login starts returning 401 unexpectedly | `JWT_SECRET_KEY` env regenerated mid-flight (auto-fallback in `backend/config.py`) | set `JWT_SECRET_KEY` explicitly in Coolify env, redeploy |
 | Frontend shows "Failed to fetch" | wrong `NEXT_PUBLIC_API_URL` or browser CORS block | verify env in Coolify FE app, hit `/api/v1/billing/plans` from terminal |
+| Backend container restarts on boot, logs show `relation "users" does not exist` | `ORGON_AUTO_MIGRATE=1` not set on a virgin DB, OR `DATABASE_URL` points at an empty DB and auto-migrate didn't run | set the env, redeploy. Or apply canonical manually: see § Apply a database migration. |
+| `entrypoint.sh` line about applying canonical printed and then container hangs | the connecting role doesn't own the `public` schema | `GRANT ALL ON SCHEMA public TO <orgon_user>` in psql as the postgres super-user, then redeploy |
 
 ---
 

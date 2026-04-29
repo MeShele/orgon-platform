@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ORGON frontend
 
-## Getting Started
+Next.js 16 (App Router) + React 19 + TypeScript 5 + Tailwind CSS 4 +
+Framer Motion + Magic UI primitives + Iconify Solar icons + SWR.
 
-First, run the development server:
+For project-wide context (architecture, deploy, API), see the docs at
+the repo root: [`../README.md`](../README.md), [`../ARCHITECTURE.md`](../ARCHITECTURE.md).
+
+---
+
+## Local dev
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+NEXT_PUBLIC_API_URL=http://localhost:8890 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open <http://localhost:3000>. Backend must be running on `:8890`
+(see backend README / repo-root README for that).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+If `NEXT_PUBLIC_API_URL` is unset, the client routes through the Next.js
+proxy to `/api/*` — handy for cookie-based auth without CORS plumbing,
+but breaks WebSocket. Set the env explicitly when developing
+WS-driven views.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## Stack rules
 
-To learn more about Next.js, take a look at the following resources:
+- TypeScript strict; no `any`, no `@ts-ignore` without an attached
+  comment.
+- API calls through `src/lib/api.ts`, not raw `fetch()`. Auth/cookie
+  handling is centralised there.
+- Animations: only Framer Motion / Tailwind / Magic UI / Motion
+  Primitives (per `~/.claude/CLAUDE.md`). No `react-spring`, `anime.js`,
+  GSAP-mixed-with-Motion, etc.
+- i18n keys must stay synced across `src/i18n/locales/{ru,en,ky}.json`.
+  RU and EN are full-parity; KY ships navigation + dashboard, full
+  parity for landing/compliance is on the backlog.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Build / test / lint
 
-## Deploy on Vercel
+```bash
+npx tsc --noEmit          # type-check
+npm run lint              # ESLint
+npm run build             # production build (Coolify uses this)
+npm run test:e2e          # Playwright chromium
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+CI runs all four on every PR.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Deployment
+
+Coolify rebuilds on push to `main` (prod) and `preview-ready` (preview)
+via `.github/workflows/deploy.yml`. Output mode is `standalone` so
+Coolify can serve the bundled output without a Node runtime in the
+container at runtime — see `next.config.ts`.

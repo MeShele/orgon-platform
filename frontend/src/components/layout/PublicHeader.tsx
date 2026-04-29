@@ -29,9 +29,10 @@ function useSignedInState(): { signedIn: boolean; ready: boolean } {
 }
 
 const NAV = [
-  { href: "/features", label: "Возможности" },
-  { href: "/pricing",  label: "Тарифы" },
-  { href: "/about",    label: "О компании" },
+  { href: "/features",          label: "Возможности" },
+  { href: "/pricing",           label: "Тарифы" },
+  { href: "/demo/architecture", label: "Архитектура" },
+  { href: "/about",             label: "О компании" },
 ];
 
 export function PublicHeader() {

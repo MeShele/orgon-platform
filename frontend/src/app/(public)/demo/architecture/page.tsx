@@ -12,6 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Icon } from "@/lib/icons";
 import { GraphCanvas } from "@/components/demo-simulator/GraphCanvas";
+import { ColumnRail } from "@/components/demo-simulator/ColumnRail";
 import { StepsTimeline } from "@/components/demo-simulator/panels/StepsTimeline";
 import { NodeDetailPanel } from "@/components/demo-simulator/panels/NodeDetailPanel";
 import type { NodeData } from "@/components/demo-simulator/graph-config";
@@ -70,9 +71,13 @@ export default function ArchitectureSimulatorPage() {
 
       {/* Main split: graph (flex-1) + readable timeline (fixed 400px) */}
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        <div className="flex-1 min-w-0 relative">
-          <GraphCanvas onNodeSelect={setSelectedNode} />
-          <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+        {/* Graph column — has its own column-rail above the canvas. */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <ColumnRail />
+          <div className="flex-1 min-h-0 relative">
+            <GraphCanvas onNodeSelect={setSelectedNode} />
+            <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+          </div>
         </div>
 
         <StepsTimeline

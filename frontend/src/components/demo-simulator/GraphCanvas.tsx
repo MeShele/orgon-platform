@@ -18,7 +18,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { COLUMN_LABELS, EDGES, NODES, type NodeData } from "./graph-config";
+import { EDGES, NODES, type NodeData } from "./graph-config";
 import { OrgonNode } from "./nodes/OrgonNode";
 
 const NODE_TYPES = { orgon: OrgonNode };
@@ -66,20 +66,6 @@ function CanvasInner({ onNodeSelect }: Props) {
       className="bg-background"
     >
       <Background gap={28} size={1.2} color="var(--border)" />
-
-      {/* Floating column headers, rendered as React Flow content layer */}
-      {COLUMN_LABELS.map((c) => (
-        <div
-          key={c.label}
-          className="pointer-events-none absolute z-10"
-          style={{ left: c.x, top: -10, width: 300 }}
-        >
-          <div className="font-mono text-[10px] tracking-[0.2em] uppercase text-faint">
-            {c.label}
-          </div>
-          <div className="text-[11px] text-muted-foreground mt-0.5">{c.sub}</div>
-        </div>
-      ))}
 
       <Controls
         position="bottom-right"

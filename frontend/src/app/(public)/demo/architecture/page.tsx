@@ -1,15 +1,17 @@
 "use client";
 
 // Public route: /demo/architecture
-// Live, interactive node-graph of how a transaction flows through ORGON.
-// No auth required — designed for cold sales meetings + marketing share.
+// Two-column layout: living architecture graph on the left,
+// vertical step-by-step timeline on the right. The graph never sits
+// still — every edge has an ambient flow animation; scenarios just
+// emphasise specific paths.
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Icon } from "@/lib/icons";
 import { GraphCanvas } from "@/components/demo-simulator/GraphCanvas";
-import { ScenarioPlayer } from "@/components/demo-simulator/panels/ScenarioPlayer";
+import { StepsTimeline } from "@/components/demo-simulator/panels/StepsTimeline";
 import { NodeDetailPanel } from "@/components/demo-simulator/panels/NodeDetailPanel";
 import type { NodeData } from "@/components/demo-simulator/graph-config";
 import type { Scenario, ScenarioStep } from "@/components/demo-simulator/scenarios/types";
@@ -33,7 +35,6 @@ const SCENARIOS: Scenario[] = [
 export default function ArchitectureSimulatorPage() {
   const [scenarioId, setScenarioId] = useState<string>(SCENARIOS[0].id);
   const [runKey, setRunKey] = useState(0);
-  const [step, setStep] = useState<ScenarioStep | null>(null);
   const [stepIdx, setStepIdx] = useState(-1);
   const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
 
@@ -42,8 +43,7 @@ export default function ArchitectureSimulatorPage() {
     [scenarioId],
   );
 
-  const handleStep = useCallback((s: ScenarioStep | null, i: number) => {
-    setStep(s);
+  const handleStep = useCallback((_s: ScenarioStep | null, i: number) => {
     setStepIdx(i);
   }, []);
 
@@ -60,8 +60,8 @@ export default function ArchitectureSimulatorPage() {
         </Link>
 
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="hidden sm:inline">
-            Интерактивная схема работы платформы — все ноды и связи реальные, соответствуют коду.
+          <span className="hidden lg:inline">
+            Все узлы и связи — реальные компоненты кода. Кликни на любой блок чтобы увидеть детали.
           </span>
           <Link
             href="/"
@@ -73,40 +73,31 @@ export default function ArchitectureSimulatorPage() {
         </div>
       </header>
 
-      {/* Summary strip */}
-      <div className="shrink-0 px-5 py-3 border-b border-border bg-muted/30">
-        <div className="max-w-[1400px] mx-auto flex items-start gap-4">
-          <Icon icon="solar:info-circle-bold" className="shrink-0 mt-0.5 text-[16px] text-primary" />
-          <p className="text-[12px] text-foreground leading-snug">
-            <span className="font-medium">{current.title}.</span>{" "}
-            <span className="text-muted-foreground">{current.summary}</span>
-          </p>
+      {/* Main split: graph (flex-1) + timeline (fixed 400px) */}
+      <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* Graph column */}
+        <div className="flex-1 min-w-0 relative">
+          <GraphCanvas
+            scenario={current}
+            runKey={runKey}
+            onStep={handleStep}
+            onNodeSelect={setSelectedNode}
+          />
+          <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
         </div>
-      </div>
 
-      {/* Graph area takes the remaining space */}
-      <div className="flex-1 min-h-0 relative">
-        <GraphCanvas
-          scenario={current}
-          runKey={runKey}
-          onStep={handleStep}
-          onNodeSelect={setSelectedNode}
+        {/* Right timeline */}
+        <StepsTimeline
+          scenarios={SCENARIOS}
+          current={current}
+          onSelect={(s) => {
+            setScenarioId(s.id);
+            setRunKey((k) => k + 1);
+          }}
+          onRestart={() => setRunKey((k) => k + 1)}
+          stepIndex={stepIdx}
         />
-        <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
       </div>
-
-      {/* Bottom player */}
-      <ScenarioPlayer
-        scenarios={SCENARIOS}
-        current={current}
-        onSelect={(s) => {
-          setScenarioId(s.id);
-          setRunKey((k) => k + 1);
-        }}
-        onRestart={() => setRunKey((k) => k + 1)}
-        step={step}
-        stepIndex={stepIdx}
-      />
     </div>
   );
 }

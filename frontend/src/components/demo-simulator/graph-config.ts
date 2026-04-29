@@ -36,10 +36,18 @@ export interface NodeData extends Record<string, unknown> {
   };
 }
 
-// Compact node positions. We use a chunky grid so the layout looks
-// deliberate rather than auto-spaghetti from dagre.
-const COL = [40, 320, 640, 980];
-const ROW = (i: number) => 80 + i * 110;
+// Roomy grid — each node is 300×96 with 64px column gap so the schema
+// reads as "columns of work" rather than a forest of tiny boxes.
+const COL = [60, 420, 780, 1140];
+const ROW = (i: number) => 80 + i * 132;
+
+// Visible labels above each column. Indexed by column number.
+export const COLUMN_LABELS: { x: number; label: string; sub: string }[] = [
+  { x: COL[0], label: "Клиенты",          sub: "внешние системы и пользователи" },
+  { x: COL[1], label: "Auth-периметр",    sub: "JWT · HMAC · RLS контекст" },
+  { x: COL[2], label: "Бизнес-логика",    sub: "Policy · AML · подписи · аудит" },
+  { x: COL[3], label: "Safina + блокчейн",sub: "EC-подпись и доставка on-chain" },
+];
 
 // Helper to keep the verbose Node<NodeData> declarations terse.
 const n = (

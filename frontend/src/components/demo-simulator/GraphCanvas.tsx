@@ -1,19 +1,12 @@
 "use client";
 
-// Top-level canvas. Two visual modes:
+// Static-but-living architecture diagram. Every edge has the same
+// ambient flow animation; nothing "plays through". The diagram is a
+// backdrop — readable documentation lives in the right panel.
 //
-//   * Ambient: every edge is animated with a slow flowing dash, all
-//     nodes look "alive". The diagram never feels still.
-//
-//   * Focused: when a scenario step lands on a specific edge or node,
-//     that element gets a stronger highlight (brighter color, thicker
-//     stroke, faster dash, pulsing ring) layered on top of the
-//     ambient animation.
-//
-// This makes the schema read like a living system rather than a
-// turn-based replay.
+// Click on any node to open the detail drawer (handled by the parent).
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import {
   Background,
   Controls,
@@ -27,146 +20,33 @@ import "@xyflow/react/dist/style.css";
 
 import { COLUMN_LABELS, EDGES, NODES, type NodeData } from "./graph-config";
 import { OrgonNode } from "./nodes/OrgonNode";
-import type { Scenario, ScenarioStep } from "./scenarios/types";
 
 const NODE_TYPES = { orgon: OrgonNode };
 
-// Tone → color used for the focused (active step) edge.
-const TONE_STROKE: Record<NonNullable<ScenarioStep["tone"]>, string> = {
-  default: "var(--primary)",
-  success: "var(--success)",
-  warning: "rgb(217 119 6)",
-  danger:  "var(--destructive)",
-  info:    "var(--primary)",
-};
-
-// Idle / ambient edge — every edge gets these by default.
-// Animated dashes give a subtle "always something flowing" feel without
-// being distracting.
+// One ambient style for every edge. Animated dashes give the
+// "always something flowing" feel. No highlighting on any specific
+// step — that's intentional, the system is shown as living, not as a
+// turn-based replay.
 const AMBIENT_EDGE_STYLE: React.CSSProperties = {
-  stroke: "var(--border)",
-  strokeWidth: 1.6,
+  stroke: "var(--primary)",
+  strokeWidth: 1.4,
   strokeDasharray: "4 6",
+  opacity: 0.45,
 };
-
-// Edge style for the currently-focused step. We override the ambient.
-const focusedEdgeStyle = (
-  tone: NonNullable<ScenarioStep["tone"]>,
-): React.CSSProperties => ({
-  stroke: TONE_STROKE[tone],
-  strokeWidth: 3,
-  strokeDasharray: "6 4",
-  filter: "drop-shadow(0 0 6px rgba(156,24,37,0.32))",
-});
 
 interface Props {
-  scenario: Scenario;
-  /** Bumping this number restarts playback. */
-  runKey: number;
-  /** Notified when a step becomes active so the player can show its caption. */
-  onStep?: (step: ScenarioStep | null, index: number) => void;
   /** Notified when the user clicks a node — for the detail drawer. */
   onNodeSelect?: (data: NodeData | null) => void;
 }
 
-function CanvasInner({ scenario, runKey, onStep, onNodeSelect }: Props) {
-  // Initial nodes/edges already carry the ambient animated style.
-  const [nodes, setNodes] = useState<Node<NodeData>[]>(NODES);
-  const [edges, setEdges] = useState<Edge[]>(() =>
-    EDGES.map((e) => ({ ...e, animated: true, style: AMBIENT_EDGE_STYLE })),
+function CanvasInner({ onNodeSelect }: Props) {
+  // Built once — there's no playback state any more, so we don't need
+  // setNodes/setEdges. React Flow re-renders on resize via internal state.
+  const nodes: Node<NodeData>[] = useMemo(() => NODES, []);
+  const edges: Edge[] = useMemo(
+    () => EDGES.map((e) => ({ ...e, animated: true, style: AMBIENT_EDGE_STYLE })),
+    [],
   );
-  const stepIdxRef = useRef(0);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  // Reset all node/edge highlights to the ambient idle state.
-  const resetHighlights = useCallback(() => {
-    setNodes((prev) =>
-      prev.map((n) => ({ ...n, data: { ...n.data, active: false, halt: false } })),
-    );
-    setEdges(
-      EDGES.map((e) => ({ ...e, animated: true, style: AMBIENT_EDGE_STYLE })),
-    );
-  }, []);
-
-  // Apply visual emphasis for one scenario step.
-  const applyStep = useCallback((step: ScenarioStep) => {
-    const tone = step.tone ?? "default";
-
-    if (step.kind === "edge" && step.from && step.to) {
-      const edgeId = `${step.from}__${step.to}`;
-      setEdges((prev) =>
-        prev.map((e) =>
-          e.id === edgeId
-            ? { ...e, animated: true, style: focusedEdgeStyle(tone) }
-            // Other edges fall back to ambient (so the focused one stands out).
-            : { ...e, animated: true, style: AMBIENT_EDGE_STYLE },
-        ),
-      );
-      setNodes((prev) =>
-        prev.map((n) => ({
-          ...n,
-          data: {
-            ...n.data,
-            active: n.id === step.from || n.id === step.to,
-            halt: false,
-          },
-        })),
-      );
-    } else if (step.kind === "node" && step.node) {
-      setNodes((prev) =>
-        prev.map((n) => ({
-          ...n,
-          data: { ...n.data, active: n.id === step.node, halt: false },
-        })),
-      );
-      setEdges((prev) =>
-        prev.map((e) => ({ ...e, animated: true, style: AMBIENT_EDGE_STYLE })),
-      );
-    } else if (step.kind === "halt" && step.node) {
-      setNodes((prev) =>
-        prev.map((n) => ({
-          ...n,
-          data: { ...n.data, active: n.id === step.node, halt: n.id === step.node },
-        })),
-      );
-      setEdges((prev) =>
-        prev.map((e) => ({ ...e, animated: true, style: AMBIENT_EDGE_STYLE })),
-      );
-    } else if (step.kind === "wait") {
-      // Hold whatever was applied last.
-    }
-  }, []);
-
-  // Schedule the scenario as a chain of setTimeouts and loop it.
-  useEffect(() => {
-    timersRef.current.forEach(clearTimeout);
-    timersRef.current = [];
-    stepIdxRef.current = 0;
-    resetHighlights();
-    onStep?.(null, -1);
-
-    let cumulative = 400;
-    scenario.steps.forEach((step, i) => {
-      const t = setTimeout(() => {
-        stepIdxRef.current = i;
-        applyStep(step);
-        onStep?.(step, i);
-      }, cumulative);
-      timersRef.current.push(t);
-      cumulative += step.durationMs ?? 1500;
-    });
-    // Cool-down + idle hold before the next loop iteration.
-    const tEnd = setTimeout(() => {
-      resetHighlights();
-      onStep?.(null, scenario.steps.length);
-    }, cumulative + 1200);
-    timersRef.current.push(tEnd);
-
-    return () => {
-      timersRef.current.forEach(clearTimeout);
-      timersRef.current = [];
-    };
-  }, [scenario, runKey, applyStep, resetHighlights, onStep]);
 
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
 
@@ -176,8 +56,6 @@ function CanvasInner({ scenario, runKey, onStep, onNodeSelect }: Props) {
       edges={edges}
       nodeTypes={NODE_TYPES}
       proOptions={proOptions}
-      // Default viewport — chosen so 4 columns fit nicely without the
-      // "ant-sized nodes" effect of fitView.
       defaultViewport={{ x: 20, y: 30, zoom: 0.9 }}
       minZoom={0.5}
       maxZoom={1.4}

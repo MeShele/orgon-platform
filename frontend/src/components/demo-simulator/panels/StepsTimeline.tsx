@@ -1,12 +1,11 @@
 "use client";
 
-// Right-side documentation panel. Replaces the old bottom player —
-// presents the scenario as a readable, vertical timeline of steps that
-// auto-scrolls to track playback. Reads more like documentation than a
-// playback controller, which matches the "objective walkthrough"
-// vibe rather than "movie player".
+// Right-side reading panel. Pure documentation: scenario summary at
+// the top, vertical numbered step list below. No "active step", no
+// auto-scroll, no playback synchronisation — the graph is always
+// alive, the panel is always readable, the two don't try to act in
+// lockstep. User reads at their own pace.
 
-import { useEffect, useRef } from "react";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { Scenario, ScenarioStep } from "../scenarios/types";
@@ -31,27 +30,12 @@ interface Props {
   scenarios: Scenario[];
   current: Scenario;
   onSelect: (s: Scenario) => void;
-  onRestart: () => void;
-  /** Active step index (-1 when idle / before first or after last). */
-  stepIndex: number;
 }
 
-export function StepsTimeline({
-  scenarios, current, onSelect, onRestart, stepIndex,
-}: Props) {
-  const listRef = useRef<HTMLOListElement | null>(null);
-  const activeRef = useRef<HTMLLIElement | null>(null);
-
-  // Auto-scroll the active step into view as playback advances.
-  useEffect(() => {
-    if (activeRef.current && listRef.current) {
-      activeRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [stepIndex]);
-
+export function StepsTimeline({ scenarios, current, onSelect }: Props) {
   return (
     <aside className="shrink-0 w-[400px] border-l border-border bg-card flex flex-col h-full">
-      {/* Top bar — scenario picker + persona */}
+      {/* Top — scenario picker + persona context */}
       <header className="shrink-0 border-b border-border px-5 pt-4 pb-3 space-y-3">
         <div>
           <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-faint mb-1">
@@ -87,19 +71,6 @@ export function StepsTimeline({
               {current.persona.context}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onRestart}
-            title="Запустить заново"
-            className={cn(
-              "shrink-0 inline-flex items-center justify-center w-9 h-9 border border-border",
-              "text-muted-foreground hover:text-foreground hover:bg-muted hover:border-strong",
-              "transition-colors",
-            )}
-            aria-label="Запустить заново"
-          >
-            <Icon icon="solar:restart-linear" className="text-[15px]" />
-          </button>
         </div>
       </header>
 
@@ -110,46 +81,24 @@ export function StepsTimeline({
         </p>
       </div>
 
-      {/* Vertical step list */}
-      <ol
-        ref={listRef}
-        className="flex-1 overflow-y-auto px-5 py-4 space-y-3 relative"
-      >
+      {/* Vertical static step list */}
+      <ol className="flex-1 overflow-y-auto px-5 py-4 space-y-3 relative">
         {/* Vertical track behind the dots */}
-        <div className="absolute left-[36px] top-4 bottom-4 w-px bg-border pointer-events-none" />
+        <div
+          aria-hidden
+          className="absolute left-[36px] top-4 bottom-4 w-px bg-border pointer-events-none"
+        />
 
         {current.steps.map((step, i) => {
-          const isActive = i === stepIndex;
-          const isPast = stepIndex >= 0 && i < stepIndex;
           const tone = step.tone ?? "default";
-
           return (
-            <li
-              key={i}
-              ref={isActive ? activeRef : null}
-              className="relative pl-9"
-            >
-              {/* Dot */}
+            <li key={i} className="relative pl-9">
+              {/* Step dot */}
               <span
                 aria-hidden
-                className={cn(
-                  "absolute left-[28px] top-2 w-4 h-4 rounded-full border-2 transition-all",
-                  isActive && "bg-primary border-primary scale-125 shadow-[0_0_0_4px_rgba(156,24,37,0.18)]",
-                  !isActive && isPast && "bg-success/30 border-success/40",
-                  !isActive && !isPast && "bg-card border-border",
-                )}
+                className="absolute left-[28px] top-2 w-4 h-4 rounded-full bg-card border-2 border-border"
               />
-
-              <div
-                className={cn(
-                  "rounded-md border p-3 transition-all duration-200",
-                  isActive
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : isPast
-                    ? "border-border/60 bg-card opacity-70"
-                    : "border-border bg-card",
-                )}
-              >
+              <div className="rounded-md border border-border bg-card p-3">
                 <div className="flex items-center gap-2 mb-1.5">
                   <span className="font-mono text-[9px] tracking-[0.18em] uppercase text-faint">
                     {String(i + 1).padStart(2, "0")}
@@ -168,12 +117,12 @@ export function StepsTimeline({
                   {step.caption}
                 </p>
                 {step.payload && (
-                  <details
-                    className="mt-2 group/payload"
-                    open={isActive}
-                  >
+                  <details className="mt-2 group/payload">
                     <summary className="cursor-pointer list-none flex items-center gap-1 font-mono text-[10px] tracking-tight text-faint hover:text-foreground transition-colors select-none">
-                      <Icon icon="solar:alt-arrow-right-linear" className="text-[10px] group-open/payload:rotate-90 transition-transform" />
+                      <Icon
+                        icon="solar:alt-arrow-right-linear"
+                        className="text-[10px] group-open/payload:rotate-90 transition-transform"
+                      />
                       {step.payload.label}
                     </summary>
                     {step.payload.body && (

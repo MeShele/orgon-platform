@@ -175,7 +175,7 @@ export default function AnalyticsPage() {
                     : "bg-muted text-foreground hover:bg-muted"
                 }`}
               >
-                {d}d
+                {d}д
               </button>
             ))}
           </div>

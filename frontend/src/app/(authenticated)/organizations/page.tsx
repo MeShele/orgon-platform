@@ -68,9 +68,23 @@ export default function OrganizationsPage() {
     return variants[status] || "primary";
   };
 
+  const STATUS_RU: Record<string, string> = {
+    active: "Активная",
+    suspended: "Приостановлена",
+    closed: "Закрыта",
+  };
+
+  const LICENSE_RU: Record<string, string> = {
+    free: "Бесплатный",
+    pro: "Про",
+    enterprise: "Корпоративный",
+    starter: "Стартовый",
+    basic: "Базовый",
+  };
+
   return (
     <>
-      <Header title="Organizations" />
+      <Header title="Организации" />
       
       <div className="p-2 sm:p-4 md:p-6 lg:p-8 space-y-4">
         {/* Filters */}
@@ -85,7 +99,7 @@ export default function OrganizationsPage() {
                   : "bg-muted text-muted-foreground hover:bg-muted dark:hover:bg-card"
               )}
             >
-              All
+              Все
             </button>
             <button
               onClick={() => setFilter('active')}
@@ -96,7 +110,7 @@ export default function OrganizationsPage() {
                   : "bg-muted text-muted-foreground hover:bg-muted dark:hover:bg-card"
               )}
             >
-              Active
+              Активные
             </button>
             <button
               onClick={() => setFilter('suspended')}
@@ -107,7 +121,7 @@ export default function OrganizationsPage() {
                   : "bg-muted text-muted-foreground hover:bg-muted dark:hover:bg-card"
               )}
             >
-              Suspended
+              Приостановлены
             </button>
           </div>
           
@@ -116,7 +130,7 @@ export default function OrganizationsPage() {
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground hover:opacity-90 dark:bg-white dark:text-foreground dark:hover:bg-muted transition-colors"
           >
             <Icon icon="solar:add-circle-linear" />
-            New Organization
+            Новая организация
           </Link>
         </div>
 
@@ -138,7 +152,7 @@ export default function OrganizationsPage() {
             <div className="p-12 text-center">
               <Icon icon="solar:buildings-2-linear" className="mx-auto text-6xl text-faint mb-4" />
               <p className="text-muted-foreground">
-                No organizations found
+                Организации не найдены
               </p>
             </div>
           </Card>
@@ -162,27 +176,27 @@ export default function OrganizationsPage() {
                         )}
                       </div>
                       <Badge variant={getStatusBadge(org.status)}>
-                        {org.status}
+                        {STATUS_RU[org.status] || org.status}
                       </Badge>
                     </div>
 
                     {/* License */}
                     <div className="flex items-center gap-2">
                       <Badge variant={getLicenseBadge(org.license_type)}>
-                        {org.license_type}
+                        {LICENSE_RU[org.license_type] || org.license_type}
                       </Badge>
                     </div>
 
                     {/* Stats */}
                     <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                       <div>
-                        <p className="text-xs text-muted-foreground">Max Wallets</p>
+                        <p className="text-xs text-muted-foreground">Лимит кошельков</p>
                         <p className="text-sm font-semibold text-foreground">
                           {org.max_wallets || 0}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Max Volume</p>
+                        <p className="text-xs text-muted-foreground">Лимит оборота / мес</p>
                         <p className="text-sm font-semibold text-foreground">
                           ${(org.max_monthly_volume || 0).toLocaleString()}
                         </p>

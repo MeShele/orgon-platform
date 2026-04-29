@@ -1,0 +1,100 @@
+{
+  "id": "sanctions-block",
+  "title": "Попытка вывода на санкционный адрес",
+  "summary": "Оператор брокера в Бишкеке вводит адрес получателя, который числится в OFAC SDN-списке. AML-слой блокирует транзакцию до того, как она дойдёт до Safina, и автоматически создаёт alert для compliance-офицера.",
+  "persona": {
+    "label": "Брокер KG",
+    "flag": "🇰🇬",
+    "context": "крипто-брокер в Бишкеке, отчёт в Финразведку КР, $12K USDT перевод"
+  },
+  "steps": [
+    {
+      "kind": "node",
+      "node": "client-exchange",
+      "tone": "info",
+      "caption": "Оператор инициирует вывод $12 000 USDT клиенту. В адресе получателя — кошелёк, попавший в OFAC SDN list 3 дня назад.",
+      "durationMs": 1800
+    },
+    {
+      "kind": "edge",
+      "from": "client-exchange",
+      "to": "auth-jwt",
+      "tone": "info",
+      "caption": "Запрос проходит JWT-аутентификацию. Оператор валидный, токен живой — пропускаем дальше.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "auth-jwt",
+      "to": "auth-rls",
+      "tone": "info",
+      "caption": "RLS контекст установлен. С этой точки все SQL-запросы фильтруются по тенанту брокера — другие клиенты ORGON ничего не видят.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "auth-rls",
+      "to": "policy",
+      "tone": "info",
+      "caption": "Policy Engine проверяет правила: лимиты, время, whitelists. Нарушений не находит.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "policy",
+      "to": "aml",
+      "tone": "info",
+      "caption": "Адрес получателя уходит на AML-проверку.",
+      "durationMs": 1300,
+      "payload": {
+        "label": "AML lookup",
+        "body": "addr: TRsanctioned9k...c4Z\nlists: OFAC, UN, EU"
+      }
+    },
+    {
+      "kind": "node",
+      "node": "aml",
+      "tone": "danger",
+      "caption": "OFAC SDN match. Адрес связан с санкционным контрагентом. risk_score: 95/100.",
+      "durationMs": 1800,
+      "payload": {
+        "label": "AML response",
+        "body": "{\n  \"hit\": true,\n  \"list\": \"OFAC SDN\",\n  \"matched_at\": \"2026-04-26\",\n  \"action\": \"BLOCK\"\n}"
+      }
+    },
+    {
+      "kind": "halt",
+      "node": "aml",
+      "tone": "danger",
+      "caption": "Транзакция заблокирована на этапе AML. Safina даже не вызывается — деньги не двигаются.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "aml",
+      "to": "audit",
+      "tone": "danger",
+      "caption": "В audit_log пишется immutable-запись: попытка вывода на санкционный адрес, кто инициировал, время, IP.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "audit_log INSERT",
+        "body": "action: SANCTIONS_BLOCK\nactor: operator@broker.kg\ntarget: TRsanctioned9k...c4Z\namount: 12000 USDT\nlist: OFAC SDN"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "aml",
+      "to": "notify-telegram",
+      "tone": "warning",
+      "caption": "Compliance-офицер получает уведомление в Telegram: новый AML alert требует review. Транзакция в очереди на разбирательство.",
+      "durationMs": 1700
+    },
+    {
+      "kind": "node",
+      "node": "client-exchange",
+      "tone": "danger",
+      "caption": "В UI оператора появляется красный баннер: «Адрес получателя в санкционном списке. Транзакция отклонена. Свяжитесь с compliance-офицером.»",
+      "durationMs": 2000
+    }
+  ]
+}

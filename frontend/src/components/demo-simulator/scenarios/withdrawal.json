@@ -1,0 +1,171 @@
+{
+  "id": "withdrawal",
+  "title": "Вывод $50 000 USDT с биржи в Алматы",
+  "summary": "Стандартный happy-path: оператор биржи инициирует вывод клиенту, проходит AML, собирает 2-из-3 подписей, Safina подписывает on-chain транзакцию, аудит-журнал фиксирует каждый шаг.",
+  "persona": {
+    "label": "Биржа KZ",
+    "flag": "🇰🇿",
+    "context": "криптообменник в Алматы, USDT-TRC20, $50K запрос от VIP-клиента"
+  },
+  "steps": [
+    {
+      "kind": "node",
+      "node": "client-exchange",
+      "tone": "info",
+      "caption": "Оператор биржи открывает дашборд ORGON и нажимает «Новая транзакция» — указывает кошелёк, адрес получателя, сумму $50 000 USDT.",
+      "durationMs": 1800
+    },
+    {
+      "kind": "edge",
+      "from": "client-exchange",
+      "to": "auth-jwt",
+      "tone": "info",
+      "caption": "POST /api/transactions с Bearer JWT идёт через middleware. Проверяется срок жизни токена и роль оператора.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "POST /api/transactions",
+        "body": "Authorization: Bearer eyJhbGc...\n{\"wallet\":\"hot-trx-1\",\"to_addr\":\"TX...c4Z\",\"amount\":\"50000\",\"token\":\"USDT\"}"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "auth-jwt",
+      "to": "auth-rls",
+      "tone": "info",
+      "caption": "RLS-middleware ставит app.current_organization_id в Postgres-сессии — все последующие SQL-запросы автоматически фильтруются по тенанту биржи.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "RLS context",
+        "body": "SELECT set_config('app.current_organization_id', '7f3...', true);\nSELECT set_config('app.is_super_admin', 'false', true);"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "auth-rls",
+      "to": "policy",
+      "tone": "info",
+      "caption": "Запрос попадает в Policy Engine. В превью-режиме правила валидируются, но не enforce'ятся. На прод-этапе тут проверится whitelist получателей и thresholds.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "policy",
+      "to": "aml",
+      "tone": "info",
+      "caption": "AML-проверка адреса получателя. Прогон через OFAC, UN, EU sanctions lists.",
+      "durationMs": 1700,
+      "payload": {
+        "label": "AML check",
+        "body": "addr: TX9k...c4Z\n  OFAC: clean ✓\n  UN: clean ✓\n  EU: clean ✓\n  risk_score: 12/100 (low)"
+      }
+    },
+    {
+      "kind": "node",
+      "node": "aml",
+      "tone": "success",
+      "caption": "Адрес чистый. AML возвращает зелёный свет, транзакция создаётся в статусе pending.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "aml",
+      "to": "signature",
+      "tone": "info",
+      "caption": "Создаётся signature-request. Пороговая схема кошелька — 2-of-3, поэтому транзакция ждёт минимум двух подписей.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "signature",
+      "to": "postgres",
+      "tone": "info",
+      "caption": "INSERT в transactions со статусом pending. UNIQUE INDEX (tx_unid, signer, action) на signature_history гарантирует, что один и тот же подписант не сможет подписать дважды.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "SQL",
+        "body": "INSERT INTO transactions (unid, wallet_name, to_addr, value, status)\nVALUES ('TX_W3K', 'hot-trx-1', 'TX...c4Z', '50000', 'pending');"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "signature",
+      "to": "audit",
+      "tone": "info",
+      "caption": "Параллельно — запись в audit_log. Триггер на DB-уровне делает её append-only: невозможно удалить или изменить даже из psql.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "signature",
+      "to": "notify-telegram",
+      "tone": "info",
+      "caption": "Подписантам №2 и №3 уходит уведомление в Telegram через TelegramNotifier — у них в личном чате появляется кнопка «подписать / отклонить».",
+      "durationMs": 1700
+    },
+    {
+      "kind": "node",
+      "node": "signature",
+      "tone": "success",
+      "caption": "Первый подписант (compliance-офицер) одобрил. signature_history пополняется. Статус: 1/2.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "node",
+      "node": "signature",
+      "tone": "success",
+      "caption": "Второй подписант (CTO) одобрил. Порог достигнут. Транзакция переходит в статус signed.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "signature",
+      "to": "safina-signer",
+      "tone": "info",
+      "caption": "ORGON делегирует криптографическую подпись Safina. EC-ключ живёт в SignerBackend — сейчас EnvSignerBackend, в проде переключаем на KMSSignerBackend (Wave 12).",
+      "durationMs": 1700
+    },
+    {
+      "kind": "edge",
+      "from": "safina-signer",
+      "to": "safina-api",
+      "tone": "info",
+      "caption": "Safina формирует и подписывает on-chain транзакцию. ORGON получает tx_hash и сохраняет.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "Safina API",
+        "body": "POST /ece/send_transaction\n  → tx_hash: 0x9f4a...e21c"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "safina-api",
+      "to": "chain-trx",
+      "tone": "success",
+      "caption": "TRC-20 транзакция уходит в Tron testnet. Через 19 секунд первый block-confirmation.",
+      "durationMs": 2000
+    },
+    {
+      "kind": "edge",
+      "from": "signature",
+      "to": "webhook",
+      "tone": "success",
+      "caption": "Параллельно ORGON шлёт webhook в систему биржи: статус confirmed, tx_hash, фактическая комиссия. Запрос подписан HMAC по партнёрскому secret.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "webhook",
+      "to": "notify-partner-hook",
+      "tone": "success",
+      "caption": "Партнёрский endpoint биржи отвечает 200 OK. webhook_events.status = delivered.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "node",
+      "node": "client-exchange",
+      "tone": "success",
+      "caption": "Дашборд оператора в реальном времени обновляется через WebSocket: транзакция confirmed, баланс кошелька пересчитан. Конец флоу.",
+      "durationMs": 2000
+    }
+  ]
+}

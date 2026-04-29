@@ -27,9 +27,9 @@ export function BalanceChart({ days = 7 }: { days?: number }) {
   if (data.length === 0) {
     return (
       <Card>
-        <CardHeader title="Balance History" subtitle={`Last ${days} days`} />
+        <CardHeader title="История баланса" subtitle={`Последние ${days} дн.`} />
         <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-          No balance history yet. Data will appear after the first sync cycle.
+          История баланса пока пуста. Данные появятся после первого цикла синхронизации.
         </div>
       </Card>
     );

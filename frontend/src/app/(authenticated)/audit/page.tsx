@@ -402,7 +402,7 @@ export default function AuditPage() {
                   disabled={logs.length === 0}
                 >
                   <Icon icon="solar:file-download-linear" className="mr-2" />
-                  Export CSV
+                  Экспорт в CSV
                 </Button>
                 <HelpTooltip
                   text={helpContent.audit.exportCsv.text}
@@ -418,7 +418,7 @@ export default function AuditPage() {
                   disabled={logs.length === 0}
                 >
                   <Icon icon="solar:code-file-linear" className="mr-2" />
-                  Export JSON
+                  Экспорт в JSON
                 </Button>
                 <HelpTooltip
                   text={helpContent.audit.exportJson.text}
@@ -530,7 +530,7 @@ export default function AuditPage() {
               <Card padding>
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-sm text-muted-foreground">
-                    Showing {offset + 1} - {Math.min(offset + limit, totalLogs)} of {totalLogs} logs
+                    Показано {offset + 1}–{Math.min(offset + limit, totalLogs)} из {totalLogs}
                   </div>
                   
                   <div className="flex items-center gap-2">
@@ -552,7 +552,7 @@ export default function AuditPage() {
                     </Button>
                     
                     <span className="px-4 py-2 text-sm text-foreground">
-                      Page {currentPage} of {totalPages}
+                      Страница {currentPage} из {totalPages}
                     </span>
                     
                     <Button
@@ -581,9 +581,9 @@ export default function AuditPage() {
                     }}
                     className="px-3 py-1 text-sm border border-border rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
-                    <option value="25">25 per page</option>
-                    <option value="50">50 per page</option>
-                    <option value="100">100 per page</option>
+                    <option value="25">25 на странице</option>
+                    <option value="50">50 на странице</option>
+                    <option value="100">100 на странице</option>
                   </select>
                 </div>
               </Card>

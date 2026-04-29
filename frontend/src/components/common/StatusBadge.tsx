@@ -46,7 +46,7 @@ export function StatusDot({ active = true }: { active?: boolean }) {
           active ? "bg-emerald-500 dark:bg-emerald-400" : "bg-red-500 dark:bg-red-400"
         )}
       />
-      {active ? "ok" : "down"}
+      {active ? "онлайн" : "недоступно"}
     </div>
   );
 }

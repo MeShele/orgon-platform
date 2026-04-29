@@ -53,7 +53,7 @@ export default function TransactionDetailPage() {
   if (error) {
     return (
       <>
-        <Header title="Transaction Detail" />
+        <Header title="Транзакция" />
         <div className="p-4 sm:p-6 lg:p-8">
           <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-xs text-destructive">
             {error}
@@ -66,7 +66,7 @@ export default function TransactionDetailPage() {
   if (!tx) {
     return (
       <>
-        <Header title="Transaction Detail" />
+        <Header title="Транзакция" />
         <div className="p-6"><LoadingSpinner /></div>
       </>
     );
@@ -78,7 +78,7 @@ export default function TransactionDetailPage() {
       <div className="space-y-4 p-2 sm:p-4 md:p-6 lg:p-8 max-w-3xl">
         <Card>
           <CardHeader
-            title={`Transaction ${unid.slice(0, 16)}...`}
+            title={`Транзакция ${unid.slice(0, 16)}…`}
             action={<StatusBadge status={String(tx.status)} />}
           />
           <div className="space-y-4 p-4">
@@ -91,27 +91,27 @@ export default function TransactionDetailPage() {
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">To Address</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Адрес получателя</p>
                 <div className="flex items-center gap-2">
                   <p className="font-mono text-xs text-foreground break-all">{String(tx.to_addr)}</p>
                   <CopyButton text={String(tx.to_addr)} />
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">Amount</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Сумма</p>
                 <p className="text-sm font-semibold text-foreground">
                   {formatValue(String(tx.value))} {String(tx.token_name || "")}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">Date</p>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Дата</p>
                 <p className="text-xs text-foreground">
                   {tx.init_ts ? formatTimestamp(new Date(Number(tx.init_ts) * 1000)) : "-"}
                 </p>
               </div>
               {tx.tx_hash ? (
                 <div className="col-span-full">
-                  <p className="text-xs font-medium text-muted-foreground mb-1.5">TX Hash</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Хэш транзакции</p>
                   <div className="flex items-center gap-2">
                     <p className="font-mono text-xs text-foreground break-all">{String(tx.tx_hash)}</p>
                     <CopyButton text={String(tx.tx_hash)} />
@@ -124,7 +124,7 @@ export default function TransactionDetailPage() {
 
         {tx.status === "pending" && (
           <Card>
-            <CardHeader title="Actions" subtitle="Sign or reject this transaction" />
+            <CardHeader title="Действия" subtitle="Подписать или отклонить транзакцию" />
             <div className="flex gap-3 p-4">
               <div className="flex items-center gap-2">
                 <button
@@ -133,7 +133,7 @@ export default function TransactionDetailPage() {
                   className="inline-flex items-center gap-2 rounded-lg bg-success px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-success disabled:opacity-50 transition-colors"
                 >
                   <Icon icon="solar:pen-new-square-linear" className="text-sm" />
-                  {actionLoading ? "Processing..." : "Sign Transaction"}
+                  {actionLoading ? "Обработка…" : "Подписать"}
                 </button>
                 <HelpTooltip text={helpContent.transactionDetail.sign.text} diagram={helpContent.transactionDetail.sign.diagram} />
               </div>
@@ -144,7 +144,7 @@ export default function TransactionDetailPage() {
                   className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 px-4 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
                 >
                   <Icon icon="solar:close-circle-linear" className="text-sm" />
-                  Reject
+                  Отклонить
                 </button>
                 <HelpTooltip text={helpContent.transactionDetail.reject.text} />
               </div>
@@ -154,7 +154,7 @@ export default function TransactionDetailPage() {
 
         {tx.signatures && Array.isArray(tx.signatures) && (tx.signatures as Record<string, unknown>[]).length > 0 ? (
           <Card>
-            <CardHeader title="Signatures" action={<HelpTooltip text={helpContent.transactionDetail.signatures.text} />} />
+            <CardHeader title="Подписи" action={<HelpTooltip text={helpContent.transactionDetail.signatures.text} />} />
             <div className="space-y-2 p-4">
               {(tx.signatures as Record<string, unknown>[]).map((sig, i) => (
                 <div key={i} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">

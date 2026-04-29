@@ -5,7 +5,7 @@ export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   // Public routes — never require auth.
-  const publicRoutes = ['/', '/login', '/register', '/features', '/pricing', '/about', '/forgot-password', '/reset-password'];
+  const publicRoutes = ['/', '/login', '/register', '/features', '/pricing', '/about', '/forgot-password', '/reset-password', '/demo'];
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
 
   const accessToken = request.cookies.get('orgon_access_token')?.value;

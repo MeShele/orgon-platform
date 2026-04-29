@@ -23,6 +23,16 @@ interface Plan {
 // Booleans become labels (or are dropped if false); strings/numbers get a
 // short prefix. Unknown keys fall back to "key: value".
 const FEATURE_LABEL: Record<string, string> = {
+  // Boolean features (current dfns-aligned schema)
+  all_interfaces:          "Все интерфейсы — UI, API, webhooks",
+  all_blockchains:         "Все поддерживаемые блокчейн-сети",
+  support_24h:             "Поддержка 24/7",
+  support_1h:              "Приоритетная поддержка (отклик за 1 час)",
+  custom_pricing:          "Индивидуальное ценообразование",
+  unlimited_wallets:       "Кошельки без ограничения",
+  unlimited_team_members:  "Команда без ограничения",
+  unlimited_transactions:  "Транзакции без ограничения",
+  // Legacy boolean keys preserved for backward compatibility
   basic_support:           "Базовая поддержка",
   priority_support:        "Приоритетная поддержка",
   dedicated_support:       "Выделенный канал поддержки",
@@ -30,8 +40,6 @@ const FEATURE_LABEL: Record<string, string> = {
   api_access:              "B2B API-доступ",
   white_label:             "White-label оформление",
   sla_24_7:                "SLA 24/7",
-  unlimited_wallets:       "Кошельки без ограничения",
-  unlimited_transactions:  "Транзакции без ограничения",
 };
 
 function formatNumber(n: number | string): string {
@@ -58,6 +66,12 @@ function normaliseFeatures(raw: Plan["features"]): string[] {
         break;
       case "max_transactions":
         out.push(`До ${formatNumber(val)} транзакций / мес`);
+        break;
+      case "max_team_members":
+        out.push(`До ${formatNumber(val)} пользователей в команде`);
+        break;
+      case "max_blockchains":
+        out.push(`До ${formatNumber(val)} блокчейн-сетей`);
         break;
       case "kyc_price":
         out.push(`KYC: $${val} / клиент`);

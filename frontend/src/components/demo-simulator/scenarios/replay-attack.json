@@ -1,0 +1,98 @@
+{
+  "id": "replay-attack",
+  "title": "Попытка replay-атаки на B2B API",
+  "summary": "Партнёрский endpoint утёк наружу. Атакующий перехватывает валидный HMAC-подписанный запрос и отправляет его повторно через минуту, рассчитывая на двойное списание. ORGON отбивает повтор на уровне HMAC middleware за счёт PK-дедупликации nonce.",
+  "persona": {
+    "label": "B2B Партнёр",
+    "flag": "🇺🇿",
+    "context": "узбекистанский платёжный шлюз, B2B-интеграция через HMAC-подписанный API"
+  },
+  "steps": [
+    {
+      "kind": "node",
+      "node": "client-partner",
+      "tone": "info",
+      "caption": "Партнёр отправляет легитимный запрос: списание $800 USDT с pre-funded баланса. Запрос подписан HMAC-SHA256, X-Nonce уникален.",
+      "durationMs": 1700,
+      "payload": {
+        "label": "POST /api/v1/partner/transactions/withdraw",
+        "body": "X-Nonce: 8a3e9f2b\nX-Timestamp: 1745928000\nX-Signature: 4c7b...d09a\n{\"amount\":\"800\",\"to\":\"TX...4f1\"}"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "client-partner",
+      "to": "auth-hmac",
+      "tone": "info",
+      "caption": "HMAC middleware восстанавливает подпись из (method|path|body|nonce|timestamp), сверяет с X-Signature. Совпало.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "node",
+      "node": "auth-hmac",
+      "tone": "success",
+      "caption": "Timestamp в пределах ±5 минут, nonce 8a3e9f2b в partner_request_nonces отсутствует — INSERT успешен. Запрос пропущен дальше.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "partner_request_nonces",
+        "body": "INSERT INTO partner_request_nonces (partner_id, nonce, seen_at)\nVALUES ('p_29f', '8a3e9f2b', NOW());\n└─ OK (PK accepted)"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "auth-hmac",
+      "to": "auth-jwt",
+      "tone": "success",
+      "caption": "Запрос продолжает путь. Транзакция уйдёт в Signature Service и нормально обработается.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "wait",
+      "tone": "info",
+      "caption": "—  ⏱ Через 47 секунд: атакующий перехватил тот же HTTP-запрос с заголовками и отправляет его повторно с того же nonce, ожидая дубль-списания.  —",
+      "durationMs": 2200
+    },
+    {
+      "kind": "node",
+      "node": "client-partner",
+      "tone": "danger",
+      "caption": "Replay: тот же body, тот же X-Nonce 8a3e9f2b, тот же X-Signature. С точки зрения HMAC — подпись валидна (что и было целью атакующего).",
+      "durationMs": 1800
+    },
+    {
+      "kind": "edge",
+      "from": "client-partner",
+      "to": "auth-hmac",
+      "tone": "danger",
+      "caption": "Запрос приходит на HMAC middleware. Подпись проходит проверку — она же действительно валидна.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "halt",
+      "node": "auth-hmac",
+      "tone": "danger",
+      "caption": "INSERT в partner_request_nonces проваливается с UNIQUE constraint violation: (partner_id, nonce) уже есть. Middleware отдаёт 409 Conflict, не пропуская запрос дальше.",
+      "durationMs": 2000,
+      "payload": {
+        "label": "Postgres",
+        "body": "ERROR:  duplicate key value violates unique constraint\n        \"partner_request_nonces_pkey\"\nDETAIL: Key (partner_id, nonce)=(p_29f, 8a3e9f2b) already exists.\n\nORGON → HTTP 409 Conflict { error: \"replay_detected\" }"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "auth-hmac",
+      "to": "audit",
+      "tone": "warning",
+      "caption": "Замечание о попытке replay уходит в audit_log. Compliance видит, что у партнёра возможна утечка ключа — это сигнал к ротации.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "auth-hmac",
+      "to": "notify-telegram",
+      "tone": "warning",
+      "caption": "Уведомление в security-канал: «replay-attempt detected for partner p_29f at 14:31 UTC. Recommend secret rotation.»",
+      "durationMs": 1700
+    }
+  ]
+}

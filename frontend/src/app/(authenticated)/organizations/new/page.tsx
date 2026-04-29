@@ -66,7 +66,7 @@ export default function NewOrganizationPage() {
       // Redirect to organizations list
       router.push("/organizations");
     } catch (err: any) {
-      setError(err.message || "Failed to create organization");
+      setError(err.message || "Не удалось создать организацию");
     } finally {
       setLoading(false);
     }
@@ -74,18 +74,18 @@ export default function NewOrganizationPage() {
 
   return (
     <>
-      <Header title="New Organization" />
-      
+      <Header title="Новая организация" />
+
       <div className="p-2 sm:p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Information */}
           <Card>
-            <CardHeader title="Basic Information" />
+            <CardHeader title="Основная информация" />
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Organization Name *
+                    Название организации *
                   </label>
                   <input
                     type="text"
@@ -99,7 +99,7 @@ export default function NewOrganizationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Display Name
+                    Отображаемое имя
                   </label>
                   <input
                     type="text"
@@ -123,22 +123,22 @@ export default function NewOrganizationPage() {
                     placeholder="acme-exchange"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    URL-friendly identifier (lowercase, hyphens)
+                    URL-идентификатор: только латиница, цифры и дефисы
                   </p>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    License Type *
+                    Тип лицензии *
                   </label>
                   <select
                     value={formData.license_type}
                     onChange={(e) => handleChange("license_type", e.target.value)}
                     className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                   >
-                    <option value="free">Free (10 wallets, $10K/mo)</option>
-                    <option value="pro">Pro (50 wallets, $100K/mo)</option>
-                    <option value="enterprise">Enterprise (Unlimited)</option>
+                    <option value="free">Бесплатный (10 кошельков, $10K / мес)</option>
+                    <option value="pro">Pro (50 кошельков, $100K / мес)</option>
+                    <option value="enterprise">Корпоративный (без лимитов)</option>
                   </select>
                 </div>
               </div>
@@ -147,7 +147,7 @@ export default function NewOrganizationPage() {
 
           {/* Contact Information */}
           <Card>
-            <CardHeader title="Contact Information" />
+            <CardHeader title="Контактная информация" />
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -166,7 +166,7 @@ export default function NewOrganizationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Phone
+                    Телефон
                   </label>
                   <input
                     type="tel"
@@ -179,7 +179,7 @@ export default function NewOrganizationPage() {
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Address
+                    Адрес
                   </label>
                   <input
                     type="text"
@@ -192,7 +192,7 @@ export default function NewOrganizationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    City *
+                    Город *
                   </label>
                   <input
                     type="text"
@@ -200,24 +200,24 @@ export default function NewOrganizationPage() {
                     value={formData.city}
                     onChange={(e) => handleChange("city", e.target.value)}
                     className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
-                    placeholder="Bishkek"
+                    placeholder="Бишкек"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Country *
+                    Страна *
                   </label>
                   <select
                     value={formData.country}
                     onChange={(e) => handleChange("country", e.target.value)}
                     className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-border dark:bg-card"
                   >
-                    <option value="KG">Kyrgyzstan</option>
-                    <option value="KZ">Kazakhstan</option>
-                    <option value="UZ">Uzbekistan</option>
-                    <option value="TJ">Tajikistan</option>
-                    <option value="RU">Russia</option>
+                    <option value="KG">Кыргызстан</option>
+                    <option value="KZ">Казахстан</option>
+                    <option value="UZ">Узбекистан</option>
+                    <option value="TJ">Таджикистан</option>
+                    <option value="RU">Россия</option>
                   </select>
                 </div>
               </div>
@@ -226,12 +226,12 @@ export default function NewOrganizationPage() {
 
           {/* Limits & Settings */}
           <Card>
-            <CardHeader title="Limits & Settings" />
+            <CardHeader title="Лимиты и настройки" />
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Max Wallets
+                    Лимит кошельков
                   </label>
                   <input
                     type="number"
@@ -244,7 +244,7 @@ export default function NewOrganizationPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
-                    Max Monthly Volume (USD)
+                    Лимит оборота / мес (USD)
                   </label>
                   <input
                     type="number"
@@ -266,10 +266,10 @@ export default function NewOrganizationPage() {
                     />
                     <div>
                       <span className="text-sm font-medium text-foreground">
-                        Require KYC Verification
+                        Требовать KYC-верификацию
                       </span>
                       <p className="text-xs text-muted-foreground">
-                        Enable Know Your Customer verification for this organization
+                        Включить проверку клиентов (Know Your Customer) для этой организации
                       </p>
                     </div>
                   </label>
@@ -285,7 +285,7 @@ export default function NewOrganizationPage() {
                 <Icon icon="solar:danger-circle-bold" className="text-destructive text-xl flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-destructive">
-                    Error Creating Organization
+                    Не удалось создать организацию
                   </p>
                   <p className="text-xs text-destructive mt-1">
                     {error}
@@ -303,7 +303,7 @@ export default function NewOrganizationPage() {
               disabled={loading}
               className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted dark:border-border dark:text-faint dark:hover:bg-muted transition-colors disabled:opacity-50"
             >
-              Cancel
+              Отмена
             </button>
             <button
               type="submit"
@@ -318,12 +318,12 @@ export default function NewOrganizationPage() {
               {loading ? (
                 <>
                   <Icon icon="solar:refresh-linear" className="inline animate-spin mr-2" />
-                  Creating...
+                  Создание…
                 </>
               ) : (
                 <>
                   <Icon icon="solar:add-circle-linear" className="inline mr-2" />
-                  Create Organization
+                  Создать организацию
                 </>
               )}
             </button>

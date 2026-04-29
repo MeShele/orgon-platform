@@ -60,7 +60,7 @@ export function Header({ title }: { title: string }) {
               )}
               <span className={cn("relative inline-flex h-1.5 w-1.5 rounded-full", connected ? "bg-success" : "bg-faint")} />
             </span>
-            {connected ? "Sync · Live" : "Offline"}
+            {connected ? "Синхронизация · Онлайн" : "Офлайн"}
           </div>
         </div>
 

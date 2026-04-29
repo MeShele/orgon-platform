@@ -155,7 +155,7 @@ export default function SignaturesPage() {
                       <div>
                         <div className="flex items-center gap-3 flex-wrap">
                           <Mono size="md" className="text-foreground">{p.tx_unid?.slice(0, 12) ?? "—"}…</Mono>
-                          <Badge variant="warning">PENDING</Badge>
+                          <Badge variant="warning">Ожидает</Badge>
                           {p.token && <Badge variant="outline">{p.token}</Badge>}
                         </div>
                         <div className="mt-3 flex items-center gap-6 flex-wrap text-[12px]">

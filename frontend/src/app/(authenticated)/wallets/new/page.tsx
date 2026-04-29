@@ -6,7 +6,7 @@ import { CreateWalletForm } from "@/components/wallets/CreateWalletForm";
 export default function NewWalletPage() {
   return (
     <>
-      <Header title="Create Wallet" />
+      <Header title="Новый кошелёк" />
       <div className="p-4 sm:p-6 lg:p-8">
         <CreateWalletForm />
       </div>

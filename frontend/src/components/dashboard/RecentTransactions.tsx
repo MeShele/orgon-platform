@@ -18,7 +18,7 @@ export function RecentTransactions({ transactions }: { transactions: Transaction
   return (
     <Card>
       <CardHeader
-        title="Recent Transactions"
+        title="Последние транзакции"
         action={
           <Link
             href="/transactions"

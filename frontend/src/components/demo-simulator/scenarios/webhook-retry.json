@@ -1,0 +1,95 @@
+{
+  "id": "webhook-retry",
+  "title": "Webhook доставка с retry-логикой",
+  "summary": "Транзакция подтверждена в блокчейне. ORGON шлёт webhook партнёру, но его endpoint временно лежит (5xx). Dispatcher ставит запрос в очередь и пересылает с экспоненциальной задержкой. На третьей попытке partner отвечает 200 — webhook доставлен, статус сохранён.",
+  "persona": {
+    "label": "Платёжный шлюз TJ",
+    "flag": "🇹🇯",
+    "context": "процессинговый шлюз в Душанбе, B2B-интеграция, partner endpoint имеет нестабильность"
+  },
+  "steps": [
+    {
+      "kind": "node",
+      "node": "chain-trx",
+      "tone": "success",
+      "caption": "Tron blockchain подтверждает транзакцию: первый block-confirmation получен через 19 секунд. Safina ловит событие.",
+      "durationMs": 1800
+    },
+    {
+      "kind": "edge",
+      "from": "safina-api",
+      "to": "signature",
+      "tone": "success",
+      "caption": "Safina пушит callback в ORGON: tx_hash, статус confirmed, фактическая комиссия. Sync-сервис обновляет запись в transactions.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "signature",
+      "to": "webhook",
+      "tone": "info",
+      "caption": "Webhook Dispatcher достаёт из partner_webhooks URL получателя и формирует подписанный POST. HMAC от тела + timestamp.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "Outbound webhook",
+        "body": "POST https://partner.tj/orgon-callback\nX-ORGON-Signature: t=1745928000,v1=4d8c...3a7e\n{\"event\":\"tx.confirmed\",\"tx_unid\":\"TX_U91\",\"tx_hash\":\"0x9f4a...\"}"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "webhook",
+      "to": "notify-partner-hook",
+      "tone": "danger",
+      "caption": "Попытка №1: partner endpoint возвращает 502 Bad Gateway. У них прокси перезагружается. Запрос помечается failed, retry through exponential backoff.",
+      "durationMs": 1900,
+      "payload": {
+        "label": "webhook_events row",
+        "body": "attempt: 1\nstatus: failed\nresponse_code: 502\nnext_retry_at: NOW() + 30s"
+      }
+    },
+    {
+      "kind": "wait",
+      "tone": "info",
+      "caption": "—  ⏱ 30 секунд спустя: dispatcher cron поднимает webhook на повторную попытку.  —",
+      "durationMs": 1700
+    },
+    {
+      "kind": "edge",
+      "from": "webhook",
+      "to": "notify-partner-hook",
+      "tone": "warning",
+      "caption": "Попытка №2: 503 Service Unavailable. Прокси ещё не поднялся. Retry откладывается уже на 90 секунд (exponential).",
+      "durationMs": 1900,
+      "payload": {
+        "label": "webhook_events row",
+        "body": "attempt: 2\nstatus: failed\nresponse_code: 503\nnext_retry_at: NOW() + 90s"
+      }
+    },
+    {
+      "kind": "wait",
+      "tone": "info",
+      "caption": "—  ⏱ 90 секунд спустя: третья попытка. Сервис партнёра восстановился.  —",
+      "durationMs": 1700
+    },
+    {
+      "kind": "edge",
+      "from": "webhook",
+      "to": "notify-partner-hook",
+      "tone": "success",
+      "caption": "Попытка №3: HTTP 200 OK. Партнёр обработал webhook и обновил свою БД. webhook_events.status = delivered.",
+      "durationMs": 1700,
+      "payload": {
+        "label": "webhook_events row (final)",
+        "body": "attempt: 3\nstatus: delivered\nresponse_code: 200\ndelivered_at: 2026-04-29 14:33:21 UTC\ntotal_latency: 124s"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "webhook",
+      "to": "audit",
+      "tone": "success",
+      "caption": "В audit_log запись о финальной доставке. Платёжный шлюз TJ может верить, что событие у него есть, и обновить состояние своей системы.",
+      "durationMs": 1500
+    }
+  ]
+}

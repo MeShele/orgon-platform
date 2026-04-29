@@ -63,12 +63,12 @@ export function CreateWalletForm() {
 
   return (
     <Card className="max-w-2xl">
-      <CardHeader title="Create Wallet" subtitle="Create a new wallet on Safina Pay" />
+      <CardHeader title="Создать кошелёк" subtitle="Новый кошелёк на стороне Safina Pay" />
       <form onSubmit={handleSubmit} className="space-y-4 p-4">
         <div>
           <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-            Network
-            <HelpTooltip 
+            Сеть
+            <HelpTooltip
               text={helpContent.createWallet.network.text}
               example={helpContent.createWallet.network.example}
               tips={helpContent.createWallet.network.tips}
@@ -90,8 +90,8 @@ export function CreateWalletForm() {
 
         <div>
           <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-            Description
-            <HelpTooltip 
+            Описание
+            <HelpTooltip
               text={helpContent.createWallet.description.text}
               example={helpContent.createWallet.description.example}
               tips={helpContent.createWallet.description.tips}
@@ -102,7 +102,7 @@ export function CreateWalletForm() {
             value={info}
             onChange={(e) => setInfo(e.target.value)}
             className={inputClass}
-            placeholder="My wallet"
+            placeholder="Например: операционный кошелёк"
           />
         </div>
 
@@ -115,8 +115,8 @@ export function CreateWalletForm() {
             className="rounded border-slate-300 text-foreground focus:ring-slate-500 dark:border-border dark:bg-card"
           />
           <label htmlFor="multisig" className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            Multi-signature wallet
-            <HelpTooltip 
+            Мультиподписной кошелёк
+            <HelpTooltip
               text={helpContent.createWallet.multiSig.text}
               example={helpContent.createWallet.multiSig.example}
               tips={helpContent.createWallet.multiSig.tips}
@@ -129,8 +129,8 @@ export function CreateWalletForm() {
           <div className="space-y-3 rounded-lg border border-border p-4 dark:border-border">
             <div>
               <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-                Minimum signatures required
-                <HelpTooltip 
+                Минимум подписей для проведения
+                <HelpTooltip
                   text={helpContent.createWallet.minSigns.text}
                   example={helpContent.createWallet.minSigns.example}
                   tips={helpContent.createWallet.minSigns.tips}
@@ -148,16 +148,16 @@ export function CreateWalletForm() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 <span className="w-32">
-                  Signer type 
-                  <HelpTooltip 
+                  Тип подписанта
+                  <HelpTooltip
                     text={helpContent.createWallet.signerType.text}
                     example={helpContent.createWallet.signerType.example}
                     tips={helpContent.createWallet.signerType.tips}
                   />
                 </span>
                 <span className="flex-1">
-                  EC address 
-                  <HelpTooltip 
+                  EC-адрес
+                  <HelpTooltip
                     text={helpContent.createWallet.ecAddress.text}
                     example={helpContent.createWallet.ecAddress.example}
                     tips={helpContent.createWallet.ecAddress.tips}
@@ -173,14 +173,14 @@ export function CreateWalletForm() {
                     onChange={(e) => updateSigner(i, "type", e.target.value)}
                     className={`${selectClass} w-32`}
                   >
-                    <option value="all">All methods</option>
-                    <option value="any">Any method</option>
+                    <option value="all">Все методы</option>
+                    <option value="any">Любой метод</option>
                   </select>
                   <input
                     type="text"
                     value={s.ecaddress}
                     onChange={(e) => updateSigner(i, "ecaddress", e.target.value)}
-                    placeholder="0x... EC address"
+                    placeholder="0x… EC-адрес"
                     className={`${inputClass} flex-1 font-mono`}
                   />
                   {signers.length > 1 && (
@@ -201,7 +201,7 @@ export function CreateWalletForm() {
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
             >
               <Icon icon="solar:add-circle-linear" className="text-sm" />
-              Add signer
+              Добавить подписанта
             </button>
           </div>
         )}
@@ -215,7 +215,7 @@ export function CreateWalletForm() {
           disabled={loading}
           className="rounded-lg bg-card px-4 py-2.5 text-xs font-medium text-white hover:bg-muted disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors"
         >
-          {loading ? "Creating..." : "Create Wallet"}
+          {loading ? "Создание…" : "Создать кошелёк"}
         </button>
       </form>
     </Card>

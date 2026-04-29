@@ -92,7 +92,7 @@ export default function OrganizationDetailPage() {
   if (loading) {
     return (
       <>
-        <Header title="Organization" />
+        <Header title="Организация" />
         <div className="p-8">
           <Card>
             <div className="p-8 animate-pulse space-y-4">
@@ -109,18 +109,18 @@ export default function OrganizationDetailPage() {
   if (!organization) {
     return (
       <>
-        <Header title="Organization Not Found" />
+        <Header title="Организация не найдена" />
         <div className="p-8">
           <Card>
             <div className="p-12 text-center">
               <p className="text-muted-foreground">
-                Organization not found
+                Организация не найдена
               </p>
               <button
                 onClick={() => router.push('/organizations')}
                 className="mt-4 px-4 py-2 text-sm rounded-lg bg-foreground text-background"
               >
-                Back to Organizations
+                Вернуться к списку
               </button>
             </div>
           </Card>
@@ -220,7 +220,7 @@ export default function OrganizationDetailPage() {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <Card>
-            <CardHeader title="Organization Details" />
+            <CardHeader title="Детали организации" />
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

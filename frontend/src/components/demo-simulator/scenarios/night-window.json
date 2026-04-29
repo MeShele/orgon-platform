@@ -1,0 +1,107 @@
+{
+  "id": "night-window",
+  "title": "Ночное time-lock окно (превью Policy Engine)",
+  "summary": "Биржа в Ташкенте настроила правило: между 22:00 и 06:00 локального времени любой вывод свыше $5K автоматически уходит в time-lock до утра. Оператор пытается провести вывод в 23:47 — Policy Engine (preview) откладывает транзакцию. Утром она сама выходит из очереди и продолжает обычный путь.",
+  "persona": {
+    "label": "Биржа UZ",
+    "flag": "🇺🇿",
+    "context": "криптообменник в Ташкенте, ночная смена, $8K вывод запрошен в 23:47"
+  },
+  "steps": [
+    {
+      "kind": "node",
+      "node": "client-exchange",
+      "tone": "info",
+      "caption": "Ночная смена. Оператор инициирует вывод $8 000 USDT. Время на сервере — 23:47 по Ташкенту.",
+      "durationMs": 1700
+    },
+    {
+      "kind": "edge",
+      "from": "client-exchange",
+      "to": "auth-jwt",
+      "tone": "info",
+      "caption": "Запрос проходит обычную аутентификацию. JWT действителен.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "auth-jwt",
+      "to": "auth-rls",
+      "tone": "info",
+      "caption": "RLS-контекст установлен на тенант биржи UZ.",
+      "durationMs": 1200
+    },
+    {
+      "kind": "edge",
+      "from": "auth-rls",
+      "to": "policy",
+      "tone": "info",
+      "caption": "Запрос попадает в Policy Engine. Загружаются правила, активные для этой организации.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "Применяемое правило (preview)",
+        "body": "policy: night_time_lock\nIF amount > 5000 USD\nAND now() >= '22:00' OR now() <= '06:00'\nTHEN action: time_lock_until_06_00"
+      }
+    },
+    {
+      "kind": "node",
+      "node": "policy",
+      "tone": "warning",
+      "caption": "Правило сработало: сумма $8K больше порога $5K, текущее время 23:47 в окне ночного time-lock'а. Транзакция переходит в статус delayed.",
+      "durationMs": 1900
+    },
+    {
+      "kind": "edge",
+      "from": "policy",
+      "to": "audit",
+      "tone": "warning",
+      "caption": "В audit_log пишется: time-lock applied. Кто, когда, какое правило, до какого времени отложено.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "policy",
+      "to": "notify-telegram",
+      "tone": "warning",
+      "caption": "В Telegram-канал команды биржи уходит уведомление: «Транзакция $8K отложена до 06:00 по правилу night_time_lock. Если нужно провести срочно — кнопка override (требует CFO подписи).»",
+      "durationMs": 1900
+    },
+    {
+      "kind": "wait",
+      "tone": "info",
+      "caption": "—  ⏱ 6 часов 13 минут спустя: 06:00 по Ташкенту, окно time-lock закрылось. Cron-задача снова поднимает все delayed-транзакции.  —",
+      "durationMs": 2200
+    },
+    {
+      "kind": "node",
+      "node": "policy",
+      "tone": "success",
+      "caption": "Policy Engine повторно проверяет правила. Время 06:00, окно прошло. Транзакция выпускается из time-lock.",
+      "durationMs": 1700
+    },
+    {
+      "kind": "edge",
+      "from": "policy",
+      "to": "aml",
+      "tone": "info",
+      "caption": "Дальше — обычный путь: AML-проверка адреса.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "aml",
+      "to": "signature",
+      "tone": "info",
+      "caption": "AML clean → signature requests рассылаются подписантам.",
+      "durationMs": 1300
+    },
+    {
+      "kind": "edge",
+      "from": "signature",
+      "to": "safina-signer",
+      "tone": "success",
+      "caption": "Через несколько минут собрано 2 подписи из 3, Safina Signer формирует on-chain транзакцию. Кошелёк клиента получает $8K USDT в ~07:11.",
+      "durationMs": 1900
+    }
+  ]
+}

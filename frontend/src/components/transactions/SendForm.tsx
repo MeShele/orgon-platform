@@ -172,12 +172,12 @@ export function SendForm() {
 
   return (
     <Card className="max-w-2xl">
-      <CardHeader title="Send Transaction" subtitle="Send tokens to an address" />
+      <CardHeader title="Отправить транзакцию" subtitle="Перевод токенов на адрес" />
       <form onSubmit={handleSubmit} className="space-y-4 p-4">
         {/* Wallet Select */}
         <div>
           <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-            Wallet
+            Кошелёк
             <HelpTooltip text={helpContent.sendForm.token.text} diagram={helpContent.sendForm.token.diagram} />
           </label>
           <select
@@ -189,10 +189,10 @@ export function SendForm() {
             className={selectClass}
             required
           >
-            <option value="">Select wallet...</option>
+            <option value="">Выберите кошелёк…</option>
             {walletList.map((w) => (
               <option key={w.name} value={w.name}>
-                {w.info || w.name} — Network {w.network_name || w.network}
+                {w.info || w.name} — сеть {w.network_name || w.network}
               </option>
             ))}
           </select>
@@ -201,7 +201,7 @@ export function SendForm() {
         {/* Token Select */}
         <div>
           <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-            Token
+            Токен
           </label>
           {tokenList.length > 0 ? (
             <select
@@ -210,19 +210,19 @@ export function SendForm() {
               className={selectClass}
               required
             >
-              <option value="">Select token...</option>
+              <option value="">Выберите токен…</option>
               {tokenList.map((t, i) => {
-                const shortName = t.token_short_name || t.short_name || t.name || "Unknown";
+                const shortName = t.token_short_name || t.short_name || t.name || "—";
                 return (
                   <option key={`${shortName}-${i}`} value={shortName}>
-                    {shortName} {t.balance ? `(Balance: ${t.balance})` : ""}
+                    {shortName} {t.balance ? `(баланс: ${t.balance})` : ""}
                   </option>
                 );
               })}
             </select>
           ) : (
             <select className={selectClass} disabled>
-              <option>{selectedWallet ? "No tokens found" : "Select a wallet first"}</option>
+              <option>{selectedWallet ? "Токены не найдены" : "Сначала выберите кошелёк"}</option>
             </select>
           )}
           {tokenString && (
@@ -232,7 +232,7 @@ export function SendForm() {
 
         <div>
           <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-            To Address
+            Адрес получателя
             <HelpTooltip text={helpContent.sendForm.toAddress.text} />
           </label>
           <div className="relative">
@@ -242,7 +242,7 @@ export function SendForm() {
               onChange={(e) => { setToAddress(e.target.value); setAddressValid(null); setAddressError(""); }}
               onBlur={handleAddressBlur}
               className={`${inputClass} font-mono pr-8`}
-              placeholder="Destination address"
+              placeholder="Адрес получателя"
               required
             />
             {addressValidating && (
@@ -262,7 +262,7 @@ export function SendForm() {
 
         <div>
           <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-            Amount
+            Сумма
             <HelpTooltip text={helpContent.sendForm.amount.text} />
           </label>
           <input suppressHydrationWarning
@@ -277,14 +277,14 @@ export function SendForm() {
 
         <div>
           <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Description (optional)
+            Описание (необязательно)
           </label>
           <input suppressHydrationWarning
             type="text"
             value={info}
             onChange={(e) => setInfo(e.target.value)}
             className={inputClass}
-            placeholder="Payment for..."
+            placeholder="Оплата за…"
           />
         </div>
 
@@ -330,7 +330,7 @@ export function SendForm() {
               <span className="text-lg">{validation.valid ? "✅" : "❌"}</span>
               <div className="flex-1">
                 <p className={`font-medium ${validation.valid ? "text-success" : "text-destructive"}`}>
-                  {validation.valid ? "Transaction is valid" : "Validation failed"}
+                  {validation.valid ? "Транзакция корректна" : "Ошибка валидации"}
                 </p>
                 {validation.errors.length > 0 && (
                   <ul className="mt-2 space-y-1 text-xs text-destructive">
@@ -343,7 +343,7 @@ export function SendForm() {
                   </ul>
                 )}
                 {validation.balance && (
-                  <p className="mt-2 text-xs text-muted-foreground">Available balance: {validation.balance}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Доступный баланс: {validation.balance}</p>
                 )}
               </div>
             </div>
@@ -360,7 +360,7 @@ export function SendForm() {
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50 dark:border-border dark:bg-muted dark:text-faint dark:hover:bg-slate-700 transition-colors"
           >
             <Icon icon="solar:shield-check-linear" className="text-sm" />
-            {validating ? "Validating..." : "Validate"}
+            {validating ? "Проверка…" : "Проверить"}
           </button>
           <button
             type="submit"
@@ -368,7 +368,7 @@ export function SendForm() {
             className="inline-flex items-center gap-2 rounded-lg bg-card px-4 py-2.5 text-xs font-medium text-white hover:bg-muted disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-muted transition-colors"
           >
             <Icon icon="solar:plain-linear" className="text-sm" />
-            {loading ? "Sending..." : "Send Transaction"}
+            {loading ? "Отправка…" : "Отправить"}
           </button>
         </div>
       </form>

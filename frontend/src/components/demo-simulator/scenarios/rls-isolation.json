@@ -1,0 +1,90 @@
+{
+  "id": "rls-isolation",
+  "title": "Изоляция тенантов на уровне базы данных",
+  "summary": "Сотрудник банка в Москве пытается прочитать кошелёк биржи в Алматы (другая компания, другой tenant). Даже с валидным JWT и при попытке прямого SQL-инжекта Postgres RLS блокирует строки на уровне СУБД — через ORM, через сырой SQL, через что угодно.",
+  "persona": {
+    "label": "Банк RU",
+    "flag": "🇷🇺",
+    "context": "private-banking подразделение в Москве, отдельный tenant в той же ORGON-инсталляции"
+  },
+  "steps": [
+    {
+      "kind": "node",
+      "node": "client-bank",
+      "tone": "info",
+      "caption": "Сотрудник банка открывает дашборд ORGON. Логинится со своими учётными данными — JWT выдан на его organization_id (банк RU).",
+      "durationMs": 1700
+    },
+    {
+      "kind": "edge",
+      "from": "client-bank",
+      "to": "auth-jwt",
+      "tone": "info",
+      "caption": "GET /api/wallets/hot-trx-1 — попытка получить кошелёк, который, как сотрудник догадывается, принадлежит бирже-конкуренту.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "edge",
+      "from": "auth-jwt",
+      "to": "auth-rls",
+      "tone": "info",
+      "caption": "JWT валиден. Middleware ставит app.current_organization_id равным organization_id банка RU — НЕ биржи KZ.",
+      "durationMs": 1500,
+      "payload": {
+        "label": "RLS context (важно!)",
+        "body": "SELECT set_config(\n  'app.current_organization_id',\n  '<bank_ru_uuid>',  -- НЕ exchange_kz_uuid\n  true\n);"
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "auth-rls",
+      "to": "postgres",
+      "tone": "info",
+      "caption": "Запрос доходит до Postgres. Сервис вызывает SELECT * FROM wallets WHERE name = 'hot-trx-1'.",
+      "durationMs": 1500
+    },
+    {
+      "kind": "node",
+      "node": "postgres",
+      "tone": "warning",
+      "caption": "Postgres до возврата строк применяет RLS-политику wallets_isolation_policy. Условие: organization_id = current_org() OR is_super_admin().",
+      "durationMs": 1900,
+      "payload": {
+        "label": "Активная RLS политика",
+        "body": "CREATE POLICY wallets_isolation_policy ON wallets\nUSING (\n  organization_id = (SELECT org_id FROM orgon_current_org_or_super())\n  OR (SELECT is_super FROM orgon_current_org_or_super())\n);"
+      }
+    },
+    {
+      "kind": "halt",
+      "node": "postgres",
+      "tone": "danger",
+      "caption": "Кошелёк физически существует — но его organization_id = биржа KZ, а сессия имеет org_id = банк RU. Postgres возвращает 0 строк, как будто записи нет вообще.",
+      "durationMs": 2000,
+      "payload": {
+        "label": "SQL результат",
+        "body": "SELECT * FROM wallets WHERE name = 'hot-trx-1';\n   ↓\n(0 rows)\n\n# Хотя физически в таблице wallet существует."
+      }
+    },
+    {
+      "kind": "edge",
+      "from": "postgres",
+      "to": "client-bank",
+      "tone": "warning",
+      "caption": "API возвращает 404 Not Found — НЕ 403. Клиент даже не узнаёт, что кошелёк существует у кого-то другого. Это не «доступ запрещён», это «таких данных нет».",
+      "durationMs": 1700
+    },
+    {
+      "kind": "wait",
+      "tone": "info",
+      "caption": "—  Защита эшелонирована: даже если бы код приложения забыл фильтровать по организации, RLS на DB-уровне всё равно сработала бы.  —",
+      "durationMs": 2000
+    },
+    {
+      "kind": "node",
+      "node": "audit",
+      "tone": "info",
+      "caption": "Попытка чтения чужого ресурса записывается в audit_log (append-only). Если такие попытки начнут повторяться — security-команда поднимет alert.",
+      "durationMs": 1700
+    }
+  ]
+}

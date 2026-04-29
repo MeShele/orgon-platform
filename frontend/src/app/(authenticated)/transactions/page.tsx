@@ -155,7 +155,7 @@ export default function TransactionsPage() {
           <table className="w-full text-[12px] border-collapse">
             <thead>
               <tr className="border-b border-border text-left">
-                <Th className="pl-5">Hash</Th>
+                <Th className="pl-5">Хэш</Th>
                 <Th>Статус</Th>
                 <Th>Кошелёк</Th>
                 <Th>Получатель</Th>
@@ -179,6 +179,16 @@ export default function TransactionsPage() {
                   const kind = (tx.status ?? "").toLowerCase() as any;
                   const dest = tx.to_address || tx.to_addr || "—";
                   const amount = tx.amount_decimal ?? tx.value ?? "—";
+                  const STATUS_RU: Record<string, string> = {
+                    confirmed: "Подтверждена",
+                    pending:   "Ожидает",
+                    sent:      "Отправлена",
+                    rejected:  "Отклонена",
+                    failed:    "Ошибка",
+                    completed: "Завершена",
+                    cancelled: "Отменена",
+                  };
+                  const statusLabel = STATUS_RU[kind] ?? tx.status ?? "—";
                   return (
                     <tr key={tx.tx_unid ?? tx.id} className="border-b border-border last:border-b-0 hover:bg-muted/40">
                       <td className="pl-5 py-3">
@@ -186,7 +196,7 @@ export default function TransactionsPage() {
                           <Mono>{tx.tx_hash ?? tx.tx_unid ?? "—"}</Mono>
                         </Link>
                       </td>
-                      <td className="px-3 py-3"><StatusPill kind={kind} label={tx.status ?? "—"} /></td>
+                      <td className="px-3 py-3"><StatusPill kind={kind} label={statusLabel} /></td>
                       <td className="px-3 py-3 text-foreground"><Mono truncate startChars={10} endChars={4}>{tx.wallet_name ?? "—"}</Mono></td>
                       <td className="px-3 py-3"><Mono truncate>{dest}</Mono></td>
                       <td className="px-3 py-3"><Badge variant="outline">{tx.token ?? "—"}</Badge></td>

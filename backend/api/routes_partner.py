@@ -93,7 +93,11 @@ async def _partner_org_ids(request: Request, partner: dict) -> list | None:
     if partner.get("partner_id") is None:
         return None  # internal / JWT dashboard
 
-    db = request.app.state.db
+    # `app.state.db` was never wired — pull the global async DB instead.
+    from backend.main import get_database
+    db = get_database()
+    if db is None:
+        return []  # no DB → safest default is "sees nothing"
     row = await db.fetchrow(
         "SELECT organization_id FROM partners WHERE id = $1",
         params=(partner["partner_id"],),

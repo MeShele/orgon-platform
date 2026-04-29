@@ -147,46 +147,12 @@ async def send_transaction(request: SendTransactionRequest, validate: bool = Tru
         raise HTTPException(status_code=502, detail=str(e))
 
 
-@router.post("/{unid}/sign")
-async def sign_transaction(unid: str, response: Response, user: dict = Depends(require_roles("company_admin", "company_operator"))):
-    """
-    Sign (approve) a transaction.
-
-    ⚠️ DEPRECATED: Use POST /api/signatures/{tx_unid}/sign instead.
-    This endpoint will be removed in v2.0.
-    """
-    service = _get_service()
-    try:
-        # Add deprecation headers
-        response.headers["X-Deprecated"] = "true"
-        response.headers["X-Deprecated-Alternative"] = "/api/signatures/{tx_unid}/sign"
-        response.headers["X-Deprecated-Removal-Version"] = "2.0"
-
-        result = await service.sign_transaction(unid)
-        return {"ok": True, "result": result}
-    except SafinaError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-
-
-@router.post("/{unid}/reject")
-async def reject_transaction(unid: str, request: RejectTransactionRequest, response: Response, user: dict = Depends(require_roles("company_admin"))):
-    """
-    Reject a transaction.
-
-    ⚠️ DEPRECATED: Use POST /api/signatures/{tx_unid}/reject instead.
-    This endpoint will be removed in v2.0.
-    """
-    service = _get_service()
-    try:
-        # Add deprecation headers
-        response.headers["X-Deprecated"] = "true"
-        response.headers["X-Deprecated-Alternative"] = "/api/signatures/{tx_unid}/reject"
-        response.headers["X-Deprecated-Removal-Version"] = "2.0"
-
-        result = await service.reject_transaction(unid, request.reason)
-        return {"ok": True, "result": result}
-    except SafinaError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+# NOTE: /api/transactions/{unid}/sign and /api/transactions/{unid}/reject
+# were marked deprecated since 2026-Q1 and have been removed. They bypassed
+# signature_history (no append-only audit trail) and the replay-guard from
+# migration 018 — keeping them around was a real security regression risk.
+# The frontend has been on POST /api/signatures/{tx_unid}/{sign,reject}
+# since the redesign; see routes_signatures.py.
 
 
 @router.post("/sync")

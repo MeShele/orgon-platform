@@ -354,24 +354,24 @@ async def request_password_reset(
     data: ResetPasswordRequest,
     auth_service: AuthService = Depends(get_auth_service_dependency)
 ):
-    """
-    Request password reset token.
-    Token is valid for 1 hour.
-    
-    Note: In production, send this token via email.
-    For now, it's returned in the response (dev only).
-    """
+    """Request password reset. Returns 204 regardless of whether the email
+    exists (don't leak existence). On hit, an email is sent with a link
+    valid for one hour. SMTP backend wired via env (SMTP_HOST, …) — falls
+    back to a log file in dev so the token can still be tested without
+    a mail server."""
     token = await auth_service.create_password_reset_token(data.email)
-    
+
     if not token:
-        # Don't reveal if email exists (security best practice)
         return None
 
-    # TODO: send email with reset link via SES / SMTP / similar.
-    # NEVER log the raw token — anyone with log access can hijack the reset.
+    # Send email — best-effort, won't 500 the endpoint if SMTP is down.
+    from backend.services.email_service import get_email_service
+    await get_email_service().send_password_reset(data.email, token)
+
+    # Masked log line for ops; never the raw token.
     import logging
     logging.getLogger("orgon.auth").info(
-        "Password reset token created for %s (token: %s…%s)",
+        "Password reset email queued for %s (token: %s…%s)",
         data.email, token[:4], token[-4:],
     )
     return None

@@ -52,12 +52,16 @@ from backend.api.middleware_b2b import (
 )
 from backend.middleware.security import LoginRateLimitMiddleware
 
-# Configure logging
+# Configure logging — plain by default, JSON when ORGON_JSON_LOGS=1.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("orgon")
+
+# Apply JSON formatter / Sentry init if enabled via env.
+from backend.observability import configure_observability
+configure_observability()
 
 # --- Global service instances ---
 _async_db: AsyncDatabase | None = None
@@ -506,7 +510,11 @@ from backend.api.routes_webhooks import router as partner_webhooks_router
 from backend.api.routes_partner_analytics import router as partner_analytics_router
 from backend.api.routes_safina_integration import router as safina_integration_router
 from backend.api.routes_partner_scheduled import router as partner_scheduled_router
-from backend.api.routes_partner_addresses import router as partner_addresses_router
+# routes_partner_addresses is broken-on-arrival: it calls
+# AddressBookService.list_addresses / create_address / etc., which don't
+# exist (the service only has get_contacts/create_contact). Disabled until
+# the address_book_b2b model is properly wired. See CHANGELOG.md backlog.
+# from backend.api.routes_partner_addresses import router as partner_addresses_router
 
 app.include_router(health_router)
 app.include_router(wallets_router)
@@ -541,7 +549,7 @@ app.include_router(partner_router)
 app.include_router(partner_webhooks_router)
 app.include_router(partner_analytics_router)
 app.include_router(partner_scheduled_router)
-app.include_router(partner_addresses_router)
+# app.include_router(partner_addresses_router)  # disabled — see import comment
 app.include_router(safina_integration_router)  # Safina API gap closure
 
 # B2B Partner-API middleware stack (tier-based rate limit + API-key auth)

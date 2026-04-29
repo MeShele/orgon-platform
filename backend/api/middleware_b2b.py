@@ -150,15 +150,117 @@ class APIKeyAuthMiddleware(BaseHTTPMiddleware):
                 }
             )
         
+        # ─── Replay protection ─────────────────────────────────────
+        # Strict by default, can be turned off via ORGON_PARTNER_REPLAY_OFF=1
+        # during incidents. Demands two extra headers:
+        #   X-Nonce       — random per-request token, ≤128 chars
+        #   X-Timestamp   — Unix seconds (server checks ±5 min drift)
+        # The (partner_id, nonce) insert is what actually blocks replays —
+        # the partial UNIQUE index in migration 023 is the source of truth.
+        import os as _os
+        if _os.getenv("ORGON_PARTNER_REPLAY_OFF", "").lower() not in {"1", "true", "yes"}:
+            nonce = (request.headers.get("X-Nonce") or "").strip()
+            ts_hdr = (request.headers.get("X-Timestamp") or "").strip()
+
+            if not nonce or not ts_hdr:
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={
+                        "error": "missing_replay_headers",
+                        "message": "X-Nonce and X-Timestamp headers are required for replay protection",
+                    },
+                )
+            if len(nonce) > 128:
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={"error": "nonce_too_long", "message": "X-Nonce must be ≤128 chars"},
+                )
+
+            import time as _time
+            try:
+                client_ts = int(ts_hdr)
+            except ValueError:
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={"error": "bad_timestamp", "message": "X-Timestamp must be Unix seconds (integer)"},
+                )
+
+            drift = abs(int(_time.time()) - client_ts)
+            if drift > 300:
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={
+                        "error": "timestamp_drift",
+                        "message": f"X-Timestamp is off by {drift}s — must be within 5 min of server time",
+                    },
+                )
+
+            # Atomic insert — if (partner_id, nonce) already exists, this is a replay.
+            # The DB-side PK is the canonical guarantee; in-memory checks would race.
+            try:
+                replayed = await _record_partner_nonce(
+                    request.app, partner_id=str(partner["id"]), nonce=nonce
+                )
+            except Exception:
+                # Don't block traffic on infra glitch — log and allow.
+                # (Real prod: surface to Sentry, but never lock partners out
+                # because of a transient asyncpg blip.)
+                import logging as _logging
+                _logging.getLogger("orgon.api.b2b").exception(
+                    "Nonce check infra error — allowing through"
+                )
+                replayed = False
+
+            if replayed:
+                await audit_service.log_action(
+                    partner_id=str(partner["id"]),
+                    user_id=partner["ec_address"],
+                    action="auth.replay",
+                    result="failure",
+                    error_message=f"nonce reused: {nonce[:16]}…",
+                    ip_address=request.client.host,
+                    user_agent=request.headers.get("user-agent"),
+                )
+                return JSONResponse(
+                    status_code=status.HTTP_409_CONFLICT,
+                    content={
+                        "error": "nonce_reused",
+                        "message": "This X-Nonce has already been used for your account",
+                    },
+                )
+
         # Attach partner context to request
         request.state.partner_id = str(partner["id"])
         request.state.partner_tier = partner["tier"]
         request.state.partner_name = partner["name"]
         request.state.partner_ec_address = partner["ec_address"]
         request.state.rate_limit = partner["rate_limit_per_minute"]
-        
+
         # Continue with request
         return await call_next(request)
+
+
+async def _record_partner_nonce(app, partner_id: str, nonce: str) -> bool:
+    """Insert (partner_id, nonce, now). Returns True if it was a replay
+    (PK conflict), False if accepted."""
+    from backend.main import get_database
+    db = get_database()
+    if db is None:
+        # No DB wired (test harness?) — don't lock partners out.
+        return False
+    try:
+        await db.execute(
+            "INSERT INTO partner_request_nonces (partner_id, nonce) VALUES ($1, $2)",
+            (partner_id, nonce),
+        )
+        return False
+    except Exception as exc:
+        # asyncpg.UniqueViolationError stringifies to a message containing
+        # "duplicate key" — match without importing the exception class
+        # (the pool wraps in our own AsyncDatabase facade).
+        if "duplicate" in str(exc).lower() or "unique" in str(exc).lower():
+            return True
+        raise
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

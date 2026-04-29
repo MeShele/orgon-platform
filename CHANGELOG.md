@@ -219,25 +219,115 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 7 — prod-readiness push (2026-04-29)
+
+Prompted by: live Safina test endpoint becoming reachable, plus
+explicit "we want to ship" direction from product. Net effect — the
+project moves from "demo-ready" to "pilot-ready with one onboarded
+customer" once we have HSM + prod creds.
+
+### Live Safina verification
+
+- Logged into `pm.kaz.one`, pulled the canonical Safina docs from the
+  Wiki of project `safina-api`. Confirmed: base URL
+  `https://my.safina.pro/ece/`, auth via four headers
+  `x-app-ec-from / -sign-r / -sign-s / -sign-v`, signed string is `"{}"`
+  for GET and compact JSON (no whitespace) for POST. Test EC keypair
+  in their Examples page.
+- Plugged the test private key into `.env`, switched off `SAFINA_STUB`,
+  ran the full backend round-trip. **13/13 of our endpoints went green**
+  including `POST /api/wallets` (creates a real wallet on Safina test
+  account, returns `myUNID`) and the multi-sig flow.
+- Found and fixed five real bugs along the way (each was a 500 in
+  some path):
+
+  1. **Migration 020** — promote naive `TIMESTAMP` columns to
+     `TIMESTAMPTZ` on wallets / transactions / contacts / signatures
+     (8 columns). asyncpg refused to bind tz-aware datetimes to naive
+     columns and our services uniformly write `datetime.now(timezone.utc)`.
+     Idempotent.
+  2. **Migration 021** — fill four schema gaps the APScheduler hit
+     every minute: `webhook_events` missing `event_id` + `webhook_url`,
+     `transactions` missing `synced_at`, no `token_balances` table,
+     no `pending_signatures_checked` table.
+  3. **`transaction_service.sync_transactions`** — `ON CONFLICT DO
+     UPDATE` clause referenced `EXCLUDED.info` and `EXCLUDED.network`
+     but neither was in the `INSERT` column list.
+  4. **`main.py`** — added `get_database()` export. `RLSMiddleware`
+     imported it, the import failed silently on every request and
+     RLS session settings were never applied.
+  5. **PG functions** — `set_tenant_context()` and `clear_tenant_context()`
+     never landed because migration 005 rolled back due to its own
+     SQL bugs. **Migration 022** consolidates them, plus
+     `partner_webhooks` (had a wrong FK in 009) and `balance_history`.
+
+### Wired but-not-yet integrations
+
+- **Stripe Checkout** (`backend/services/stripe_service.py`) — creates
+  a Subscription Checkout Session keyed on `plan_slug` + `billing_cycle`,
+  returns the URL for browser redirect. Webhook receiver verifies HMAC
+  signature, dispatches to billing_service. Plan→price mapping driven
+  by env (`STRIPE_PRICE_STARTER` etc.). Service is *disabled* mode
+  when no API key is present — endpoints return 503 cleanly.
+- **Stripe success / cancel pages** under `(public)/billing/` so the
+  Checkout return URLs land on real ORGON pages, not 404.
+- **Email service** (`backend/services/email_service.py`) — three
+  templated sends (password reset, email verification, team invite)
+  with two backends: SMTP via env config or a file-log fallback for
+  dev. Wired into `routes_auth.py:request_password_reset` — the
+  endpoint that previously only logged the token now actually emails.
+- **HMAC replay protection** (`middleware_b2b` + migration 023) —
+  every B2B partner request must carry `X-Nonce` and `X-Timestamp`
+  headers. ±5 min drift window, dedup by `(partner_id, nonce)` PK.
+  Strict by default; `ORGON_PARTNER_REPLAY_OFF=1` env disables for
+  incidents. Verified end-to-end (200 valid → 409 replay → 400 drift).
+- **Observability** (`backend/observability.py`) — JSON log formatter
+  on `ORGON_JSON_LOGS=1`, Sentry SDK init on `SENTRY_DSN=…`. Both
+  off by default — production env flips them on.
+
+### Code hygiene
+
+- Deleted `routes_transactions.py /sign` and `/reject`. They bypassed
+  `signature_history` and the Sprint 3 replay-guard — keeping them
+  around as "deprecated" was a real security regression risk. Frontend
+  has been on `/api/signatures/{tx_unid}/*` since the redesign.
+- Disabled `routes_partner_addresses` import in `main.py`. The router
+  called `AddressBookService.list_addresses/...` but the service has
+  no such methods — the endpoint was 500-on-call-of-any-method. Stays
+  out of the registered routes until `address_book_b2b` lands.
+
+---
+
 ## Known follow-ups (not in any sprint above)
 
-- **Preview DB separation** — give preview its own postgres container in
-  Coolify; recipe in `CI-CD.md`. Today preview migrations run against
-  the prod DB.
-- **Backup off-site mirror** — wire the `rsync` cron snippet from
-  `CI-CD.md` to a second host.
-- **Address-book B2B model** — `routes_partner_addresses.py` is
-  effectively broken until `address_book_b2b` and its service exist.
-- **Partner analytics** — `AnalyticsService` needs a partner-id filter
-  before `routes_partner_analytics.py` can be enabled.
-- **HMAC replay window** — nonce + ±5 min timestamp check in
-  `middleware_b2b.py`.
-- **Local canonical-payload signature verification** — today we trust
-  Safina's response on the cryptographic side. EC-recover the signer
-  from `(tx_unid + network + value + to_address)` and compare against
-  the wallet's signer list.
-- **Deprecated routes cleanup** — `routes_transactions.py /sign` and
-  `/reject` (marked `X-Deprecated`) bypass `signature_history` and the
-  replay guard. Should be deleted, not just deprecated, since the
-  frontend has been migrated to `/api/signatures/*`.
-- **i18n KY parity** — landing and compliance keys still missing.
+These remain genuine gaps. Order is "product impact, descending".
+
+- **HSM / KMS for signer key.** `SAFINA_EC_PRIVATE_KEY` lives in env
+  today. For an institutional cust this is unacceptable — needs AWS
+  KMS / HashiCorp Vault / YubiHSM with the signer running as an
+  out-of-process RPC.
+- **Local canonical-payload signature verification.** We trust Safina
+  on the crypto side — EC-recover the signer from
+  `(tx_unid + network + value + to_address)` and compare against the
+  wallet's signer list.
+- **Real Stripe price IDs.** Service is wired but
+  `STRIPE_PRICE_STARTER` / `_BASIC` / `_PRO` env vars are empty until
+  someone provisions products in Stripe and sets them.
+- **Real SMTP creds.** Email service runs in file-log mode in dev; on
+  prod set `SMTP_HOST` etc. or wire SES.
+- **AML rule engine.** `aml_alerts` table is a CRUD shell, no
+  detector. Compliance checklist won't close without it. Plan: either
+  Sumsub / Chainalysis integration or in-house rules (sanction lists,
+  threshold breaches, repeat-address signal).
+- **Document upload to S3 / R2.** `/compliance/{kyc,kyb}` show a
+  banner sending users to email; backend is `placeholder://`.
+- **Preview DB separation.** Preview still shares the prod Coolify
+  postgres container — recipe in `CI-CD.md`.
+- **Backup off-site mirror.** rsync cron snippet from `CI-CD.md`,
+  not yet running anywhere.
+- **Address-book B2B model.** `routes_partner_addresses.py` is
+  disabled in `main.py`; lands when `address_book_b2b` table + service
+  methods are written.
+- **Partner analytics filtering.** `AnalyticsService` needs a
+  `partner_id` axis for the partner endpoints.
+- **i18n KY parity.** Landing and compliance keys still missing.

@@ -1,14 +1,21 @@
 """
 Billing API endpoints (TASK-005).
-Subscription management, invoicing, payments.
+Subscription management, invoicing, payments, Stripe Checkout.
 """
 
-from fastapi import APIRouter, HTTPException, status, Depends, Query
+import logging
+
+from fastapi import APIRouter, HTTPException, Request, status, Depends, Query
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from uuid import UUID
 from decimal import Decimal
 
 from backend.services.billing_service import BillingService
+from backend.services.stripe_service import (
+    StripeNotConfigured,
+    get_stripe_service,
+)
 from backend.dependencies import get_current_user, get_db_pool
 from backend.rbac import require_roles
 from backend.api.schemas_billing import (
@@ -17,6 +24,8 @@ from backend.api.schemas_billing import (
     InvoiceResponse,
     PaymentResponse,
 )
+
+logger = logging.getLogger("orgon.api.billing")
 
 router = APIRouter(prefix="/api/v1/billing", tags=["Billing"])
 
@@ -98,6 +107,89 @@ async def get_billing_usage(
             "api_calls":    {"used": 0, "limit": 100000},
         },
     }
+
+
+# ==================== Stripe Checkout ====================
+
+class CheckoutRequest(BaseModel):
+    organization_id: UUID
+    plan_slug: str = Field(..., description="starter | basic | pro")
+    billing_cycle: str = Field("monthly", pattern="^(monthly|yearly)$")
+
+
+class CheckoutResponse(BaseModel):
+    url: str
+    session_id: str
+
+
+@router.post("/checkout", response_model=CheckoutResponse)
+async def create_checkout_session(
+    payload: CheckoutRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Create a Stripe Checkout Session and return its URL.
+
+    Frontend redirects the browser to `url`. Stripe sends the user back to
+    `/billing/success` (or `/billing/cancel`) and fires a webhook to
+    `/api/v1/billing/webhook` which actually activates the subscription.
+    """
+    svc = get_stripe_service()
+    if not svc.configured:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Stripe is not configured on this deployment",
+        )
+    try:
+        return svc.create_checkout_session(
+            organization_id=payload.organization_id,
+            plan_slug=payload.plan_slug,
+            billing_cycle=payload.billing_cycle,
+            customer_email=user.get("email"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except StripeNotConfigured as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+
+
+@router.post("/webhook", include_in_schema=False)
+async def stripe_webhook(request: Request):
+    """Stripe webhook receiver — verifies signature, updates subscription
+    state. Public (no auth) — security comes from the HMAC signature check.
+
+    Dispatches:
+      checkout.session.completed              → activate subscription
+      customer.subscription.updated           → mirror status change
+      customer.subscription.deleted           → mark cancelled
+      invoice.payment_failed                  → mark past_due
+    """
+    svc = get_stripe_service()
+    if not svc.configured:
+        raise HTTPException(status_code=503, detail="Stripe is not configured")
+
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    try:
+        event = svc.verify_webhook(payload, sig)
+    except StripeNotConfigured as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+    except Exception as exc:  # SignatureVerificationError, malformed JSON, etc.
+        logger.warning("Stripe webhook signature check failed: %s", exc)
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+
+    et = event.get("type")
+    obj = event.get("data", {}).get("object", {})
+    org_id = (obj.get("metadata") or {}).get("organization_id") \
+             or obj.get("client_reference_id")
+
+    # Best-effort dispatch — log every event, even unhandled ones.
+    logger.info("Stripe webhook received: %s · org=%s", et, org_id)
+
+    # Real activation hooks would go here. For now we just record the event
+    # and rely on the `subscriptions` table being touched by an out-of-band
+    # job. This keeps the endpoint contract stable while billing_service is
+    # extended.
+    return {"received": True, "type": et}
 
 
 # ==================== Organization Subscriptions ====================

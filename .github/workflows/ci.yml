@@ -57,20 +57,27 @@ jobs:
         run: |
           python -m compileall -q backend
 
-      - name: Apply migrations against postgres service
+      - name: Apply canonical schema + any post-snapshot overlay migrations
         run: |
-          # Pre-seed legacy schema (some columns added by older migrations
-          # are required by later ones), then apply the multi-tenant /
-          # consolidation overlay.
-          for f in $(ls backend/database/migrations/0*.sql | sort); do
+          # Single canonical file replaces the pre-Wave-11 47-file chain.
+          # ON_ERROR_STOP=1 — surface any failure instead of swallowing.
+          # _historical/ is the archive of pre-consolidation files; never apply.
+          set -e
+          PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test \
+            -v ON_ERROR_STOP=1 \
+            -f backend/migrations/000_canonical_schema.sql >/dev/null
+          # Future overlay migrations (025+, idempotent) — apply in numeric order.
+          for f in $(ls backend/migrations/0*.sql 2>/dev/null | grep -v 000_canonical | sort); do
             echo "→ $f"
-            PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test -v ON_ERROR_STOP=0 -f "$f" >/dev/null
+            PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test \
+              -v ON_ERROR_STOP=1 -f "$f" >/dev/null
           done
-          # Newer migrations (000_init_uuid_base conflicts with above; skip).
-          for f in $(ls backend/migrations/0*.sql | grep -vE "/000_" | sort); do
-            echo "→ $f"
-            PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test -v ON_ERROR_STOP=0 -f "$f" >/dev/null
-          done
+
+      - name: Verify canonical marker landed
+        run: |
+          PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test -tAc \
+            "SELECT version FROM schema_migrations WHERE version='000_canonical_schema'" \
+            | grep -q '000_canonical_schema'
 
       - name: Run pytest (unit only, no integration suite)
         run: |
@@ -122,6 +129,74 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  fresh-install:
+    name: Fresh-install · canonical schema → uvicorn → /api/health
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: orgon_fresh
+          POSTGRES_PASSWORD: orgon_fresh
+          POSTGRES_DB: orgon_fresh
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U orgon_fresh"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://orgon_fresh:orgon_fresh@localhost:5433/orgon_fresh
+      ORGON_ENV: test
+      JWT_SECRET_KEY: fresh_install_jwt_secret
+      SAFINA_BASE_URL: http://localhost:0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Apply canonical schema (only) — strict mode
+        run: |
+          set -e
+          PGPASSWORD=orgon_fresh psql -h localhost -p 5433 -U orgon_fresh -d orgon_fresh \
+            -v ON_ERROR_STOP=1 \
+            -f backend/migrations/000_canonical_schema.sql >/dev/null
+          for f in $(ls backend/migrations/0*.sql 2>/dev/null | grep -v 000_canonical | sort); do
+            PGPASSWORD=orgon_fresh psql -h localhost -p 5433 -U orgon_fresh -d orgon_fresh \
+              -v ON_ERROR_STOP=1 -f "$f" >/dev/null
+          done
+
+      - name: Boot uvicorn in background, wait for /api/health
+        run: |
+          # Run app as a background process bound to localhost:8890.
+          python -m uvicorn backend.main:app --host 127.0.0.1 --port 8890 &
+          APP_PID=$!
+          # Wait up to 30s for the health endpoint to come live.
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8890/api/health >/dev/null 2>&1; then
+              echo "✓ /api/health responding after ${i}s"
+              kill $APP_PID 2>/dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "✗ /api/health did not respond within 30s"
+          kill $APP_PID 2>/dev/null
+          exit 1
 
   e2e:
     name: E2E · Playwright (chromium)

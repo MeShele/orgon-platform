@@ -231,50 +231,86 @@ async def check_services(
 @router.post("/run-migrations")
 async def run_migrations(
     request: Request,
-    user: dict = Depends(require_roles("company_admin")),
+    user: dict = Depends(require_roles("super_admin")),
 ):
-    """Run PostgreSQL migrations manually. Admin only."""
+    """Apply pending schema migrations. Super-admin only.
+
+    Aligned with the CI apply order (`.github/workflows/ci.yml`):
+
+      1. If no `schema_migrations` row exists for `000_canonical_schema`,
+         apply `backend/migrations/000_canonical_schema.sql` first. This
+         is non-idempotent — only happens on a fresh DB.
+      2. Then apply each `backend/migrations/0*.sql` (skipping the
+         canonical) in numeric order. Each MUST be idempotent + insert
+         its own `schema_migrations` row at the end.
+
+    `_historical/` is **never** scanned. Files under that subdir are the
+    pre-Wave-11 migration archive — running them now corrupts the
+    canonical schema.
+    """
     from pathlib import Path
 
     pool = getattr(request.app.state, 'db_pool', None)
     if not pool:
         return {"status": "error", "message": "No PostgreSQL pool in app.state"}
 
-    # Two migration directories exist in the codebase
-    base = Path(__file__).parent.parent
-    dirs = [base / "migrations", base / "database" / "migrations"]
+    migrations_dir = Path(__file__).parent.parent / "migrations"
+    canonical = migrations_dir / "000_canonical_schema.sql"
+    if not canonical.exists():
+        return {"status": "error", "message": f"Canonical schema not found: {canonical}"}
 
+    # Step 1 — canonical apply (only if marker absent).
     results = []
-    migration_files = []
-    for d in dirs:
-        if d.exists():
-            for f in sorted(d.glob("*.sql")):
-                skip = ('.bak' in f.name or 'test' in f.name or 'seed' in f.name
-                        or f.name == 'README.md' or f.name.startswith('._'))
-                if f.suffix == '.sql' and not skip:
-                    migration_files.append(f)
+    async with pool.acquire() as conn:
+        try:
+            applied = await conn.fetchval(
+                "SELECT 1 FROM schema_migrations WHERE version = $1",
+                "000_canonical_schema",
+            )
+        except Exception:
+            # Table itself doesn't exist → fresh DB, definitely apply canonical.
+            applied = None
 
-    for mf in migration_files:
+    if not applied:
+        try:
+            sql = canonical.read_text(encoding='utf-8')
+            async with pool.acquire() as conn:
+                await conn.execute(sql)
+            results.append({"file": "000_canonical_schema.sql", "status": "ok"})
+        except Exception as e:
+            return {"status": "error", "applied": 0, "details": [
+                {"file": "000_canonical_schema.sql", "status": "error",
+                 "error": str(e)[:300]}
+            ]}
+    else:
+        results.append({"file": "000_canonical_schema.sql",
+                        "status": "already_applied"})
+
+    # Step 2 — overlay migrations (025+ idempotent), numeric order, skip
+    # the canonical itself and anything under _historical/.
+    overlay_files = sorted(
+        f for f in migrations_dir.glob("0*.sql")
+        if f.name != "000_canonical_schema.sql"
+        and "_historical" not in f.parts
+        and not f.name.startswith("._")
+    )
+
+    for mf in overlay_files:
         try:
             sql = mf.read_text(encoding='utf-8')
-        except UnicodeDecodeError:
-            try:
-                sql = mf.read_text(encoding='latin-1')
-            except Exception:
-                results.append({"file": mf.name, "status": "error", "error": "encoding error"})
-                continue
-        try:
             async with pool.acquire() as conn:
                 await conn.execute(sql)
             results.append({"file": mf.name, "status": "ok"})
         except Exception as e:
             err = str(e)
-            if "already exists" in err.lower() or "duplicate" in err.lower():
-                results.append({"file": mf.name, "status": "already_applied"})
-            else:
-                results.append({"file": mf.name, "status": "error", "error": err[:300]})
+            # Idempotent overlay still trips on edge cases (e.g. CHECK
+            # constraint replace) — surface them but don't abort the run.
+            results.append({"file": mf.name, "status": "error",
+                            "error": err[:300]})
 
     ok = sum(1 for r in results if r["status"] == "ok")
     skip = sum(1 for r in results if r["status"] == "already_applied")
     fail = sum(1 for r in results if r["status"] == "error")
-    return {"status": "done", "applied": ok, "skipped": skip, "errors": fail, "details": results}
+    return {"status": "done" if fail == 0 else "partial",
+            "applied": ok, "skipped": skip, "errors": fail,
+            "details": results}

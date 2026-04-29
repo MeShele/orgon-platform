@@ -347,6 +347,110 @@ either silently broken or claiming features that didn't exist.
 
 ---
 
+## Wave 11 — migration consolidation (2026-04-29)
+
+Cleared the multi-year accumulation of mutually-conflicting migration
+files into a single canonical snapshot. Triggered by an audit ahead of
+a planned greenfield deploy on a new Coolify server: the legacy chain
+had silent failures masked by `ON_ERROR_STOP=0` for so long that fresh
+installs were getting only ~50% of the intended schema, but tests stayed
+green because they used AsyncMock instead of a real DB.
+
+### What was wrong
+
+- **Two migration directories applied in sequence by CI**:
+  `backend/database/migrations/` (legacy, 18 files) and
+  `backend/migrations/` (overlay, 25 files), with `ON_ERROR_STOP=0`
+  swallowing every error.
+- **Two mutually-exclusive `000_*.sql`** in overlay (`000_base_schema`
+  and `000_init_uuid_base`); CI explicitly skipped both via
+  `grep -vE '/000_'`. Neither created `organizations` table that
+  legacy `001_wallets_transactions` FK'd into.
+- **Three `006_*.sql` billing files** (`006_billing_system.sql`,
+  `_rls_fix.sql`, `_create_billing_tables.sql`) creating overlapping
+  tables — no clear "the canonical one".
+- **Wrong column FK**: legacy `009_webhooks.sql` referenced
+  `partners(partner_id)` but the actual column is `partners(id)`.
+  Three webhook tables were silently failing to create. Migration
+  022 patched `partner_webhooks` correctly; the others stayed broken.
+- **Schema column drift**: `transactions.tx_unid` (legacy) +
+  `transactions.unid` (added by `003b`) both existing on the legacy
+  chain, only `unid` on the UUID chain. App reads `unid`. Demo seed
+  013 was inserting into `tx_unid` until Wave 10.
+
+### What was done
+
+- **`backend/migrations/000_canonical_schema.sql`** — single source of
+  truth. Generated via `pg_dump --schema-only --no-owner --no-acl
+  --no-tablespaces` from local-dev DB (which had every Wave 1-10
+  migration applied and is verified working with current backend
+  code). 60 tables, 15 functions, 36 triggers, 7 RLS policies, 311
+  indexes. NOT idempotent (pg_dump emits bare CREATEs); applied once
+  on a virgin DB, gated by the `schema_migrations` marker row at the
+  bottom.
+- **`schema_migrations` tracking table.** Inserted at the bottom of
+  the canonical with `version='000_canonical_schema'`. Future
+  overlays (`025_*` onwards) MUST insert their own row with
+  `ON CONFLICT DO NOTHING`. CI, `entrypoint.sh`, and
+  `/api/health/run-migrations` all key off this table to skip
+  already-applied migrations.
+- **All historical files moved** to `backend/migrations/_historical/`:
+  `overlay/` (28 files + 4 helper scripts) and `legacy_db_migrations/`
+  (18 files). README in each explains why they're archived and
+  warns against running them.
+- **CI workflow rewritten** (`.github/workflows/ci.yml`):
+  `ON_ERROR_STOP=1` (real failures surface), apply only canonical +
+  any 025+ overlays, verify the marker row landed. New
+  `fresh-install` job: clean Postgres → apply canonical → boot
+  uvicorn → assert `/api/health` answers within 30s.
+- **`entrypoint.sh`** gained an opt-in `ORGON_AUTO_MIGRATE=1` mode.
+  When set, container reads `DATABASE_URL`, checks for the canonical
+  marker, applies `000_canonical_schema.sql` on a virgin DB, then
+  applies any post-canonical overlays. Safe to leave on across
+  restarts. Designed for greenfield Coolify deploy on the new server.
+- **`POST /api/health/run-migrations`** rewritten to match the same
+  flow (super_admin only). Previously scanned both legacy and overlay
+  dirs without filtering and tried to swallow `already exists`
+  errors heuristically; now keys off the marker row.
+- **Email service consolidation.** `backend/email_service.py` (Wave 0
+  legacy with HTML templates) merged into
+  `backend/services/email_service.py` (Wave 7 typed entry points).
+  One `EmailService` class, both APIs (`send_password_reset` /
+  `send_template`). `EMAIL_TEMPLATES` dict carries the 5 HTML
+  templates used by `NotificationService`. Module-level
+  `email_service` global preserved via `__getattr__` for legacy
+  imports.
+- **`DEPLOYMENT.md`** updated: new "Apply a database migration"
+  section describing greenfield path, manual path, and adding new
+  migrations. Added `ORGON_AUTO_MIGRATE` to the env vars table.
+
+### Verification
+
+- 86 unit tests passed, 33 skipped (no new regressions). The 33
+  skipped are pre-existing MagicMock-vs-AsyncMock infrastructure
+  debt unrelated to schema.
+- Canonical applied to fresh Postgres → 60 tables, 311 indexes, 36
+  triggers, 7 policies, marker row landed. `pg_dump` of the result
+  diffs only by cosmetic CHECK constraint rewriting (Postgres
+  internally normalizes `(ARRAY[...])::text[]` ↔ `ARRAY[(...)::text]`,
+  semantically identical).
+- Backend `compileall` clean, frontend `tsc --noEmit` clean.
+
+### Why this matters for prod-readiness
+
+The new server can now deploy in one of two ways:
+
+1. **Greenfield (recommended)**: `ORGON_AUTO_MIGRATE=1` in Coolify env
+   → container applies the canonical on first boot. Zero manual
+   migration steps.
+2. **Manual**: `psql -f 000_canonical_schema.sql`, done.
+
+Future schema changes are single idempotent files (`025_*.sql`),
+applied automatically by the same entrypoint or via the admin endpoint.
+No more silent "half the schema didn't apply" failures.
+
+---
+
 ## Known follow-ups (not in any sprint above)
 
 These remain genuine gaps. Order is "product impact, descending".

@@ -43,7 +43,7 @@ from backend.tasks.scheduler import setup_scheduler, get_scheduler
 from backend.api.middleware import setup_middleware
 from backend.events.manager import init_event_manager, get_event_manager
 from backend.websocket_manager import ws_manager
-from backend.email_service import email_service
+from backend.services.email_service import email_service
 from backend.services.notification_service import init_notification_service, get_notification_service
 from backend.api.middleware_b2b import (
     APIKeyAuthMiddleware,

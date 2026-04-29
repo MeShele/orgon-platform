@@ -88,6 +88,7 @@ rotate on container restart and silently invalidate live tokens.
 | `ORGON_PUBLIC_URL` | only if billing enabled | base URL for Stripe success/cancel redirects, e.g. `https://orgon.asystem.kg` |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | only if email enabled | empty → email_service falls back to file backend (writes to `/tmp/orgon_emails/`), useful for dev. |
 | `ORGON_PARTNER_REPLAY_OFF` | never in prod | dev escape hatch to skip HMAC nonce dedup for replay-testing. |
+| `ORGON_AUTO_MIGRATE` | greenfield deploys | Set to `1` so the container's entrypoint applies `000_canonical_schema.sql` on first boot (only if marker absent — safe to leave on across restarts). Leave unset on existing DBs to avoid accidental application. |
 
 Verify after deploy: `curl -sS https://orgon-api.asystem.kg/api/health`
 should return `{"ok": true, ...}` with no 5xx in the logs for the first
@@ -97,29 +98,72 @@ should return `{"ok": true, ...}` with no 5xx in the logs for the first
 
 ## Apply a database migration
 
+Schema lives in **two layers**:
+
+1. **`backend/migrations/000_canonical_schema.sql`** — single canonical
+   snapshot that replaces the pre-Wave-11 47-file chain. Applied **once**
+   on a fresh DB. Re-runs are gated by the `schema_migrations` row
+   `version='000_canonical_schema'` inserted at the bottom of the file.
+2. **`backend/migrations/0NN_*.sql`** (`025+` going forward) — idempotent
+   overlay migrations applied in numeric order on top of the canonical.
+   Each MUST `INSERT INTO schema_migrations (version, …) ON CONFLICT DO
+   NOTHING` so re-runs no-op.
+
+### Greenfield (new server, no DB yet)
+
+The cleanest path: set `ORGON_AUTO_MIGRATE=1` in Coolify env. Container
+entrypoint reads `DATABASE_URL`, checks for the canonical marker, applies
+`000_canonical_schema.sql` if absent, then any post-canonical overlay
+migrations in numeric order. Idempotent across restarts.
+
+Manual fallback (e.g. running locally against an empty DB):
+
 ```bash
-# Migrations live in backend/migrations/*.sql
-# Apply via the running backend container's asyncpg connection:
-scp backend/migrations/01N_xxx.sql asystem-proxmox:/tmp/
-ssh asystem-proxmox 'BE=$(docker ps --filter name=g5ktpm7dy1abguwpy4tm7dpv -q); \
-  docker cp /tmp/01N_xxx.sql $BE:/tmp/m.sql; \
-  docker exec $BE python -c "
-import asyncio, asyncpg, os
-async def main():
-  conn = await asyncpg.connect(os.environ[\"DATABASE_URL\"])
-  await conn.execute(open(\"/tmp/m.sql\").read())
-  print(\"applied\")
-  await conn.close()
-asyncio.run(main())
-"'
+psql -v ON_ERROR_STOP=1 \
+  "$DATABASE_URL" \
+  -f backend/migrations/000_canonical_schema.sql
+
+# then any 025+ overlay migrations in order:
+for f in backend/migrations/0*.sql; do
+  case "$f" in *000_canonical*) continue ;; esac
+  psql -v ON_ERROR_STOP=1 "$DATABASE_URL" -f "$f"
+done
 ```
 
-For destructive migrations: prefix with a `pg_dump` to a host folder. For
-RLS / trigger migrations: dry-run first by replacing `COMMIT;` with
-`ROLLBACK;` (the helper script in CONTRIBUTING.md does this automatically).
+### Adding a new migration
 
-`POST /api/health/run-migrations` runs every `*.sql` in the migrations
-directories that doesn't have `seed`/`test`/`bak` in its name. It is
+1. Pick the next free number (`025_`, `026_` …) under `backend/migrations/`.
+2. Write idempotent SQL: `CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF
+   NOT EXISTS`, `DO $$ … END $$` for triggers/policies, `ON CONFLICT
+   DO NOTHING` for any seed inserts. Wrap in `BEGIN; … COMMIT;`.
+3. Append the tracking row at the bottom:
+   ```sql
+   INSERT INTO public.schema_migrations (version, description)
+   VALUES ('025_my_change', 'one-line summary')
+   ON CONFLICT (version) DO NOTHING;
+   ```
+4. Verify locally on a fresh Postgres → app startup → `/api/health=200`.
+5. Open PR. CI's `fresh-install` job replays the full chain on a clean
+   DB and asserts `/api/health` answers within 30s.
+
+### Applying a single migration to a running production DB
+
+```bash
+# Copy the new migration into the running backend container, apply via
+# its asyncpg pool. The endpoint also supports remote application
+# (POST /api/health/run-migrations, super_admin only).
+scp backend/migrations/025_my_change.sql <coolify-host>:/tmp/
+ssh <coolify-host> 'BE=$(docker ps --filter name=<backend-uuid> -q); \
+  docker cp /tmp/025_my_change.sql $BE:/tmp/m.sql; \
+  docker exec $BE psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /tmp/m.sql'
+```
+
+For destructive migrations: prefix with a `pg_dump` to a host folder.
+For RLS / trigger migrations: dry-run first by replacing `COMMIT;`
+with `ROLLBACK;`.
+
+`POST /api/health/run-migrations` (super_admin only) applies the same
+canonical-then-overlay sequence the entrypoint does. It is
 admin-gated since this branch.
 
 ---

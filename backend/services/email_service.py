@@ -1,4 +1,4 @@
-"""Email delivery for ORGON — password reset, registration, invites.
+"""Email delivery for ORGON — password reset, invites, transactional alerts.
 
 Two backends:
 
@@ -8,9 +8,17 @@ Two backends:
                    so QA / dev can grab the reset token without standing
                    up an SMTP server.
 
-The service is intentionally small. We do NOT pull in heavy frameworks
-(jinja, mjml, etc.) — every template is a plain Python f-string. Add a
-real templating layer when we need actual marketing emails.
+Two delivery paths:
+
+* `send_password_reset / send_email_verification / send_invite` —
+  typed entry points for plain-text user-flow emails.
+* `send_template(template_name, ...)` — HTML templated emails for
+  transaction notifications (welcome / transaction_created / signed /
+  completed / password_reset). Used by `NotificationService`.
+
+This module replaces the pre-Wave-11 `backend/email_service.py` which
+covered only the templated path; the two were merged here so there is
+one canonical email service.
 
 The public methods are async — backends do their I/O in a thread pool
 because Python's stdlib `smtplib` is sync. This keeps the event loop
@@ -30,6 +38,82 @@ from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger("orgon.services.email")
+
+
+# ────────────────────────────────────────────────────────────────────
+# HTML templates (for transactional notifications)
+# ────────────────────────────────────────────────────────────────────
+
+EMAIL_TEMPLATES: dict[str, dict[str, str]] = {
+    "welcome": {
+        "subject": "Welcome to ORGON",
+        "body": """
+<html><body style="font-family: Arial, sans-serif; color: #333;">
+<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #2563eb;">Welcome to ORGON</h2>
+  <p>Hi {full_name},</p>
+  <p>Your account has been created successfully.</p>
+  <p><strong>Email:</strong> {email}<br/>
+  <strong>Role:</strong> {role}<br/>
+  <strong>Organization:</strong> {organization}</p>
+  <p>You can now log in and start managing your crypto treasury.</p>
+  <p style="color: #666; font-size: 12px;">— The ORGON Team</p>
+</div></body></html>""",
+    },
+    "transaction_created": {
+        "subject": "New Transaction Created — {tx_id}",
+        "body": """
+<html><body style="font-family: Arial, sans-serif; color: #333;">
+<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #2563eb;">New Transaction</h2>
+  <p>A new transaction has been created:</p>
+  <table style="border-collapse: collapse; width: 100%;">
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>ID:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{tx_id}</td></tr>
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Amount:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{amount} {currency}</td></tr>
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>To:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{to_address}</td></tr>
+    <tr><td style="padding: 8px; border-bottom: 1px solid #eee;"><strong>Created by:</strong></td><td style="padding: 8px; border-bottom: 1px solid #eee;">{created_by}</td></tr>
+  </table>
+  <p>Please review and sign if required.</p>
+  <p style="color: #666; font-size: 12px;">— ORGON Notifications</p>
+</div></body></html>""",
+    },
+    "transaction_signed": {
+        "subject": "Transaction Signed — {tx_id}",
+        "body": """
+<html><body style="font-family: Arial, sans-serif; color: #333;">
+<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #16a34a;">Transaction Signed</h2>
+  <p>Transaction <strong>{tx_id}</strong> has been signed by <strong>{signer}</strong>.</p>
+  <p><strong>Status:</strong> {status}<br/>
+  <strong>Signatures:</strong> {signatures_count}/{signatures_required}</p>
+  <p style="color: #666; font-size: 12px;">— ORGON Notifications</p>
+</div></body></html>""",
+    },
+    "transaction_completed": {
+        "subject": "Transaction Completed — {tx_id}",
+        "body": """
+<html><body style="font-family: Arial, sans-serif; color: #333;">
+<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #16a34a;">Transaction Completed</h2>
+  <p>Transaction <strong>{tx_id}</strong> has been fully signed and submitted.</p>
+  <p><strong>Amount:</strong> {amount} {currency}<br/>
+  <strong>TX Hash:</strong> {tx_hash}</p>
+  <p style="color: #666; font-size: 12px;">— ORGON Notifications</p>
+</div></body></html>""",
+    },
+    "password_reset_html": {
+        "subject": "Password Reset — ORGON",
+        "body": """
+<html><body style="font-family: Arial, sans-serif; color: #333;">
+<div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+  <h2 style="color: #2563eb;">Password Reset</h2>
+  <p>You requested a password reset. Use this code:</p>
+  <p style="font-size: 24px; font-weight: bold; text-align: center; padding: 20px; background: #f3f4f6; border-radius: 8px;">{reset_code}</p>
+  <p>This code expires in 1 hour.</p>
+  <p style="color: #666; font-size: 12px;">If you didn't request this, ignore this email.</p>
+</div></body></html>""",
+    },
+}
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -206,14 +290,54 @@ class EmailService:
         )
         await self._deliver(msg)
 
+    # ─── general-purpose / templated sends (for NotificationService) ────
+
+    async def send_email(
+        self, to: str, subject: str, body: str, html: bool = False
+    ) -> bool:
+        """Send an arbitrary email. Returns True on success, False on swallow.
+
+        Used by NotificationService when sending transactional templates.
+        Plain-text by default; pass `html=True` for HTML body.
+        """
+        msg = self._build(to=to, subject=subject, body=body, html=html)
+        loop = asyncio.get_running_loop()
+        try:
+            await loop.run_in_executor(None, self.backend.deliver, msg)
+            return True
+        except Exception:
+            logger.exception("Email delivery failed for %s (%s)", to, subject)
+            return False
+
+    async def send_template(self, to: str, template_name: str, **kwargs) -> bool:
+        """Render `EMAIL_TEMPLATES[template_name]` with kwargs and send."""
+        tpl = EMAIL_TEMPLATES.get(template_name)
+        if not tpl:
+            logger.error("Unknown email template: %s", template_name)
+            return False
+        try:
+            subject = tpl["subject"].format(**kwargs)
+            body = tpl["body"].format(**kwargs)
+        except KeyError as e:
+            logger.error("Email template '%s' missing placeholder: %s",
+                         template_name, e)
+            return False
+        return await self.send_email(to, subject, body, html=True)
+
     # ─── internals ──────────────────────────────────────────────────
 
-    def _build(self, to: str, subject: str, body: str) -> EmailMessage:
+    def _build(
+        self, to: str, subject: str, body: str, html: bool = False
+    ) -> EmailMessage:
         msg = EmailMessage()
         msg["From"] = self.from_address
         msg["To"] = to
         msg["Subject"] = subject
-        msg.set_content(body)
+        if html:
+            msg.set_content("Plain-text fallback unavailable — please view in HTML.")
+            msg.add_alternative(body, subtype="html")
+        else:
+            msg.set_content(body)
         return msg
 
     async def _deliver(self, msg: EmailMessage) -> None:
@@ -239,3 +363,14 @@ def get_email_service() -> EmailService:
     if _service is None:
         _service = EmailService()
     return _service
+
+
+# Legacy import compatibility: NotificationService and a few other call
+# sites still do `from backend.services.email_service import email_service`.
+# Lazy-init via __getattr__ so the module-level reference doesn't fire
+# SMTP env reads at import time (matters for unit tests that monkeypatch
+# env after the import).
+def __getattr__(name: str):
+    if name == "email_service":
+        return get_email_service()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

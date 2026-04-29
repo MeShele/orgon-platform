@@ -20,8 +20,8 @@ def mock_client():
 def mock_db():
     """Mock Database."""
     db = AsyncMock()
-    db.fetchone = AsyncMock(return_value=None)
-    db.fetchall = AsyncMock(return_value=[])
+    db.fetchrow = AsyncMock(return_value=None)
+    db.fetch = AsyncMock(return_value=[])
     db.execute = AsyncMock()
     return db
 
@@ -69,7 +69,6 @@ def sample_tokens_info():
     ]
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestGetNetworks:
     """Tests for get_networks method."""
 
@@ -78,7 +77,7 @@ class TestGetNetworks:
         """When cache is empty, should fetch from API and cache."""
         # Arrange
         mock_client.get_networks = AsyncMock(return_value=sample_networks)
-        mock_db.fetchone.return_value = None  # No cache
+        mock_db.fetchrow.return_value = None  # No cache
 
         # Act
         result = await service.get_networks(status=1)
@@ -94,11 +93,11 @@ class TestGetNetworks:
         """When cache is fresh, should return cached data without API call."""
         # Arrange
         now = datetime.now(timezone.utc)
-        mock_db.fetchone.return_value = {
+        mock_db.fetchrow.return_value = {
             "value": now.isoformat(),
             "updated_at": now.isoformat()
         }
-        mock_db.fetchall.return_value = [
+        mock_db.fetch.return_value = [
             {
                 "network_id": 1000,
                 "network_name": "Bitcoin (BTC)",
@@ -124,7 +123,7 @@ class TestGetNetworks:
         """When cache is expired, should refetch from API."""
         # Arrange
         expired_time = datetime.now(timezone.utc) - timedelta(seconds=CACHE_TTL_SECONDS + 100)
-        mock_db.fetchone.return_value = {
+        mock_db.fetchrow.return_value = {
             "value": expired_time.isoformat(),
             "updated_at": expired_time.isoformat()
         }
@@ -142,7 +141,7 @@ class TestGetNetworks:
         """When force_refresh=True, should always fetch from API."""
         # Arrange
         now = datetime.now(timezone.utc)
-        mock_db.fetchone.return_value = {
+        mock_db.fetchrow.return_value = {
             "value": now.isoformat(),
             "updated_at": now.isoformat()
         }
@@ -160,11 +159,11 @@ class TestGetNetworks:
         """When API fails and stale cache exists, should return stale cache."""
         # Arrange
         expired_time = datetime.now(timezone.utc) - timedelta(seconds=CACHE_TTL_SECONDS + 100)
-        mock_db.fetchone.return_value = {
+        mock_db.fetchrow.return_value = {
             "value": expired_time.isoformat(),
             "updated_at": expired_time.isoformat()
         }
-        mock_db.fetchall.return_value = [
+        mock_db.fetch.return_value = [
             {
                 "network_id": 1000,
                 "network_name": "Bitcoin (BTC)",
@@ -189,8 +188,8 @@ class TestGetNetworks:
     async def test_api_failure_no_cache_raises_error(self, service, mock_client, mock_db):
         """When API fails and no cache exists, should raise error."""
         # Arrange
-        mock_db.fetchone.return_value = None
-        mock_db.fetchall.return_value = []
+        mock_db.fetchrow.return_value = None
+        mock_db.fetch.return_value = []
         mock_client.get_networks = AsyncMock(side_effect=SafinaNetworkError("API down"))
 
         # Act & Assert
@@ -198,7 +197,6 @@ class TestGetNetworks:
             await service.get_networks(status=1)
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestGetTokensInfo:
     """Tests for get_tokens_info method."""
 
@@ -207,7 +205,7 @@ class TestGetTokensInfo:
         """When cache is empty, should fetch from API and cache."""
         # Arrange
         mock_client.get_tokens_info = AsyncMock(return_value=sample_tokens_info)
-        mock_db.fetchone.return_value = None
+        mock_db.fetchrow.return_value = None
 
         # Act
         result = await service.get_tokens_info()
@@ -222,11 +220,11 @@ class TestGetTokensInfo:
         """When cache is fresh, should return cached data without API call."""
         # Arrange
         now = datetime.now(timezone.utc)
-        mock_db.fetchone.return_value = {
+        mock_db.fetchrow.return_value = {
             "value": now.isoformat(),
             "updated_at": now.isoformat()
         }
-        mock_db.fetchall.return_value = [
+        mock_db.fetch.return_value = [
             {
                 "token": "5010:::TRX",
                 "commission": "0.01",
@@ -248,11 +246,11 @@ class TestGetTokensInfo:
         """When API fails and stale cache exists, should return stale cache."""
         # Arrange
         expired_time = datetime.now(timezone.utc) - timedelta(seconds=CACHE_TTL_SECONDS + 100)
-        mock_db.fetchone.return_value = {
+        mock_db.fetchrow.return_value = {
             "value": expired_time.isoformat(),
             "updated_at": expired_time.isoformat()
         }
-        mock_db.fetchall.return_value = [
+        mock_db.fetch.return_value = [
             {
                 "token": "5010:::TRX",
                 "commission": "0.01",
@@ -269,7 +267,6 @@ class TestGetTokensInfo:
         assert len(result) == 1
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestHelperMethods:
     """Tests for helper methods."""
 
@@ -278,7 +275,7 @@ class TestHelperMethods:
         """Should find network by ID."""
         # Arrange
         mock_client.get_networks = AsyncMock(return_value=sample_networks)
-        mock_db.fetchone.return_value = None
+        mock_db.fetchrow.return_value = None
 
         # Act
         result = await service.get_network_by_id(5010)
@@ -293,7 +290,7 @@ class TestHelperMethods:
         """Should return None if network not found."""
         # Arrange
         mock_client.get_networks = AsyncMock(return_value=sample_networks)
-        mock_db.fetchone.return_value = None
+        mock_db.fetchrow.return_value = None
 
         # Act
         result = await service.get_network_by_id(9999)
@@ -306,7 +303,7 @@ class TestHelperMethods:
         """Should find token info by token."""
         # Arrange
         mock_client.get_tokens_info = AsyncMock(return_value=sample_tokens_info)
-        mock_db.fetchone.return_value = None
+        mock_db.fetchrow.return_value = None
 
         # Act
         result = await service.get_token_info("5010:::USDT")
@@ -320,7 +317,7 @@ class TestHelperMethods:
         """Should return None if token info not found."""
         # Arrange
         mock_client.get_tokens_info = AsyncMock(return_value=sample_tokens_info)
-        mock_db.fetchone.return_value = None
+        mock_db.fetchrow.return_value = None
 
         # Act
         result = await service.get_token_info("9999:::FAKE")
@@ -329,15 +326,15 @@ class TestHelperMethods:
         assert result is None
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestCacheStats:
     """Tests for cache statistics."""
 
-    def test_get_cache_stats(self, service, mock_db):
+    @pytest.mark.asyncio
+    async def test_get_cache_stats(self, service, mock_db):
         """Should return cache statistics."""
         # Arrange
         now = datetime.now(timezone.utc)
-        mock_db.fetchone.side_effect = [
+        mock_db.fetchrow.side_effect = [
             {"updated_at": now.isoformat()},  # networks state
             {"cnt": 5},  # networks count
             {"updated_at": now.isoformat()},  # tokens state
@@ -345,7 +342,7 @@ class TestCacheStats:
         ]
 
         # Act
-        stats = service.get_cache_stats()
+        stats = await service.get_cache_stats()
 
         # Assert
         assert "networks_age_seconds" in stats
@@ -365,7 +362,7 @@ class TestBackgroundRefresh:
         # Arrange
         mock_client.get_networks = AsyncMock(return_value=sample_networks)
         mock_client.get_tokens_info = AsyncMock(return_value=sample_tokens_info)
-        mock_db.fetchone.return_value = None
+        mock_db.fetchrow.return_value = None
 
         # Act
         await service.refresh_cache()
@@ -379,7 +376,7 @@ class TestBackgroundRefresh:
         """Background refresh should not raise errors."""
         # Arrange
         mock_client.get_networks = AsyncMock(side_effect=Exception("API error"))
-        mock_db.fetchone.return_value = None
+        mock_db.fetchrow.return_value = None
 
         # Act - should not raise
         await service.refresh_cache()

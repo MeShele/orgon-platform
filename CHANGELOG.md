@@ -451,18 +451,104 @@ No more silent "half the schema didn't apply" failures.
 
 ---
 
+## Wave 12–15 — production-readiness pack (2026-04-29)
+
+Closes the four highest-leverage items from "Known follow-ups" so the
+new Coolify server can pick up institutional-grade primitives from
+day one rather than retrofitting them later.
+
+### Wave 12 — HSM-ready signer abstraction
+
+- New `backend/safina/signer_backends.py` with a `SignerBackend`
+  protocol and three implementations:
+  * `EnvSignerBackend` — current behaviour (key in env, in-process).
+    Acceptable for dev/preview/single-org pilots; **unacceptable for
+    institutional custody**.
+  * `KMSSignerBackend` — AWS KMS asymmetric SECP256K1 key stub.
+    Raises `NotImplementedError` with a 6-step wiring checklist.
+  * `VaultSignerBackend` — HashiCorp Vault Transit engine stub.
+    Raises with a 5-step wiring checklist.
+- `SafinaSigner` now accepts either a hex private key (legacy
+  convenience) OR a `backend=...` kwarg. Internal `_eth_sign` delegates
+  to `backend.sign_msg_hash`, so a KMS/Vault swap is one line.
+- `build_signer_backend()` selector keys off `ORGON_SIGNER_BACKEND`
+  env (`env` / `kms` / `vault`); main.py wired to use it. Signer
+  failure on boot falls back to stub mode rather than crashing.
+- 19 unit tests cover round-trip, env switching, stub stubs raising,
+  legacy hex constructor compatibility.
+
+### Wave 13 — Local Safina signature verification primitive
+
+- New `backend/safina/signature_verifier.py` with:
+  * `recover_signer_address(msg_hash, signature_hex)` — pure ECDSA
+    recovery, no canonical-payload assumptions.
+  * `verify_signer(msg_hash, signature_hex, expected_address)` —
+    recover + compare, case-insensitive, never raises.
+  * `eth_personal_sign_hash(msg)` — same prefix our SafinaSigner
+    uses; also matches MetaMask `personal_sign`.
+- High-level `verify_safina_tx_signer(...)` is wired but the
+  canonical payload format is **explicitly NOT confirmed** — the
+  module's `canonical_payload()` raises `NotImplementedError` until
+  the exact field order/encoding is verified against Safina docs.
+  `is_verification_enabled()` probes this gate so accidentally
+  setting `ORGON_VERIFY_SAFINA_SIGS=1` without wiring the payload
+  doesn't silently turn on broken verification.
+- 14 unit tests cover round-trip with known-good signatures
+  (generated via SafinaSigner+TEST_KEY), tamper detection, malformed
+  inputs, the gate, and the disabled-mode return path.
+
+### Wave 14 — Off-site PG backup
+
+- `scripts/backup_pg.sh` extended with optional S3-compatible upload
+  (works with AWS S3, Cloudflare R2, Wasabi, MinIO).
+  Off-site activated by `ORGON_BACKUP_S3_BUCKET`; size-verified via
+  `aws s3api head-object`. Local-only behaviour preserved when env
+  is unset.
+- DEPLOYMENT.md "Backups" section rewritten with R2 setup snippet,
+  systemd timer template, and explicit retention guidance ("manage
+  off-site retention via lifecycle rules in the bucket — don't let
+  one host compromise wipe history").
+
+### Wave 15 — Rewrite 33 skipped tests
+
+- 10 test classes that had been carrying
+  `@pytest.mark.skip(reason="legacy MagicMock-style mocks")` since
+  Sprint 5: now green and unmocked. Mechanical changes:
+  * `db.fetchone` → `db.fetchrow` (asyncpg style)
+  * `db.fetchall` → `db.fetch`
+  * `MagicMock` for `db.fetch` → `AsyncMock`
+  * SQLite `?` placeholders → Postgres `$N`
+  * Two non-async tests promoted to `@pytest.mark.asyncio` because
+    the underlying methods became `async`.
+- **Real bug fixed in passing.** `signature_service.check_new_pending_signatures`
+  was emitting events with `pending.ecaddress`, `pending.value`,
+  `pending.min_sign`, `pending.signed` — none of those exist on the
+  `PendingSignature` model. The whole code path was silently caught
+  by `except Exception` and returning `[]`. Updated the event
+  payload to use only fields the model actually carries
+  (`token / to_addr / tx_value / init_ts / unid`) plus the signer
+  address from the client. Now the background "new pending sig"
+  Telegram path actually fires.
+- CI suite: **152 passed, 0 skipped, 0 failed** (was 86 passed, 33
+  skipped). Real coverage of NetworkService cache logic, signature
+  flow, transaction filtering — none of that was being exercised
+  before.
+
+---
+
 ## Known follow-ups (not in any sprint above)
 
 These remain genuine gaps. Order is "product impact, descending".
 
-- **HSM / KMS for signer key.** `SAFINA_EC_PRIVATE_KEY` lives in env
-  today. For an institutional cust this is unacceptable — needs AWS
-  KMS / HashiCorp Vault / YubiHSM with the signer running as an
-  out-of-process RPC.
-- **Local canonical-payload signature verification.** We trust Safina
-  on the crypto side — EC-recover the signer from
-  `(tx_unid + network + value + to_address)` and compare against the
-  wallet's signer list.
+- **HSM / KMS wire-up for signer key.** Wave 12 abstraction is in;
+  `EnvSignerBackend` runs in process today. To switch to AWS KMS or
+  Vault: implement the two stub classes per their wiring checklists in
+  `backend/safina/signer_backends.py` (~200 lines each, mostly
+  boto3/hvac plumbing + v-recovery). No app-side changes required.
+- **Confirm Safina canonical sign-payload format.** Wave 13 verifier
+  primitive is in but `canonical_payload()` raises until the exact
+  byte format is confirmed against Safina docs. One-line unblocking
+  + flip `ORGON_VERIFY_SAFINA_SIGS=1` to activate.
 - **Real Stripe price IDs.** Service is wired but
   `STRIPE_PRICE_STARTER` / `_BASIC` / `_PRO` env vars are empty until
   someone provisions products in Stripe and sets them.
@@ -475,12 +561,22 @@ These remain genuine gaps. Order is "product impact, descending".
 - **Document upload to S3 / R2.** `/compliance/{kyc,kyb}` show a
   banner sending users to email; backend is `placeholder://`.
 - **Preview DB separation.** Preview still shares the prod Coolify
-  postgres container — recipe in `CI-CD.md`.
-- **Backup off-site mirror.** rsync cron snippet from `CI-CD.md`,
-  not yet running anywhere.
+  postgres container — recipe in `CI-CD.md`. (Mooted by the planned
+  greenfield Coolify deploy on a new server — fresh DB per env.)
 - **Address-book B2B model.** `routes_partner_addresses.py` is
   disabled in `main.py`; lands when `address_book_b2b` table + service
   methods are written.
 - **Partner analytics filtering.** `AnalyticsService` needs a
   `partner_id` axis for the partner endpoints.
 - **i18n KY parity.** Landing and compliance keys still missing.
+
+### Resolved by waves above
+
+- ~~**Backup off-site mirror.**~~ Wave 14 — `scripts/backup_pg.sh`
+  now does S3-compatible upload. Activate by setting
+  `ORGON_BACKUP_S3_BUCKET` + AWS creds.
+- ~~**Local canonical-payload signature verification primitives.**~~
+  Wave 13 — recovery + verify functions ready; only the canonical
+  payload byte format is left to confirm.
+- ~~**Signer key abstraction.**~~ Wave 12 — `SignerBackend` interface
+  with KMS/Vault stubs.

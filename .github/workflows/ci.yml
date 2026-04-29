@@ -94,6 +94,8 @@ jobs:
             backend/tests/test_billing_stripe_webhook.py \
             backend/tests/test_observability.py \
             backend/tests/test_admin_partners.py \
+            backend/tests/test_signer_backends.py \
+            backend/tests/test_signature_verifier.py \
             -v --tb=short
 
   frontend:

@@ -79,7 +79,10 @@ rotate on container restart and silently invalidate live tokens.
 | `DATABASE_URL` | always | `postgresql://user:pw@host:port/db` — coolify-postgres on `asystem-proxmox` for shared DB |
 | `JWT_SECRET_KEY` | always | 32+ bytes random hex (`openssl rand -hex 32`). **Don't rely on the auto-generated default** — every restart kicks every user back to login. |
 | `SAFINA_BASE_URL` | always | `https://my.safina.pro/ece/` for prod Safina, partner-issued for staging |
-| `SAFINA_EC_PRIVATE_KEY` | always | EC SECP256k1 private key (hex). Provisioned by Safina; stored in Coolify env, not in repo. |
+| `SAFINA_EC_PRIVATE_KEY` | env-backend signer | EC SECP256k1 private key (hex). Required when `ORGON_SIGNER_BACKEND=env` (default). Stored in Coolify env, not in repo. **For institutional production: switch to `kms` or `vault` backend** — see `backend/safina/signer_backends.py`. |
+| `ORGON_SIGNER_BACKEND` | optional | `env` (default) / `kms` / `vault`. KMS and vault are stubs until wired — see `signer_backends.py` for setup checklists. |
+| `AWS_KMS_KEY_ID` / `AWS_REGION` | only if signer=kms | KMS key arn or alias and region (default `eu-central-1`). Backend role must have `kms:Sign` + `kms:GetPublicKey`. |
+| `VAULT_ADDR` / `VAULT_KEY_NAME` / `VAULT_TOKEN` | only if signer=vault | Vault Transit engine endpoint, key name (default `safina-ec`), and access token. |
 | `SENTRY_DSN` | recommended | enables error tracking via `backend/observability.py`. Empty = no Sentry, JSON logs still work. |
 | `ORGON_JSON_LOGS` | recommended | `1` to switch logger to structured JSON (better for log shippers). Default plain text. |
 | `STRIPE_API_KEY` | only if billing enabled | `sk_test_…` / `sk_live_…`. Empty → billing routes return 503, not crash. |
@@ -208,18 +211,59 @@ migration that adds a constraint or trigger).
 ## Backups
 
 The repo ships [`scripts/backup_pg.sh`](scripts/backup_pg.sh) — `pg_dump`
-piped through gzip, with mtime-based retention. Drop it in
-`/opt/orgon/scripts/` on the proxmox host and add a cron entry as
-described in [`CI-CD.md`](CI-CD.md#backups).
+piped through gzip, with mtime-based local retention **and optional
+off-site S3-compatible upload** (works with AWS S3, Cloudflare R2, Wasabi,
+or any MinIO-style endpoint).
 
 Default behaviour: `/var/backups/orgon/orgon-<utc-timestamp>.sql.gz`,
 retain 14 days, refuse to keep dumps under 4 KiB (so a partial run can't
 silently age out the good copies).
 
-To take a manual one-off backup right now:
+### Local-only (matches the old behaviour)
 
 ```bash
-ssh asystem-proxmox 'docker exec coolify-postgres-... pg_dump -U orgon -F c orgon \
-  > /tmp/orgon-$(date +%Y%m%d).pgdump'
-scp asystem-proxmox:/tmp/orgon-*.pgdump ./backups/
+DATABASE_URL=postgresql://orgon:…@host/orgon_db \
+  ./scripts/backup_pg.sh
+```
+
+### With off-site mirror (recommended for prod)
+
+```bash
+DATABASE_URL=postgresql://orgon:…@host/orgon_db \
+ORGON_BACKUP_S3_BUCKET=s3://orgon-backups \
+AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=… \
+AWS_ENDPOINT_URL_S3=https://<account>.r2.cloudflarestorage.com \
+  ./scripts/backup_pg.sh
+```
+
+Each upload is verified via `aws s3api head-object` — the script exits
+non-zero if remote size diverges from local. Pair with R2/S3 lifecycle
+rules for off-site retention (don't manage that here, otherwise a
+single host compromise can wipe history).
+
+### systemd timer (cron-equivalent on the host)
+
+```ini
+# /etc/systemd/system/orgon-backup.service
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/orgon/backup.env       # holds DATABASE_URL + S3 creds (mode 0600)
+ExecStart=/opt/orgon/scripts/backup_pg.sh
+
+# /etc/systemd/system/orgon-backup.timer
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+[Install]
+WantedBy=timers.target
+```
+
+`systemctl enable --now orgon-backup.timer`, then verify
+`journalctl -u orgon-backup.service -n 50` after the next firing.
+
+### Manual one-off
+
+```bash
+docker exec <coolify-postgres-container> pg_dump -U <user> -F c <db> \
+  | gzip -9 > "/tmp/orgon-$(date +%Y%m%dT%H%M%SZ).sql.gz"
 ```

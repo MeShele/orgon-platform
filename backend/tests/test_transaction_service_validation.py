@@ -19,8 +19,8 @@ def mock_client():
 def mock_db():
     """Mock Database."""
     db = AsyncMock()
-    db.fetchone = AsyncMock(return_value=None)
-    db.fetchall = AsyncMock(return_value=[])
+    db.fetchrow = AsyncMock(return_value=None)
+    db.fetch = AsyncMock(return_value=[])
     db.execute = AsyncMock()
     return db
 
@@ -352,7 +352,6 @@ class TestSendTransactionWithValidation:
         assert call_args[1]["value"] == "123,456"  # Comma separator
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestListTransactionsFiltering:
     """Tests for list_transactions filtering."""
 
@@ -360,7 +359,7 @@ class TestListTransactionsFiltering:
     async def test_lists_without_filters(self, service, mock_db):
         """Should list all transactions when no filters applied."""
         # Arrange
-        mock_db.fetchall = MagicMock(return_value=[
+        mock_db.fetch = AsyncMock(return_value=[
             {"unid": "TX1", "wallet_name": "WALLET1", "status": "confirmed"},
             {"unid": "TX2", "wallet_name": "WALLET2", "status": "pending"},
         ])
@@ -371,13 +370,13 @@ class TestListTransactionsFiltering:
         # Assert
         assert len(result) == 2
         # Check query was called correctly
-        assert mock_db.fetchall.called
+        assert mock_db.fetch.called
 
     @pytest.mark.asyncio
     async def test_filters_by_wallet_name(self, service, mock_db):
         """Should filter transactions by wallet name."""
         # Arrange
-        mock_db.fetchall = MagicMock(return_value=[
+        mock_db.fetch = AsyncMock(return_value=[
             {"unid": "TX1", "wallet_name": "WALLET1", "status": "confirmed"},
         ])
 
@@ -392,15 +391,15 @@ class TestListTransactionsFiltering:
         assert len(result) == 1
         assert result[0]["wallet_name"] == "WALLET1"
         # Verify query contains wallet filter
-        call_args = mock_db.fetchall.call_args
+        call_args = mock_db.fetch.call_args
         query = call_args[0][0]
-        assert "wallet_name = ?" in query
+        assert "wallet_name = $" in query
 
     @pytest.mark.asyncio
     async def test_filters_by_status(self, service, mock_db):
         """Should filter transactions by status."""
         # Arrange
-        mock_db.fetchall = MagicMock(return_value=[
+        mock_db.fetch = AsyncMock(return_value=[
             {"unid": "TX2", "status": "pending"},
         ])
 
@@ -414,15 +413,15 @@ class TestListTransactionsFiltering:
         # Assert
         assert len(result) == 1
         assert result[0]["status"] == "pending"
-        call_args = mock_db.fetchall.call_args
+        call_args = mock_db.fetch.call_args
         query = call_args[0][0]
-        assert "status = ?" in query
+        assert "status = $" in query
 
     @pytest.mark.asyncio
     async def test_filters_by_network(self, service, mock_db):
         """Should filter transactions by network ID."""
         # Arrange
-        mock_db.fetchall = MagicMock(return_value=[
+        mock_db.fetch = AsyncMock(return_value=[
             {"unid": "TX1", "network": "5010"},
         ])
 
@@ -435,15 +434,15 @@ class TestListTransactionsFiltering:
 
         # Assert
         assert len(result) == 1
-        call_args = mock_db.fetchall.call_args
+        call_args = mock_db.fetch.call_args
         query = call_args[0][0]
-        assert "network = ?" in query
+        assert "network = $" in query
 
     @pytest.mark.asyncio
     async def test_filters_by_date_range(self, service, mock_db):
         """Should filter transactions by date range."""
         # Arrange
-        mock_db.fetchall = MagicMock(return_value=[
+        mock_db.fetch = AsyncMock(return_value=[
             {"unid": "TX1", "created_at": "2026-02-05T12:00:00Z"},
         ])
 
@@ -459,16 +458,16 @@ class TestListTransactionsFiltering:
 
         # Assert
         assert len(result) == 1
-        call_args = mock_db.fetchall.call_args
+        call_args = mock_db.fetch.call_args
         query = call_args[0][0]
-        assert "created_at >= ?" in query
-        assert "created_at <= ?" in query
+        assert "created_at >= $" in query
+        assert "created_at <= $" in query
 
     @pytest.mark.asyncio
     async def test_combines_multiple_filters(self, service, mock_db):
         """Should combine multiple filters."""
         # Arrange
-        mock_db.fetchall = MagicMock(return_value=[
+        mock_db.fetch = AsyncMock(return_value=[
             {"unid": "TX1", "wallet_name": "WALLET1", "status": "confirmed", "network": "5010"},
         ])
 
@@ -485,17 +484,17 @@ class TestListTransactionsFiltering:
 
         # Assert
         assert len(result) == 1
-        call_args = mock_db.fetchall.call_args
+        call_args = mock_db.fetch.call_args
         query = call_args[0][0]
-        assert "wallet_name = ?" in query
-        assert "status = ?" in query
-        assert "network = ?" in query
+        assert "wallet_name = $" in query
+        assert "status = $" in query
+        assert "network = $" in query
 
     @pytest.mark.asyncio
     async def test_respects_limit_and_offset(self, service, mock_db):
         """Should respect limit and offset parameters."""
         # Arrange
-        mock_db.fetchall = MagicMock(return_value=[
+        mock_db.fetch = AsyncMock(return_value=[
             {"unid": "TX3"},
             {"unid": "TX4"},
         ])
@@ -508,8 +507,8 @@ class TestListTransactionsFiltering:
         )
 
         # Assert
-        call_args = mock_db.fetchall.call_args
+        call_args = mock_db.fetch.call_args
         query = call_args[0][0]
         params = call_args[0][1]
-        assert "LIMIT ? OFFSET ?" in query
+        assert "LIMIT $" in query and "OFFSET $" in query
         assert params[-2:] == (2, 2)  # Last two params

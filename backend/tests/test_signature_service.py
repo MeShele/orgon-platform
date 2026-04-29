@@ -23,8 +23,8 @@ def mock_client():
 def mock_db():
     """Mock Database."""
     db = AsyncMock()
-    db.fetchone = AsyncMock(return_value=None)
-    db.fetchall = AsyncMock(return_value=[])
+    db.fetchrow = AsyncMock(return_value=None)
+    db.fetch = AsyncMock(return_value=[])
     db.execute = AsyncMock()
     return db
 
@@ -118,7 +118,6 @@ class TestGetPendingSignatures:
             await service.get_pending_signatures()
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestSignTransaction:
     """Tests for sign_transaction method."""
 
@@ -173,7 +172,6 @@ class TestSignTransaction:
             await service.sign_transaction(tx_unid)
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestRejectTransaction:
     """Tests for reject_transaction method."""
 
@@ -307,7 +305,6 @@ class TestGetSignedTransactionsHistory:
         assert result[0]["to_addr"] == "TRx6xX..."
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestCheckNewPendingSignatures:
     """Tests for background check_new_pending_signatures task."""
 
@@ -320,7 +317,7 @@ class TestCheckNewPendingSignatures:
         mock_client.get_pending_signatures = AsyncMock(
             return_value=sample_pending_signatures
         )
-        mock_db.fetchall.return_value = []  # No previously checked
+        mock_db.fetch.return_value = []  # No previously checked
 
         # Act
         new_pending = await service_with_telegram.check_new_pending_signatures()
@@ -340,7 +337,7 @@ class TestCheckNewPendingSignatures:
             return_value=sample_pending_signatures
         )
         # All already checked
-        mock_db.fetchall.return_value = [
+        mock_db.fetch.return_value = [
             {"tx_unid": "TX_UNID_1"},
             {"tx_unid": "TX_UNID_2"},
         ]
@@ -352,7 +349,6 @@ class TestCheckNewPendingSignatures:
         assert len(new_pending) == 0
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestTelegramNotifications:
     """Tests for Telegram notification integration."""
 
@@ -407,14 +403,14 @@ class TestTelegramNotifications:
         await service.sign_transaction(tx_unid)
 
 
-@pytest.mark.skip(reason="legacy MagicMock-style mocks; needs rewrite using AsyncMock and real DB stub. Tracked in CHANGELOG follow-ups.")
 class TestGetStatistics:
     """Tests for get_statistics method."""
 
-    def test_returns_statistics(self, service, mock_db):
+    @pytest.mark.asyncio
+    async def test_returns_statistics(self, service, mock_db):
         """Should return signature statistics."""
         # Arrange
-        mock_db.fetchone.side_effect = [
+        mock_db.fetchrow.side_effect = [
             {"cnt": 10},  # signed_last_24h
             {"cnt": 2},   # rejected_last_24h
             {"cnt": 100}, # total_signed
@@ -422,7 +418,7 @@ class TestGetStatistics:
         ]
 
         # Act
-        stats = service.get_statistics()
+        stats = await service.get_statistics()
 
         # Assert
         assert stats["signed_last_24h"] == 10

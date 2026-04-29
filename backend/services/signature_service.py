@@ -377,15 +377,18 @@ class SignatureService:
                         (pending.unid, now)
                     )
                     
-                    # Emit signature pending event
+                    # Emit signature pending event. PendingSignature model
+                    # only carries token / to_addr / tx_value / init_ts /
+                    # unid — anything else (signer address, signature
+                    # progress) lives on the full Transaction. We keep the
+                    # event schema flat with the fields actually available.
                     await event_manager.emit(EventType.SIGNATURE_PENDING, {
                         "tx_unid": pending.unid,
-                        "ec_address": pending.ecaddress,
-                        "value": pending.value,
+                        "ec_address": self._client._signer.address,
+                        "value": pending.tx_value,
                         "to_addr": pending.to_addr,
                         "token": pending.token,
-                        "required_signatures": pending.min_sign,
-                        "current_signatures": len(pending.signed) if pending.signed else 0
+                        "init_ts": pending.init_ts,
                     })
 
                 # Send notifications

@@ -229,16 +229,27 @@ async def lifespan(app: FastAPI):
         logger.info("PostgreSQL pool eagerly connected: %s", _async_db._pool)
 
     # Initialize Safina signer + client. Three modes:
-    #   1. Real: SAFINA_EC_PRIVATE_KEY is set → live Safina API.
-    #   2. Stub: SAFINA_STUB=1 OR no EC key → SafinaStubClient with canned data.
-    #      Lets the demo render and walk through multi-sig without a live integration.
+    #   1. Real: a signer backend is available (env / KMS / vault) → live Safina API.
+    #      Backend is selected by ORGON_SIGNER_BACKEND (default: env, requires
+    #      SAFINA_EC_PRIVATE_KEY). KMS / vault are stubs until wired.
+    #   2. Stub: SAFINA_STUB=1 OR no key configured → SafinaStubClient.
+    #      Lets the demo render and walk multi-sig without a live integration.
     #      Never enable this on the prod Coolify app.
     #   3. None: legacy behaviour (wallet/tx endpoints raise 500).
-    ec_key = config["safina"].get("ec_private_key", "")
+    from backend.safina.signer_backends import build_signer_backend
     safina_stub = os.getenv("SAFINA_STUB", "").lower() in {"1", "true", "yes"}
+    # Try to construct a signer backend; failure is treated as "no key"
+    # so the stub path takes over (rather than crashing the whole app on
+    # boot when running without Safina creds).
+    signer_backend = None
+    if not safina_stub:
+        try:
+            signer_backend = build_signer_backend()
+        except Exception as exc:
+            logger.warning("Signer backend unavailable (%s) — falling back to stub", exc)
     try:
-        if ec_key and not safina_stub:
-            _signer = SafinaSigner(ec_key)
+        if signer_backend is not None:
+            _signer = SafinaSigner(backend=signer_backend)
             _safina_client = SafinaPayClient(
                 signer=_signer,
                 base_url=config["safina"]["base_url"],
@@ -247,10 +258,10 @@ async def lifespan(app: FastAPI):
                 retry_backoff=config["safina"]["retry_backoff"],
             )
             logger.info("Safina client initialized for address %s", _signer.address)
-        elif safina_stub or not ec_key:
+        elif safina_stub or signer_backend is None:
             from backend.safina.stub_client import SafinaStubClient
             _safina_client = SafinaStubClient()
-            reason = "SAFINA_STUB=1" if safina_stub else "no SAFINA_EC_PRIVATE_KEY"
+            reason = "SAFINA_STUB=1" if safina_stub else "no signer backend configured"
             logger.warning("Safina stub client active (%s) — demo mode, no real blockchain calls.", reason)
         else:
             _safina_client = None

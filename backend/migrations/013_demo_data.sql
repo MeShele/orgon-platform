@@ -125,22 +125,29 @@ UPDATE wallets w
 -- 5. Demo transactions across both orgs
 -- ============================================================
 -- Insert a small set with varied statuses, so dashboards render correctly.
--- Skip if the demo tx_unid is already present to keep this idempotent.
+-- Skip if the demo unid is already present to keep this idempotent.
+-- NOTE: column is `unid` (added by 003b_fix_transactions_columns), not the
+-- legacy `tx_unid` from migration 001 — the app filters on `unid`. We also
+-- only insert columns common to both the legacy CI schema (001+003b) and
+-- the consolidated UUID schema in 000_init_uuid_base — i.e. no
+-- `amount_decimal`/`fee`/`info` (legacy-only, unread by the API anyway).
+-- `to_addr` and `init_ts` are populated because dashboard_service reads
+-- those for the activity feed and sorting.
 
 INSERT INTO transactions (
-    wallet_name, tx_unid, tx_hash, from_address, to_address,
-    amount_decimal, network, status, fee, info, organization_id, token, value
+    wallet_name, unid, tx_hash, from_address, to_address, to_addr,
+    network, status, organization_id, token, value, init_ts
 )
 SELECT * FROM (VALUES
-    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0001', '0xdemo0001', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZdf12345abcdefghijklmnopqr', 250.00, 5010, 'confirmed',  0.5, 'Demo confirmed transfer',     '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '250.00'),
-    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0002', '0xdemo0002', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZab98765zyxwvutsrqponmlkj',  1500.00, 5010, 'confirmed', 0.5, 'Demo confirmed payout',       '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '1500.00'),
-    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0003', NULL,        'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ4444444444444444444444444',  500.00, 5010, 'pending',    0.5, 'Awaiting signatures (2/3)',   '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '500.00'),
-    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0004', NULL,        'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ5555555555555555555555555',   75.00, 5010, 'pending',    0.5, 'Awaiting signatures (1/3)',   '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '75.00'),
-    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0005', '0xdemo0005', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ6666666666666666666666666', 1200.00, 5010, 'rejected',   0.5, 'Rejected by compliance',      '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '1200.00'),
-    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0006', '0xdemo0006', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ7777777777777777777777777',  300.00, 5010, 'sent',       0.5, 'Broadcast, awaiting confirms','234e5678-e89b-12d3-a456-426614174111'::uuid, 'USDT', '300.00'),
-    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0007', '0xdemo0007', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ8888888888888888888888888',  900.00, 5010, 'confirmed',  0.5, 'Demo broker payout',          '234e5678-e89b-12d3-a456-426614174111'::uuid, 'USDT', '900.00')
-) AS v(wallet_name, tx_unid, tx_hash, from_address, to_address, amount_decimal, network, status, fee, info, organization_id, token, value)
-WHERE NOT EXISTS (SELECT 1 FROM transactions t WHERE t.tx_unid = v.tx_unid);
+    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0001', '0xdemo0001', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZdf12345abcdefghijklmnopqr', 'TXYZdf12345abcdefghijklmnopqr', 5010, 'confirmed', '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '250.00',  EXTRACT(EPOCH FROM NOW() - INTERVAL '6 hours')::bigint),
+    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0002', '0xdemo0002', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZab98765zyxwvutsrqponmlkj',  'TXYZab98765zyxwvutsrqponmlkj',  5010, 'confirmed', '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '1500.00', EXTRACT(EPOCH FROM NOW() - INTERVAL '5 hours')::bigint),
+    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0003', NULL,         'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ4444444444444444444444444', 'TXYZ4444444444444444444444444', 5010, 'pending',   '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '500.00',  EXTRACT(EPOCH FROM NOW() - INTERVAL '2 hours')::bigint),
+    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0004', NULL,         'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ5555555555555555555555555', 'TXYZ5555555555555555555555555', 5010, 'pending',   '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '75.00',   EXTRACT(EPOCH FROM NOW() - INTERVAL '40 minutes')::bigint),
+    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0005', '0xdemo0005', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ6666666666666666666666666', 'TXYZ6666666666666666666666666', 5010, 'rejected',  '123e4567-e89b-12d3-a456-426614174000'::uuid, 'USDT', '1200.00', EXTRACT(EPOCH FROM NOW() - INTERVAL '1 day')::bigint),
+    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0006', '0xdemo0006', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ7777777777777777777777777', 'TXYZ7777777777777777777777777', 5010, 'sent',      '234e5678-e89b-12d3-a456-426614174111'::uuid, 'USDT', '300.00',  EXTRACT(EPOCH FROM NOW() - INTERVAL '20 minutes')::bigint),
+    ('E55EF29AACC3C7B145258D930049023B', 'DEMO-TX-0007', '0xdemo0007', 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', 'TXYZ8888888888888888888888888', 'TXYZ8888888888888888888888888', 5010, 'confirmed', '234e5678-e89b-12d3-a456-426614174111'::uuid, 'USDT', '900.00',  EXTRACT(EPOCH FROM NOW() - INTERVAL '3 hours')::bigint)
+) AS v(wallet_name, unid, tx_hash, from_address, to_address, to_addr, network, status, organization_id, token, value, init_ts)
+WHERE NOT EXISTS (SELECT 1 FROM transactions t WHERE t.unid = v.unid);
 
 -- ============================================================
 -- 6. Demo signature_history rows for the pending demo transactions
@@ -172,7 +179,7 @@ BEGIN
     SELECT COUNT(*) INTO link_count FROM user_organizations;
     SELECT COUNT(*) INTO orphan_wallets FROM wallets WHERE organization_id IS NULL;
     SELECT COUNT(*) INTO orphan_tx FROM transactions WHERE organization_id IS NULL;
-    SELECT COUNT(*) INTO demo_tx_count FROM transactions WHERE tx_unid LIKE 'DEMO-TX-%';
+    SELECT COUNT(*) INTO demo_tx_count FROM transactions WHERE unid LIKE 'DEMO-TX-%';
 
     RAISE NOTICE 'Migration 013 done — orgs=%, user_org_links=%, orphan_wallets=%, orphan_tx=%, demo_tx=%',
         org_count, link_count, orphan_wallets, orphan_tx, demo_tx_count;

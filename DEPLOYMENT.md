@@ -68,6 +68,33 @@ Coolify UI → Application → Deployments → individual deployment.
 
 ---
 
+## Required environment variables
+
+These MUST be set in Coolify per environment. Auto-generated fallbacks
+(where they exist) are fine for ephemeral CI but unsafe in prod — they
+rotate on container restart and silently invalidate live tokens.
+
+| Var | Required for | Notes |
+|---|---|---|
+| `DATABASE_URL` | always | `postgresql://user:pw@host:port/db` — coolify-postgres on `asystem-proxmox` for shared DB |
+| `JWT_SECRET_KEY` | always | 32+ bytes random hex (`openssl rand -hex 32`). **Don't rely on the auto-generated default** — every restart kicks every user back to login. |
+| `SAFINA_BASE_URL` | always | `https://my.safina.pro/ece/` for prod Safina, partner-issued for staging |
+| `SAFINA_EC_PRIVATE_KEY` | always | EC SECP256k1 private key (hex). Provisioned by Safina; stored in Coolify env, not in repo. |
+| `SENTRY_DSN` | recommended | enables error tracking via `backend/observability.py`. Empty = no Sentry, JSON logs still work. |
+| `ORGON_JSON_LOGS` | recommended | `1` to switch logger to structured JSON (better for log shippers). Default plain text. |
+| `STRIPE_API_KEY` | only if billing enabled | `sk_test_…` / `sk_live_…`. Empty → billing routes return 503, not crash. |
+| `STRIPE_WEBHOOK_SECRET` | only if billing enabled | `whsec_…` from Stripe dashboard webhook. Required for `/api/v1/billing/webhook` to actually dispatch events. |
+| `STRIPE_PRICE_STARTER` / `_BASIC` / `_PRO` | only if billing enabled | one Stripe Price ID per plan slug. Append `_YEARLY` for yearly counterparts. |
+| `ORGON_PUBLIC_URL` | only if billing enabled | base URL for Stripe success/cancel redirects, e.g. `https://orgon.asystem.kg` |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | only if email enabled | empty → email_service falls back to file backend (writes to `/tmp/orgon_emails/`), useful for dev. |
+| `ORGON_PARTNER_REPLAY_OFF` | never in prod | dev escape hatch to skip HMAC nonce dedup for replay-testing. |
+
+Verify after deploy: `curl -sS https://orgon-api.asystem.kg/api/health`
+should return `{"ok": true, ...}` with no 5xx in the logs for the first
+30s. If JWT auth fails immediately for everyone, the secret was missed.
+
+---
+
 ## Apply a database migration
 
 ```bash

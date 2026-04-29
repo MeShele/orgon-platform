@@ -44,9 +44,6 @@ export default function SettingsPage() {
     lastPasswordChange: "",
   });
 
-  // API Keys state
-  const [apiKeys, setApiKeys] = useState<{ id: number; name: string; key: string; created: string; lastUsed: string }[]>([]);
-
   // Notifications state
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
@@ -90,10 +87,6 @@ export default function SettingsPage() {
         }));
       }
     }).catch(() => {});
-    // Load API keys
-    (api as any).getApiKeys?.()?.then?.((keys: any) => {
-      if (Array.isArray(keys)) setApiKeys(keys);
-    })?.catch?.(() => {});
   }, []);
 
   const sections = [
@@ -113,9 +106,6 @@ export default function SettingsPage() {
       <Header title={t('title')} />
 
       <div className="p-2 sm:p-4 md:p-6 lg:p-8 space-y-6">
-        {/* Disclaimer — many sub-sections on this page are previews of
-            future settings; the working flows live on dedicated pages.
-            Removing this banner is a Sprint-7 deliverable. */}
         <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-4 text-[13px]">
           <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0 text-base" />
           <div className="text-foreground">
@@ -123,10 +113,10 @@ export default function SettingsPage() {
             <div className="mt-1 text-muted-foreground">
               Рабочие действия живут на профильных страницах:{" "}
               <a className="text-primary underline-offset-4 hover:underline" href="/profile">/profile</a> — смена пароля и сессии,{" "}
-              <a className="text-primary underline-offset-4 hover:underline" href="/settings/keys">/settings/keys</a> — API-ключи,{" "}
+              <a className="text-primary underline-offset-4 hover:underline" href="/settings/keys">/settings/keys</a> — EC-ключ подписи Safina,{" "}
               <a className="text-primary underline-offset-4 hover:underline" href="/settings/system/monitoring">/settings/system/monitoring</a> — мониторинг,{" "}
               <a className="text-primary underline-offset-4 hover:underline" href="/settings/webhooks">/settings/webhooks</a> — webhooks.
-              Поля ниже без активных кнопок — в разработке.
+              Партнёрские API-ключи — раздел ниже, выпуск через админский API.
             </div>
           </div>
         </div>
@@ -360,43 +350,30 @@ export default function SettingsPage() {
               <div className="p-4 space-y-4">
                 <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-[12px] text-foreground">
                   <Icon icon="solar:info-circle-bold" className="text-primary mt-0.5 shrink-0" />
-                  <div>
-                    Самостоятельный выпуск/ротация API-ключей — в разработке. Сейчас ключи
-                    провизионит команда поддержки. Напишите на{" "}
-                    <a className="text-primary underline-offset-4 hover:underline" href="mailto:support@orgon.asystem.kg">support@orgon.asystem.kg</a>.
+                  <div className="space-y-2">
+                    <div>
+                      Партнёрские API-ключи — действие администратора организации.
+                      Выпуск, ротация и отзыв доступны через{" "}
+                      <code className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono">/api/v1/admin/partners</code>{" "}
+                      (роли <span className="font-mono">super_admin</span> /{" "}
+                      <span className="font-mono">company_admin</span>).
+                    </div>
+                    <div className="text-muted-foreground">
+                      Если у вас нет админ-роли — напишите на{" "}
+                      <a className="text-primary underline-offset-4 hover:underline" href="mailto:support@orgon.asystem.kg">
+                        support@orgon.asystem.kg
+                      </a>{" "}
+                      или владельцу организации, чтобы выпустить ключ для интеграции.
+                    </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  disabled
-                  title="В разработке"
-                  className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg opacity-50 cursor-not-allowed"
-                >
-                  <Icon icon="solar:add-circle-linear" className="inline mr-2" />
-                  {t('apiKeys.createNew')} · в разработке
-                </button>
-
-                <div className="space-y-3">
-                  {apiKeys.map((key) => (
-                    <div
-                      key={key.id}
-                      className="p-4 rounded-lg border border-border space-y-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-foreground">{key.name}</p>
-                        <div className="flex gap-2">
-                          <button className="text-xs text-muted-foreground hover:text-foreground dark:text-muted-foreground dark:hover:text-primary-foreground">
-                            {t('apiKeys.revoke')}
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-xs font-mono text-muted-foreground">{key.key}</p>
-                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>{t('apiKeys.created')}: {key.created}</span>
-                        <span>{t('apiKeys.lastUsed')}: {key.lastUsed}</span>
-                      </div>
-                    </div>
-                  ))}
+                <div className="rounded-lg border border-border bg-muted/30 p-3 text-[12px] text-muted-foreground">
+                  <div className="font-medium text-foreground">Что хранит ключ</div>
+                  <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                    <li><span className="font-mono">api_key</span> — публичный идентификатор партнёра (виден в логах)</li>
+                    <li><span className="font-mono">api_secret</span> — HMAC-секрет, отдаётся ОДИН РАЗ при выпуске/ротации</li>
+                    <li>Все запросы партнёра подписываются HMAC + защищены X-Nonce от replay-атак</li>
+                  </ul>
                 </div>
               </div>
             </Card>

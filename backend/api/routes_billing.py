@@ -153,7 +153,10 @@ async def create_checkout_session(
 
 
 @router.post("/webhook", include_in_schema=False)
-async def stripe_webhook(request: Request):
+async def stripe_webhook(
+    request: Request,
+    billing_service: BillingService = Depends(get_billing_service),
+):
     """Stripe webhook receiver — verifies signature, updates subscription
     state. Public (no auth) — security comes from the HMAC signature check.
 
@@ -178,18 +181,71 @@ async def stripe_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid Stripe signature")
 
     et = event.get("type")
-    obj = event.get("data", {}).get("object", {})
-    org_id = (obj.get("metadata") or {}).get("organization_id") \
-             or obj.get("client_reference_id")
+    obj = event.get("data", {}).get("object", {}) or {}
+    metadata = obj.get("metadata") or {}
+    org_id_raw = metadata.get("organization_id") or obj.get("client_reference_id")
 
-    # Best-effort dispatch — log every event, even unhandled ones.
-    logger.info("Stripe webhook received: %s · org=%s", et, org_id)
+    logger.info("Stripe webhook received: %s · org=%s", et, org_id_raw)
 
-    # Real activation hooks would go here. For now we just record the event
-    # and rely on the `subscriptions` table being touched by an out-of-band
-    # job. This keeps the endpoint contract stable while billing_service is
-    # extended.
-    return {"received": True, "type": et}
+    handled = False
+    try:
+        if et == "checkout.session.completed":
+            # Stripe sends `subscription` (sub_…) and `customer` (cus_…) on the
+            # session. metadata carries our plan_slug + billing_cycle (set in
+            # StripeService.create_checkout_session).
+            sub_id = obj.get("subscription")
+            if not sub_id or not org_id_raw:
+                logger.warning(
+                    "checkout.session.completed missing subscription/org — skipping (sub=%s org=%s)",
+                    sub_id, org_id_raw,
+                )
+            else:
+                row = await billing_service.upsert_subscription_from_checkout(
+                    organization_id=UUID(str(org_id_raw)),
+                    plan_slug=metadata.get("plan_slug", "starter"),
+                    billing_cycle=metadata.get("billing_cycle", "monthly"),
+                    stripe_subscription_id=str(sub_id),
+                    stripe_customer_id=obj.get("customer"),
+                    stripe_session_id=obj.get("id"),
+                )
+                if row is None:
+                    logger.warning(
+                        "checkout.session.completed: plan_slug '%s' not found locally — "
+                        "subscription left unactivated",
+                        metadata.get("plan_slug"),
+                    )
+                else:
+                    handled = True
+
+        elif et in ("customer.subscription.updated", "customer.subscription.deleted"):
+            # On subscription events the object IS the subscription; status
+            # is on `obj["status"]` directly.
+            sub_id = obj.get("id")
+            stripe_status = "canceled" if et == "customer.subscription.deleted" else obj.get("status", "")
+            if sub_id:
+                row = await billing_service.update_subscription_status_by_stripe_id(
+                    stripe_subscription_id=str(sub_id),
+                    stripe_status=stripe_status,
+                )
+                handled = row is not None
+
+        elif et == "invoice.payment_failed":
+            # Invoice object carries `subscription` (sub_…). Map to past_due.
+            sub_id = obj.get("subscription")
+            if sub_id:
+                row = await billing_service.mark_invoice_past_due_by_stripe_id(
+                    stripe_subscription_id=str(sub_id),
+                )
+                handled = row is not None
+
+    except Exception:
+        # Never 500 on an unhandled webhook — Stripe retries on non-2xx, so a
+        # transient bug would cascade. Log + acknowledge instead. Errors get
+        # caught by global_exception_handler too, but this keeps the contract
+        # explicit at the endpoint level.
+        logger.exception("Stripe webhook handler raised on event %s", et)
+
+    return {"received": True, "type": et, "handled": handled}
 
 
 # ==================== Organization Subscriptions ====================

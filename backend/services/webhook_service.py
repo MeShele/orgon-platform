@@ -275,14 +275,23 @@ class WebhookService:
         return signature
     
     async def _get_partner_secret(self, partner_id: UUID) -> Optional[str]:
-        """Get partner's webhook secret (or API secret as fallback)."""
-        query = """
-            SELECT COALESCE(
-                (SELECT secret FROM partner_webhooks WHERE partner_id = $1 AND secret IS NOT NULL LIMIT 1),
-                (SELECT api_secret FROM partners WHERE partner_id = $1)
-            ) AS secret
+        """Return the per-webhook HMAC secret, if one was registered.
+
+        Previously this query also fell back to `partners.api_secret`, but
+        that column doesn't exist (we only persist `api_secret_hash`) and
+        the FK in the legacy `partners(partner_id)` form was never valid —
+        the canonical PK is `partners(id)`. If a partner registered a
+        webhook without a secret, signing is skipped (None returned) and
+        delivery proceeds unsigned, which is the correct fail-open for
+        non-confidential events.
         """
-        
+        query = """
+            SELECT secret
+              FROM partner_webhooks
+             WHERE partner_id = $1
+               AND secret IS NOT NULL
+             LIMIT 1
+        """
         async with self.db.acquire() as conn:
             row = await conn.fetchrow(query, partner_id)
             return row["secret"] if row else None

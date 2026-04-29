@@ -84,8 +84,118 @@ class BillingService:
             )
             return self._fix_jsonb_fields(dict(row)) if row else None
     
+    # ==================== Stripe Webhook → Subscription State ====================
+
+    # Stripe lifecycle states → values our schema accepts. Anything not in this
+    # map falls through to no-op so we don't surprise the CHECK constraint.
+    _STRIPE_STATUS_MAP = {
+        "active":             "active",
+        "trialing":           "trialing",
+        "past_due":           "past_due",
+        "unpaid":             "past_due",
+        "canceled":           "cancelled",
+        "incomplete":         "pending",
+        "incomplete_expired": "expired",
+        "paused":             "suspended",
+    }
+
+    async def upsert_subscription_from_checkout(
+        self,
+        *,
+        organization_id: UUID,
+        plan_slug: str,
+        billing_cycle: str,
+        stripe_subscription_id: str,
+        stripe_customer_id: Optional[str],
+        stripe_session_id: Optional[str],
+    ) -> Optional[Dict[str, Any]]:
+        """Activate a subscription after `checkout.session.completed`.
+
+        Looks up the local plan by slug, then INSERT-or-UPDATE the
+        organization_subscriptions row keyed by stripe_subscription_id.
+        Returns the resulting row (or None if no plan matches the slug —
+        operator misconfigured Stripe price IDs).
+        """
+        plan = await self.get_subscription_plan_by_slug(plan_slug)
+        if not plan:
+            return None
+
+        price = plan.get("yearly_price") if billing_cycle == "yearly" else plan.get("monthly_price")
+        currency = plan.get("currency", "USD")
+        start_date = datetime.utcnow()
+        end_date = start_date + timedelta(days=365 if billing_cycle == "yearly" else 30)
+
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO organization_subscriptions (
+                    organization_id, plan_id, billing_cycle, start_date, end_date,
+                    status, price, currency, auto_renew,
+                    stripe_subscription_id, stripe_customer_id, stripe_session_id
+                ) VALUES ($1, $2, $3, $4, $5, 'active', $6, $7, TRUE, $8, $9, $10)
+                ON CONFLICT (stripe_subscription_id) DO UPDATE SET
+                    organization_id    = EXCLUDED.organization_id,
+                    plan_id            = EXCLUDED.plan_id,
+                    billing_cycle      = EXCLUDED.billing_cycle,
+                    start_date         = EXCLUDED.start_date,
+                    end_date           = EXCLUDED.end_date,
+                    status             = 'active',
+                    price              = EXCLUDED.price,
+                    currency           = EXCLUDED.currency,
+                    stripe_customer_id = EXCLUDED.stripe_customer_id,
+                    stripe_session_id  = EXCLUDED.stripe_session_id,
+                    updated_at         = NOW()
+                RETURNING *
+                """,
+                organization_id, UUID(str(plan["id"])), billing_cycle, start_date, end_date,
+                Decimal(str(price or 0)), currency,
+                stripe_subscription_id, stripe_customer_id, stripe_session_id,
+            )
+            return self._fix_jsonb_fields(dict(row)) if row else None
+
+    async def update_subscription_status_by_stripe_id(
+        self,
+        *,
+        stripe_subscription_id: str,
+        stripe_status: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Mirror a Stripe subscription state change.
+
+        Maps Stripe's lifecycle string to one of our allowed status values
+        and updates the matching row. Returns None if either no local row
+        is correlated yet, or the Stripe status isn't one we recognise (in
+        which case we deliberately don't touch the row).
+        """
+        local_status = self._STRIPE_STATUS_MAP.get(stripe_status)
+        if not local_status:
+            return None
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                UPDATE organization_subscriptions
+                   SET status     = $2,
+                       updated_at = NOW(),
+                       cancelled_at = CASE WHEN $2 = 'cancelled' THEN NOW() ELSE cancelled_at END
+                 WHERE stripe_subscription_id = $1
+                 RETURNING *
+                """,
+                stripe_subscription_id, local_status,
+            )
+            return self._fix_jsonb_fields(dict(row)) if row else None
+
+    async def mark_invoice_past_due_by_stripe_id(
+        self,
+        *,
+        stripe_subscription_id: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Flip the matching subscription to past_due on invoice.payment_failed."""
+        return await self.update_subscription_status_by_stripe_id(
+            stripe_subscription_id=stripe_subscription_id,
+            stripe_status="past_due",
+        )
+
     # ==================== Organization Subscriptions ====================
-    
+
     async def create_subscription(
         self,
         data: OrganizationSubscriptionCreate,

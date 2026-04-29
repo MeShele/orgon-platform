@@ -84,6 +84,7 @@ jobs:
             backend/tests/test_telegram_notifier.py \
             backend/tests/test_email_service.py \
             backend/tests/test_stripe_service.py \
+            backend/tests/test_billing_stripe_webhook.py \
             backend/tests/test_observability.py \
             backend/tests/test_admin_partners.py \
             -v --tb=short

@@ -64,6 +64,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/support",  # Support tickets - JWT AUTH
         "/api/documents",  # Documents - JWT AUTH
         "/api/v1/kyc-kyb",  # KYC/KYB - JWT AUTH
+        "/api/v1/admin",   # Admin REST (provision partners etc.) — JWT + require_roles at route level
     }
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:

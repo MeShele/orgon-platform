@@ -510,6 +510,7 @@ from backend.api.routes_webhooks import router as partner_webhooks_router
 from backend.api.routes_partner_analytics import router as partner_analytics_router
 from backend.api.routes_safina_integration import router as safina_integration_router
 from backend.api.routes_partner_scheduled import router as partner_scheduled_router
+from backend.api.routes_admin_partners import router as admin_partners_router
 # routes_partner_addresses is broken-on-arrival: it calls
 # AddressBookService.list_addresses / create_address / etc., which don't
 # exist (the service only has get_contacts/create_contact). Disabled until
@@ -549,6 +550,7 @@ app.include_router(partner_router)
 app.include_router(partner_webhooks_router)
 app.include_router(partner_analytics_router)
 app.include_router(partner_scheduled_router)
+app.include_router(admin_partners_router)  # Admin REST: provision / rotate / revoke partners
 # app.include_router(partner_addresses_router)  # disabled — see import comment
 app.include_router(safina_integration_router)  # Safina API gap closure
 

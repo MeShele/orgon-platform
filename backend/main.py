@@ -89,6 +89,14 @@ _webhook_service = None  # WebhookService (imported conditionally)
 _ws_connections: Set[WebSocket] = set()
 
 
+def get_database() -> AsyncDatabase:
+    """Return the global async database. RLSMiddleware imports this via
+    `from backend.main import get_database` — without the export the
+    middleware logged "cannot import name 'get_database'" on every
+    request and tenant RLS context never got set."""
+    return _async_db
+
+
 def get_safina_client() -> SafinaPayClient:
     return _safina_client
 

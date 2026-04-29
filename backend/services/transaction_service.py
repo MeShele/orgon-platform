@@ -503,15 +503,32 @@ class TransactionService:
             if tx.token and "###" in tx.token:
                 wallet_name = tx.token.split("###")[1]
 
+            # DO UPDATE only references columns that are actually inserted —
+            # the original SET clause referenced EXCLUDED.info and
+            # EXCLUDED.network, but neither is in the column list above and
+            # the scheduler crashed every minute with "column excluded.info
+            # does not exist".
             await self._db.execute(
                 """INSERT INTO transactions
                    (safina_id, tx_hash, token, token_name, to_addr, value, value_hex,
                     unid, init_ts, min_sign, status, wallet_name, synced_at, updated_at)
                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
                ON CONFLICT (unid) DO UPDATE SET
-                   safina_id = EXCLUDED.safina_id, tx_hash = EXCLUDED.tx_hash, token = EXCLUDED.token, token_name = EXCLUDED.token_name, to_addr = EXCLUDED.to_addr, value = EXCLUDED.value, value_hex = EXCLUDED.value_hex, init_ts = EXCLUDED.init_ts, min_sign = EXCLUDED.min_sign, status = EXCLUDED.status, info = EXCLUDED.info, wallet_name = EXCLUDED.wallet_name, network = EXCLUDED.network, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at""",
+                   safina_id = EXCLUDED.safina_id,
+                   tx_hash = EXCLUDED.tx_hash,
+                   token = EXCLUDED.token,
+                   token_name = EXCLUDED.token_name,
+                   to_addr = EXCLUDED.to_addr,
+                   value = EXCLUDED.value,
+                   value_hex = EXCLUDED.value_hex,
+                   init_ts = EXCLUDED.init_ts,
+                   min_sign = EXCLUDED.min_sign,
+                   status = EXCLUDED.status,
+                   wallet_name = EXCLUDED.wallet_name,
+                   synced_at = EXCLUDED.synced_at,
+                   updated_at = EXCLUDED.updated_at""",
                 (tx.id, tx.tx, tx.token, tx.token_name, tx.to_addr,
-                 str(tx.value), tx.value_hex, tx.unid, 
+                 str(tx.value), tx.value_hex, tx.unid,
                  int(tx.init_ts) if tx.init_ts else None,  # init_ts это integer (Unix timestamp)
                  int(tx.min_sign) if tx.min_sign else 0,
                  status, wallet_name, now, now),

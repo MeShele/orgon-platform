@@ -10,6 +10,18 @@ from backend.database.db_postgres import AsyncDatabase
 logger = logging.getLogger("orgon.services.analytics")
 
 
+def _naive_utcnow() -> datetime:
+    """UTC `now()` with tzinfo stripped.
+
+    `transactions.created_at`, `wallets.created_at`, `signatures.created_at`
+    were created as `TIMESTAMP WITHOUT TIME ZONE` by an early migration and
+    asyncpg refuses to bind a tz-aware datetime to a naive column. The fix
+    on the schema side is `ALTER COLUMN ... TYPE TIMESTAMPTZ USING ...` —
+    until that migration lands we strip tz before querying these tables.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class AnalyticsService:
     """
     Analytics and data aggregation for dashboard.
@@ -35,8 +47,9 @@ class AnalyticsService:
         Returns:
             List of daily balance snapshots
         """
-        # Calculate date range
-        end_date = datetime.now(timezone.utc)
+        # Calculate date range — `transactions.created_at` is a naive column,
+        # see _naive_utcnow() docstring.
+        end_date = _naive_utcnow()
         start_date = end_date - timedelta(days=days)
         
         # Query transactions grouped by day
@@ -230,10 +243,16 @@ class AnalyticsService:
         Returns:
             List of daily trends
         """
+        # Caller may pass tz-aware datetimes from datetime.fromisoformat;
+        # transactions.created_at is naive — coerce.
         if not to_date:
-            to_date = datetime.now(timezone.utc)
+            to_date = _naive_utcnow()
+        elif to_date.tzinfo is not None:
+            to_date = to_date.astimezone(timezone.utc).replace(tzinfo=None)
         if not from_date:
             from_date = to_date - timedelta(days=30)
+        elif from_date.tzinfo is not None:
+            from_date = from_date.astimezone(timezone.utc).replace(tzinfo=None)
         
         query = """
             SELECT 
@@ -311,8 +330,8 @@ class AnalyticsService:
             WHERE created_at >= $1
         """
         
-        # Active = had transactions in last 7 days
-        active_since = datetime.now(timezone.utc) - timedelta(days=7)
+        # Active = had transactions in last 7 days. naive — see _naive_utcnow().
+        active_since = _naive_utcnow() - timedelta(days=7)
         
         total_row = await self._db.fetchrow(query_total)
         active_row = await self._db.fetchrow(query_active, params=(active_since,))

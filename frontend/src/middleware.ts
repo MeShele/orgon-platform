@@ -2,25 +2,27 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
-  // Public routes that don't require authentication
+  const { pathname, search } = request.nextUrl;
+
+  // Public routes — never require auth.
   const publicRoutes = ['/', '/login', '/register', '/features', '/pricing', '/about', '/forgot-password', '/reset-password'];
   const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
-  
-  // Check if user has access token
+
   const accessToken = request.cookies.get('orgon_access_token')?.value;
-  
-  // If user is not authenticated and trying to access protected route
+
+  // Unauthenticated → bounce to /login with `next=` so user lands back where
+  // they tried to go after authenticating.
   if (!accessToken && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/', request.url));
+    const url = new URL('/login', request.url);
+    url.searchParams.set('next', pathname + search);
+    return NextResponse.redirect(url);
   }
-  
-  // If user is authenticated and trying to access login/register, redirect to dashboard
+
+  // Authenticated user on /login or /register → straight to dashboard.
   if (accessToken && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
-  
+
   return NextResponse.next();
 }
 

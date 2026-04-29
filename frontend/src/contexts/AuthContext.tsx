@@ -49,17 +49,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Load session from localStorage on mount (client-side only)
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
-    
+
     try {
       const storedAccessToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
       const storedRefreshToken = localStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
       const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
 
+      // Cookie / localStorage drift — middleware reads cookies, fetchAPI reads
+      // localStorage. If only one side is set we have a stale-session bug
+      // (user sees /dashboard but every API call 401s). Drop the cookie in
+      // that case so the next navigation lands on /login cleanly.
+      const hasCookie = document.cookie.split('; ').some((c) => c.startsWith('orgon_access_token='));
+      const hasStorage = !!storedAccessToken;
+      if (hasCookie !== hasStorage) {
+        document.cookie = 'orgon_access_token=; path=/; max-age=0';
+        document.cookie = 'orgon_refresh_token=; path=/; max-age=0';
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER);
+        setLoading(false);
+        // If we're inside a protected route, bounce to /login.
+        const here = window.location.pathname;
+        const isPublic = ['/', '/login', '/register', '/features', '/pricing', '/about',
+                          '/forgot-password', '/reset-password'].some(
+          (r) => here === r || here.startsWith(r + '/'));
+        if (!isPublic) {
+          window.location.href = `/login?next=${encodeURIComponent(here + window.location.search)}`;
+        }
+        return;
+      }
+
       if (storedAccessToken && storedRefreshToken && storedUser) {
         setAccessToken(storedAccessToken);
         setRefreshToken(storedRefreshToken);
         setUser(JSON.parse(storedUser));
-        
+
         // Verify token is still valid
         checkAuth().finally(() => setLoading(false));
       } else {

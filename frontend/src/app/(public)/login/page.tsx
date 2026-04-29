@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "@/hooks/useTranslations";
 import Link from "next/link";
 import Image from "next/image";
@@ -25,7 +25,16 @@ export default function LoginPage() {
   const t2fa = useTranslations("settings.twofa");
   const tc = useTranslations("common");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login: authLogin } = useAuth();
+
+  // Honour ?next= from middleware redirect, but only allow same-origin
+  // relative paths so a malicious redirect can't bounce the user off-site.
+  const rawNext = searchParams.get("next");
+  const safeNext =
+    rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+      ? rawNext
+      : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,7 +56,7 @@ export default function LoginPage() {
         return;
       }
       await authLogin(response);
-      router.push("/dashboard");
+      router.push(safeNext);
     } catch (err: any) {
       setError(err.message || "Login failed. Please check your credentials.");
       setLoading(false);
@@ -76,7 +85,7 @@ export default function LoginPage() {
     try {
       const response = await api.verify2FA(tempToken, twoFACode);
       await authLogin(response);
-      router.push("/dashboard");
+      router.push(safeNext);
     } catch (err: any) {
       setError(err.message || t2fa("errors.verificationFailed"));
       setTwoFACode("");

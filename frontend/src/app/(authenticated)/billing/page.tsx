@@ -10,11 +10,69 @@ import useSWR from "swr";
 interface Plan {
   id: string;
   name: string;
-  monthly_price: number;
-  yearly_price: number;
+  monthly_price: number | string;
+  yearly_price: number | string;
   currency?: string;
-  features?: string[];
+  // Backend returns either a flat list of strings or a feature dict;
+  // see normaliseFeatures() below.
+  features?: string[] | Record<string, string | number | boolean>;
   is_active?: boolean;
+}
+
+// Convert the backend feature dict to a human-readable bullet list.
+// Booleans become labels (or are dropped if false); strings/numbers get a
+// short prefix. Unknown keys fall back to "key: value".
+const FEATURE_LABEL: Record<string, string> = {
+  basic_support:           "Базовая поддержка",
+  priority_support:        "Приоритетная поддержка",
+  dedicated_support:       "Выделенный канал поддержки",
+  dedicated_manager:       "Выделенный аккаунт-менеджер",
+  api_access:              "B2B API-доступ",
+  white_label:             "White-label оформление",
+  sla_24_7:                "SLA 24/7",
+  unlimited_wallets:       "Кошельки без ограничения",
+  unlimited_transactions:  "Транзакции без ограничения",
+};
+
+function formatNumber(n: number | string): string {
+  const v = typeof n === "string" ? Number(n) : n;
+  if (!Number.isFinite(v)) return String(n);
+  return v.toLocaleString("ru-RU");
+}
+
+function normaliseFeatures(raw: Plan["features"]): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+
+  const out: string[] = [];
+  for (const [key, val] of Object.entries(raw)) {
+    if (val === false || val === null || val === undefined) continue;
+
+    if (typeof val === "boolean") {
+      out.push(FEATURE_LABEL[key] ?? key);
+      continue;
+    }
+    switch (key) {
+      case "max_wallets":
+        out.push(`До ${formatNumber(val)} кошельков`);
+        break;
+      case "max_transactions":
+        out.push(`До ${formatNumber(val)} транзакций / мес`);
+        break;
+      case "kyc_price":
+        out.push(`KYC: $${val} / клиент`);
+        break;
+      case "tx_commission":
+        out.push(`Комиссия за транзакцию: ${val}`);
+        break;
+      case "crypto_acquiring":
+        out.push(`Эквайринг крипты: ${val}`);
+        break;
+      default:
+        out.push(`${FEATURE_LABEL[key] ?? key}: ${val}`);
+    }
+  }
+  return out;
 }
 
 interface Usage {
@@ -153,22 +211,28 @@ export default function BillingPage() {
                       )}
                     </div>
                     <p className="text-3xl font-bold text-primary dark:text-primary">
-                      ${plan.monthly_price}
-                      <span className="text-sm font-normal text-muted-foreground">/мес</span>
+                      {formatNumber(plan.monthly_price)}{" "}
+                      <span className="text-sm font-normal text-muted-foreground">{plan.currency || "USD"} / мес</span>
                     </p>
-                    {plan.yearly_price > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">или ${plan.yearly_price}/год</p>
+                    {Number(plan.yearly_price) > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        или {formatNumber(plan.yearly_price)} {plan.currency || "USD"} / год
+                      </p>
                     )}
-                    {plan.features && (
-                      <ul className="mt-4 space-y-2">
-                        {plan.features.map((f, i) => (
-                          <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Icon icon="solar:check-circle-bold" className="text-success text-sm flex-shrink-0" />
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    {(() => {
+                      const items = normaliseFeatures(plan.features);
+                      if (items.length === 0) return null;
+                      return (
+                        <ul className="mt-4 space-y-2">
+                          {items.map((f, i) => (
+                            <li key={i} className="text-sm text-muted-foreground flex items-center gap-2">
+                              <Icon icon="solar:check-circle-bold" className="text-success text-sm flex-shrink-0" />
+                              {f}
+                            </li>
+                          ))}
+                        </ul>
+                      );
+                    })()}
                     {!isCurrent && (
                       <a
                         href={`mailto:sales@orgon.asystem.kg?subject=ORGON%20%E2%80%94%20%D0%BF%D0%B5%D1%80%D0%B5%D1%85%D0%BE%D0%B4%20%D0%BD%D0%B0%20%D1%82%D0%B0%D1%80%D0%B8%D1%84%20${encodeURIComponent(plan.name)}`}

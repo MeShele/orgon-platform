@@ -49,7 +49,17 @@
     "reports": "Отчёты",
     "support": "Поддержка",
     "fiat": "Фиат операции",
-    "partner": "Партнёр API"
+    "partner": "Партнёр API",
+    "apiKeys": "API ключи",
+    "webhooks": "Webhooks",
+    "system": "Система",
+    "groups": {
+      "workspace": "Рабочее пространство",
+      "organization": "Организация",
+      "insights": "Аналитика",
+      "platform": "Платформа",
+      "account": "Аккаунт"
+    }
   },
   "dashboard": {
     "title": "Главная",

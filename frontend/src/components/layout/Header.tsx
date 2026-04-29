@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { Icon } from "@/lib/icons";
 import { useSidebar } from "@/components/aceternity/sidebar";
@@ -72,11 +73,40 @@ export function Header({ title }: { title: string }) {
             <span className="ml-auto font-mono text-[10px] tracking-tight">⌘K</span>
           </div>
 
+          {/* Exit back to public landing — explicit way out of the dashboard. */}
+          <Link
+            href="/"
+            title="На главную страницу"
+            className={cn(
+              "inline-flex items-center justify-center w-9 h-9 border border-border",
+              "text-muted-foreground",
+              "hover:text-foreground hover:bg-muted hover:border-strong",
+              "active:scale-95",
+              "transition-all duration-150",
+            )}
+            aria-label="На главную страницу"
+          >
+            <Icon icon="solar:home-2-linear" className="text-[16px]" />
+          </Link>
+
           <ThemeToggle />
 
-          <div className="inline-flex items-center justify-center w-9 h-9 bg-primary text-primary-foreground font-mono text-[11px] font-semibold">
+          {/* Avatar — links to /profile with explicit hover. */}
+          <Link
+            href="/profile"
+            title={user?.full_name || user?.email || "Профиль"}
+            className={cn(
+              "inline-flex items-center justify-center w-9 h-9",
+              "bg-primary text-primary-foreground font-mono text-[11px] font-semibold",
+              "ring-0 ring-offset-2 ring-offset-background",
+              "hover:ring-2 hover:ring-primary/40",
+              "active:scale-95",
+              "transition-all duration-150",
+            )}
+            aria-label="Профиль"
+          >
             {initials}
-          </div>
+          </Link>
         </div>
       </div>
     </header>

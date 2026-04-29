@@ -129,15 +129,18 @@ export function AceternitySidebar() {
                       title={!isExpanded ? t(item.label) : undefined}
                       className={cn(
                         "group flex items-center gap-3 h-9 px-2",
-                        "border-l-2 transition-colors",
+                        "border-l-2 transition-all duration-150",
                         isActive
                           ? "border-primary bg-sidebar-accent text-foreground"
-                          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-strong",
                       )}
                     >
                       <Icon
                         icon={isActive ? item.activeIcon : item.icon}
-                        className={cn("text-[18px] shrink-0", isActive && "text-primary")}
+                        className={cn(
+                          "text-[18px] shrink-0 transition-colors",
+                          isActive ? "text-primary" : "group-hover:text-foreground",
+                        )}
                       />
                       {isExpanded && (
                         <span className="text-[13px] font-medium tracking-tight whitespace-nowrap overflow-hidden">
@@ -163,8 +166,9 @@ export function AceternitySidebar() {
 function SidebarLogo({ isExpanded }: { isExpanded: boolean }) {
   return (
     <Link
-      href="/dashboard"
-      className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border text-foreground"
+      href="/"
+      title="На главную страницу"
+      className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border text-foreground hover:bg-muted transition-colors"
     >
       <Image
         src="/orgon-icon.png"

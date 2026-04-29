@@ -89,10 +89,10 @@ export function MobileSidebar() {
                             onClick={() => setOpen(false)}
                             className={cn(
                               "group flex items-center gap-3 h-10 px-2",
-                              "border-l-2 transition-colors",
+                              "border-l-2 transition-all duration-150",
                               isActive
                                 ? "border-primary bg-sidebar-accent text-foreground"
-                                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                                : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted hover:border-strong",
                             )}
                           >
                             <Icon

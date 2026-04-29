@@ -48,7 +48,17 @@
     "reports": "Reports",
     "support": "Support",
     "fiat": "Fiat Operations",
-    "partner": "Partner API"
+    "partner": "Partner API",
+    "apiKeys": "API Keys",
+    "webhooks": "Webhooks",
+    "system": "System",
+    "groups": {
+      "workspace": "Workspace",
+      "organization": "Organization",
+      "insights": "Insights",
+      "platform": "Platform",
+      "account": "Account"
+    }
   },
   "dashboard": {
     "title": "Dashboard",

@@ -24,6 +24,31 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+// Wipe storage + cookies (middleware reads cookies) and bounce to /login
+// with `next=` so the user lands back where they tried to go.
+// Returns true if it actually triggered a navigation.
+function clearSessionAndRedirect(): boolean {
+  if (typeof window === "undefined") return false;
+  localStorage.removeItem("orgon_access_token");
+  localStorage.removeItem("orgon_refresh_token");
+  localStorage.removeItem("orgon_user");
+  document.cookie = "orgon_access_token=; path=/; max-age=0";
+  document.cookie = "orgon_refresh_token=; path=/; max-age=0";
+
+  const here = window.location.pathname;
+  // Already on a public page → don't loop.
+  if (here === "/login" || here === "/" || here.startsWith("/register")) return false;
+
+  const next = encodeURIComponent(here + window.location.search);
+  window.location.href = `/login?next=${next}`;
+  return true;
+}
+
+// A never-resolving promise. When fetchAPI redirects to /login it returns
+// this so React doesn't see a thrown error overlay before the navigation
+// settles. The page is unmounting; resolving is pointless.
+const NEVER: Promise<never> = new Promise<never>(() => {});
+
 async function fetchAPI(path: string, options: RequestInit = {}) {
   const token = typeof window !== "undefined" ? localStorage.getItem("orgon_access_token") : "";
   const headers: Record<string, string> = {
@@ -36,23 +61,24 @@ async function fetchAPI(path: string, options: RequestInit = {}) {
     headers: { ...headers, ...options.headers },
   });
 
-  // Auto-refresh token on 401
-  if (res.status === 401 && token && !path.includes("/auth/")) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      headers.Authorization = `Bearer ${newToken}`;
-      res = await fetch(`${API_BASE}${path}`, {
-        ...options,
-        headers: { ...headers, ...options.headers },
-      });
-    } else {
-      // Refresh failed — clear session, redirect to login
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("orgon_access_token");
-        localStorage.removeItem("orgon_refresh_token");
-        localStorage.removeItem("orgon_user");
-        window.location.href = "/login";
+  // 401 → either refresh (if we had a token) or kick to login. Auth endpoints
+  // themselves are exempt — a 401 from /api/auth/login is a wrong-password,
+  // not a stale-session.
+  if (res.status === 401 && !path.includes("/auth/")) {
+    if (token) {
+      const newToken = await refreshAccessToken();
+      if (newToken) {
+        headers.Authorization = `Bearer ${newToken}`;
+        res = await fetch(`${API_BASE}${path}`, {
+          ...options,
+          headers: { ...headers, ...options.headers },
+        });
+        if (res.status === 401 && clearSessionAndRedirect()) return NEVER;
+      } else {
+        if (clearSessionAndRedirect()) return NEVER;
       }
+    } else {
+      if (clearSessionAndRedirect()) return NEVER;
     }
   }
 

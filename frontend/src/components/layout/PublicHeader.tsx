@@ -5,11 +5,28 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ThemeToggle } from "./ThemeToggle";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+
+// Detect a logged-in user purely from cookies/localStorage (no API call)
+// so the public header can swap "Войти / Демо" → "Кабинет" instantly.
+function useSignedInState(): { signedIn: boolean; ready: boolean } {
+  const [signedIn, setSignedIn] = useState(false);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hasCookie = document.cookie
+      .split("; ")
+      .some((c) => c.startsWith("orgon_access_token="));
+    const hasStorage = !!localStorage.getItem("orgon_access_token");
+    setSignedIn(hasCookie && hasStorage);
+    setReady(true);
+  }, []);
+  return { signedIn, ready };
+}
 
 const NAV = [
   { href: "/features", label: "Возможности" },
@@ -19,6 +36,7 @@ const NAV = [
 
 export function PublicHeader() {
   const [open, setOpen] = useState(false);
+  const { signedIn, ready } = useSignedInState();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/85 backdrop-blur-md">
@@ -45,18 +63,26 @@ export function PublicHeader() {
           ))}
         </nav>
 
-        {/* Right cluster */}
+        {/* Right cluster — swaps Login/Demo → Dashboard when authenticated. */}
         <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
-          <Link
-            href="/login"
-            className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Войти
-          </Link>
-          <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
-            <Button variant="primary" size="sm">Демо</Button>
-          </a>
+          {ready && signedIn ? (
+            <Link href="/dashboard">
+              <Button variant="primary" size="sm">В кабинет&nbsp;→</Button>
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Войти
+              </Link>
+              <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
+                <Button variant="primary" size="sm">Демо</Button>
+              </a>
+            </>
+          )}
         </div>
 
         {/* Mobile burger */}
@@ -84,12 +110,20 @@ export function PublicHeader() {
             </Link>
           ))}
           <div className="pt-4 mt-4 border-t border-border space-y-2">
-            <Link href="/login" onClick={() => setOpen(false)}>
-              <Button variant="secondary" size="sm" fullWidth>Войти</Button>
-            </Link>
-            <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request" onClick={() => setOpen(false)}>
-              <Button variant="primary" size="sm" fullWidth>Демо</Button>
-            </a>
+            {ready && signedIn ? (
+              <Link href="/dashboard" onClick={() => setOpen(false)}>
+                <Button variant="primary" size="sm" fullWidth>В кабинет&nbsp;→</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setOpen(false)}>
+                  <Button variant="secondary" size="sm" fullWidth>Войти</Button>
+                </Link>
+                <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request" onClick={() => setOpen(false)}>
+                  <Button variant="primary" size="sm" fullWidth>Демо</Button>
+                </a>
+              </>
+            )}
             <div className="pt-2 flex justify-center">
               <ThemeToggle />
             </div>

@@ -48,7 +48,17 @@
     "reports": "Отчёттор",
     "support": "Колдоо",
     "fiat": "Фиат операциялары",
-    "partner": "Партнёр API"
+    "partner": "Партнёр API",
+    "apiKeys": "API ачкычтары",
+    "webhooks": "Вебхуктар",
+    "system": "Системa",
+    "groups": {
+      "workspace": "Иш мейкиндиги",
+      "organization": "Уюм",
+      "insights": "Аналитика",
+      "platform": "Платформа",
+      "account": "Аккаунт"
+    }
   },
   "dashboard": {
     "title": "Башкы бет",

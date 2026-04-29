@@ -22,19 +22,29 @@ interface Plan {
 }
 
 const FEATURE_LABELS: Record<string, string> = {
-  max_wallets: "Кошельков",
-  max_transactions: "Транзакций / мес",
-  tx_commission: "Комиссия за транзакцию",
-  crypto_acquiring: "Крипто-эквайринг",
-  kyc_price: "KYC за пользователя ($)",
-  basic_support: "Базовая поддержка",
-  priority_support: "Приоритетная поддержка",
-  dedicated_support: "Выделенная поддержка",
-  dedicated_manager: "Персональный менеджер",
-  api_access: "API доступ",
-  white_label: "White-label",
-  sla_24_7: "SLA 24/7",
-  unlimited_wallets: "Неограниченные кошельки",
+  // dfns-style 4-tier model
+  all_interfaces:         "Все интерфейсы",
+  max_wallets:            "Кошельков",
+  max_team_members:       "Участников команды",
+  max_blockchains:        "Блокчейнов",
+  all_blockchains:        "Все блокчейны",
+  unlimited_wallets:      "Кошельки без лимита",
+  unlimited_team_members: "Команда без лимита",
+  support_24h:            "Поддержка < 24 ч",
+  support_1h:             "Поддержка < 1 ч",
+  custom_pricing:         "Индивидуальная цена",
+  // legacy keys (still present in older seeds, kept for backwards-compat)
+  max_transactions:       "Транзакций / мес",
+  tx_commission:          "Комиссия за транзакцию",
+  crypto_acquiring:       "Крипто-эквайринг",
+  kyc_price:              "KYC за пользователя ($)",
+  basic_support:          "Базовая поддержка",
+  priority_support:       "Приоритетная поддержка",
+  dedicated_support:      "Выделенная поддержка",
+  dedicated_manager:      "Персональный менеджер",
+  api_access:             "API доступ",
+  white_label:            "White-label",
+  sla_24_7:               "SLA 24/7",
   unlimited_transactions: "Неограниченные транзакции",
 };
 
@@ -78,10 +88,14 @@ export default function PricingPage() {
 
   const yearlySavings = useMemo(() => {
     if (!plans) return null;
-    const start = plans.find((p) => p.slug === "start") ?? plans[0];
-    if (!start) return null;
-    const monthly12 = Number(start.monthly_price) * 12;
-    const yearly = Number(start.yearly_price);
+    // Pick a non-Enterprise tier (Enterprise is custom-priced → 0).
+    const sample = plans.find((p) => p.slug === "starter")
+                ?? plans.find((p) => p.slug === "basic")
+                ?? plans.find((p) => Number(p.monthly_price) > 0)
+                ?? plans[0];
+    if (!sample) return null;
+    const monthly12 = Number(sample.monthly_price) * 12;
+    const yearly = Number(sample.yearly_price);
     if (!monthly12 || !yearly) return null;
     const pct = Math.round((1 - yearly / monthly12) * 100);
     return pct > 0 ? pct : null;
@@ -97,8 +111,8 @@ export default function PricingPage() {
             Прозрачные тарифы<br />для команд любого масштаба
           </h1>
           <p className="mt-6 max-w-2xl mx-auto text-[15px] sm:text-[16px] leading-[1.6] text-muted-foreground">
-            Цены в KGS. Меняйте план в любой момент. Скидка 10% при годовой
-            оплате. Enterprise — индивидуальные условия по договору.
+            Цены в USD. Меняйте план в любой момент. Годовая оплата — со
+            скидкой. Enterprise — индивидуальные условия по договору.
           </p>
 
           <div className="mt-10 inline-flex border border-strong p-0.5">

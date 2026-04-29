@@ -90,3 +90,4 @@ outbox/
 
 # Per-project Coolify overrides
 /.coolify
+.venv/

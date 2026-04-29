@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Eyebrow } from "@/components/ui/primitives";
 import { Icon } from "@/lib/icons";
+import { FeatureIllustration } from "@/components/landing/FeatureIllustration";
 
 interface Feature {
   tag: string;
@@ -137,11 +138,11 @@ export default function FeaturesPage() {
                     </ul>
                   </div>
                   <div
-                    className={`p-10 lg:p-14 flex items-center justify-center bg-muted/40 min-h-[280px] ${
+                    className={`p-8 lg:p-12 flex items-center justify-center bg-muted/40 min-h-[280px] ${
                       reversed ? "lg:order-1" : ""
                     }`}
                   >
-                    <Icon icon={feature.icon} className="text-[160px] text-foreground/20" />
+                    <FeatureIllustration index={i} />
                   </div>
                 </article>
               );

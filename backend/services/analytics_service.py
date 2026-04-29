@@ -10,16 +10,10 @@ from backend.database.db_postgres import AsyncDatabase
 logger = logging.getLogger("orgon.services.analytics")
 
 
-def _naive_utcnow() -> datetime:
-    """UTC `now()` with tzinfo stripped.
-
-    `transactions.created_at`, `wallets.created_at`, `signatures.created_at`
-    were created as `TIMESTAMP WITHOUT TIME ZONE` by an early migration and
-    asyncpg refuses to bind a tz-aware datetime to a naive column. The fix
-    on the schema side is `ALTER COLUMN ... TYPE TIMESTAMPTZ USING ...` —
-    until that migration lands we strip tz before querying these tables.
-    """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+# Note: this module used to ship `datetime.now(timezone.utc)` because several
+# created_at columns were TIMESTAMP WITHOUT TIME ZONE. Migration 020
+# promoted them to TIMESTAMPTZ — services now write tz-aware datetimes
+# directly. Helper removed.
 
 
 class AnalyticsService:
@@ -47,9 +41,7 @@ class AnalyticsService:
         Returns:
             List of daily balance snapshots
         """
-        # Calculate date range — `transactions.created_at` is a naive column,
-        # see _naive_utcnow() docstring.
-        end_date = _naive_utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days)
         
         # Query transactions grouped by day
@@ -98,18 +90,31 @@ class AnalyticsService:
         logger.info(f"Generated balance history: {len(filled_result)} days")
         return filled_result
 
-    async def get_transaction_volume(self, network: Optional[int] = None, days: int = 30) -> List[Dict]:
+    async def get_transaction_volume(
+        self,
+        network: Optional[int] = None,
+        days: int = 30,
+        org_ids: Optional[list] = None,
+    ) -> List[Dict]:
         """
         Get transaction volume grouped by network.
-        
+
         Args:
             network: Optional network ID filter
-            
+            days:    (currently unused; kept for signature stability)
+            org_ids: Tenant scope. `None` = no scoping (super-admin /
+                     internal). Empty list = caller has no orgs → returns []
+                     (so partner endpoints can't accidentally read another
+                     partner's data).
+
         Returns:
-            List of network volumes
+            List of network volumes.
         """
+        if org_ids is not None and not org_ids:
+            return []
+
         query = """
-            SELECT 
+            SELECT
                 t.network as network_id,
                 COALESCE(n.network_name, CAST(t.network AS TEXT)) as network_name,
                 COUNT(*) as tx_count,
@@ -118,14 +123,20 @@ class AnalyticsService:
             LEFT JOIN networks_cache n ON t.network = n.network_id
             WHERE t.network IS NOT NULL
         """
-        
-        params = []
+        params: list = []
+        idx = 1
         if network:
-            query += " AND t.network = $1"
+            query += f" AND t.network = ${idx}"
             params.append(network)
-        
+            idx += 1
+        if org_ids is not None:
+            placeholders = ", ".join(f"${idx + i}" for i in range(len(org_ids)))
+            query += f" AND t.organization_id IN ({placeholders})"
+            params.extend(org_ids)
+            idx += len(org_ids)
+
         query += " GROUP BY t.network, n.network_name ORDER BY tx_count DESC"
-        
+
         rows = await self._db.fetch(query, params=tuple(params) if params else None)
         
         result = []
@@ -140,29 +151,40 @@ class AnalyticsService:
         logger.info(f"Transaction volume: {len(result)} networks")
         return result
 
-    async def get_token_distribution(self) -> List[Dict]:
+    async def get_token_distribution(self, org_ids: Optional[list] = None) -> List[Dict]:
         """
         Get token distribution (pie chart data).
-        
-        Returns:
-            List of token balances
+
+        Args:
+            org_ids: same semantics as get_transaction_volume — None means
+                     "no scoping", empty list means "caller sees nothing".
         """
-        query = """
+        if org_ids is not None and not org_ids:
+            return []
+
+        params: list = []
+        org_clause = ""
+        if org_ids is not None:
+            placeholders = ", ".join(f"${i + 1}" for i in range(len(org_ids)))
+            org_clause = f" AND organization_id IN ({placeholders})"
+            params.extend(org_ids)
+
+        query = f"""
             WITH token_balances AS (
-                SELECT 
+                SELECT
                     SUBSTRING(token FROM '^[^:]+') as token_symbol,
                     COUNT(*) as tx_count,
                     SUM(CASE WHEN value ~ '^[0-9.]+$' THEN CAST(value AS NUMERIC) ELSE 0 END) as total_value
                 FROM transactions
-                WHERE token IS NOT NULL
+                WHERE token IS NOT NULL{org_clause}
                 GROUP BY token_symbol
             )
             SELECT * FROM token_balances
             ORDER BY total_value DESC
             LIMIT 20
         """
-        
-        rows = await self._db.fetch(query)
+
+        rows = await self._db.fetch(query, params=tuple(params) if params else None)
         
         result = []
         total_value = 0
@@ -243,16 +265,17 @@ class AnalyticsService:
         Returns:
             List of daily trends
         """
-        # Caller may pass tz-aware datetimes from datetime.fromisoformat;
-        # transactions.created_at is naive — coerce.
+        # All time columns are TIMESTAMPTZ since migration 020. Coerce any
+        # naive datetime callers pass us up to UTC so asyncpg has a clean
+        # tz-aware value either way.
         if not to_date:
-            to_date = _naive_utcnow()
-        elif to_date.tzinfo is not None:
-            to_date = to_date.astimezone(timezone.utc).replace(tzinfo=None)
+            to_date = datetime.now(timezone.utc)
+        elif to_date.tzinfo is None:
+            to_date = to_date.replace(tzinfo=timezone.utc)
         if not from_date:
             from_date = to_date - timedelta(days=30)
-        elif from_date.tzinfo is not None:
-            from_date = from_date.astimezone(timezone.utc).replace(tzinfo=None)
+        elif from_date.tzinfo is None:
+            from_date = from_date.replace(tzinfo=timezone.utc)
         
         query = """
             SELECT 
@@ -330,8 +353,8 @@ class AnalyticsService:
             WHERE created_at >= $1
         """
         
-        # Active = had transactions in last 7 days. naive — see _naive_utcnow().
-        active_since = _naive_utcnow() - timedelta(days=7)
+        # Active = had transactions in last 7 days.
+        active_since = datetime.now(timezone.utc) - timedelta(days=7)
         
         total_row = await self._db.fetchrow(query_total)
         active_row = await self._db.fetchrow(query_active, params=(active_since,))

@@ -111,12 +111,13 @@ async def get_volume(
     **Returns:** Time-series data with volume and transaction count.
     """
     partner = get_partner_from_request(request)
-    
-    # Get volume data (filtered by partner_id internally)
-    # TODO: Update AnalyticsService to support partner_id filtering
+    from backend.api.routes_partner import _partner_org_ids
+    org_ids = await _partner_org_ids(request, partner)
+
     volume_data = await analytics_service.get_transaction_volume(
         days=days,
-        network=str(network_id) if network_id else None
+        network=int(network_id) if network_id else None,
+        org_ids=org_ids,
     )
     
     # Convert to USD using price feed
@@ -237,9 +238,10 @@ async def get_distribution(
     **Returns:** Token distribution with USD values and percentages.
     """
     partner = get_partner_from_request(request)
-    
-    # Get token distribution
-    distribution_data = await analytics_service.get_token_distribution()
+    from backend.api.routes_partner import _partner_org_ids
+    org_ids = await _partner_org_ids(request, partner)
+
+    distribution_data = await analytics_service.get_token_distribution(org_ids=org_ids)
     
     # Convert to USD
     price_feed = get_price_feed_service()
@@ -295,10 +297,11 @@ async def export_analytics(
     **Returns:** Analytics data in requested format.
     """
     partner = get_partner_from_request(request)
-    
-    # Get all analytics data
-    volume_data = await analytics_service.get_transaction_volume(days=days)
-    distribution_data = await analytics_service.get_token_distribution()
+    from backend.api.routes_partner import _partner_org_ids
+    org_ids = await _partner_org_ids(request, partner)
+
+    volume_data = await analytics_service.get_transaction_volume(days=days, org_ids=org_ids)
+    distribution_data = await analytics_service.get_token_distribution(org_ids=org_ids)
     
     if format == "json":
         return {

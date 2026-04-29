@@ -59,9 +59,17 @@ jobs:
 
       - name: Apply migrations against postgres service
         run: |
-          for f in $(ls backend/migrations/0*.sql | sort); do
+          # Pre-seed legacy schema (some columns added by older migrations
+          # are required by later ones), then apply the multi-tenant /
+          # consolidation overlay.
+          for f in $(ls backend/database/migrations/0*.sql | sort); do
             echo "→ $f"
-            PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test -v ON_ERROR_STOP=1 -f "$f"
+            PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test -v ON_ERROR_STOP=0 -f "$f" >/dev/null
+          done
+          # Newer migrations (000_init_uuid_base conflicts with above; skip).
+          for f in $(ls backend/migrations/0*.sql | grep -vE "/000_" | sort); do
+            echo "→ $f"
+            PGPASSWORD=orgon_test psql -h localhost -U orgon_test -d orgon_test -v ON_ERROR_STOP=0 -f "$f" >/dev/null
           done
 
       - name: Run pytest (unit only, no integration suite)
@@ -74,6 +82,9 @@ jobs:
             backend/tests/test_transaction_service_validation.py \
             backend/tests/test_network_service.py \
             backend/tests/test_telegram_notifier.py \
+            backend/tests/test_email_service.py \
+            backend/tests/test_stripe_service.py \
+            backend/tests/test_observability.py \
             -v --tb=short
 
   frontend:

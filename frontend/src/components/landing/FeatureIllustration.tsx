@@ -104,9 +104,9 @@ function ScheduleIllustration() {
         </div>
 
         <div className="grid grid-cols-7 gap-1">
-          {["П", "В", "С", "Ч", "П", "С", "В"].map((d) => (
+          {["П", "В", "С", "Ч", "П", "С", "В"].map((d, i) => (
             <div
-              key={d}
+              key={`wd-${i}`}
               className="text-center font-mono text-[9px] tracking-[0.12em] uppercase text-faint pb-1"
             >
               {d}

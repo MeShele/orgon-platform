@@ -56,10 +56,18 @@ function CanvasInner({ onNodeSelect }: Props) {
       edges={edges}
       nodeTypes={NODE_TYPES}
       proOptions={proOptions}
-      defaultViewport={{ x: 20, y: 30, zoom: 0.9 }}
-      minZoom={0.5}
+      // fitView on first render, but cap the zoom so nodes don't shrink
+      // to ant-size on tall viewports.
+      fitView
+      fitViewOptions={{ padding: 0.12, maxZoom: 0.9, minZoom: 0.45 }}
+      minZoom={0.45}
       maxZoom={1.4}
-      panOnScroll
+      // CRITICAL UX: do NOT capture mouse wheel. The wheel is reserved
+      // for natural page-level scroll. User pans the graph by dragging
+      // (panOnDrag is on by default) and zooms via the on-screen
+      // controls or pinch gesture.
+      panOnScroll={false}
+      zoomOnScroll={false}
       nodesDraggable={false}
       elementsSelectable={true}
       onNodeClick={(_, node) => onNodeSelect?.(node.data as NodeData)}

@@ -1,11 +1,16 @@
 "use client";
 
 // Public route: /demo/architecture
-// Two-column layout: living architecture graph on the left,
-// vertical readable scenario timeline on the right. The graph never
-// "plays through" — every edge has the same ambient flow animation.
-// The right-side panel describes a chosen scenario as plain
-// step-by-step text the visitor reads at their own pace.
+//
+// Layout philosophy: page scrolls naturally. The graph column is
+// sticky-positioned on lg+ screens so it stays visible while the
+// reader scrolls through the right-side step list. On smaller
+// screens the layout stacks: graph on top, steps below — also
+// natural page scroll.
+//
+// React Flow does NOT capture mouse wheel — that's reserved for
+// page scroll. Pan inside the graph by dragging; zoom with the
+// on-screen controls.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -44,14 +49,19 @@ export default function ArchitectureSimulatorPage() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-background">
-      {/* Slim header */}
-      <header className="shrink-0 h-14 border-b border-border bg-card flex items-center justify-between px-5">
-        <Link href="/" className="flex items-center gap-2.5 text-foreground hover:text-primary transition-colors">
+    <div className="min-h-screen bg-background">
+      {/* Sticky page header — always visible while scrolling */}
+      <header className="sticky top-0 z-30 h-14 border-b border-border bg-card flex items-center justify-between px-5">
+        <Link
+          href="/"
+          className="flex items-center gap-2.5 text-foreground hover:text-primary transition-colors"
+        >
           <Image src="/orgon-icon.png" alt="" width={26} height={26} priority />
           <div className="leading-tight">
             <div className="font-mono text-[9px] tracking-[0.18em] text-faint">ASYSTEM</div>
-            <div className="font-medium text-[13px] tracking-[0.06em]">ORGON · симулятор архитектуры</div>
+            <div className="font-medium text-[13px] tracking-[0.06em]">
+              ORGON · симулятор архитектуры
+            </div>
           </div>
         </Link>
 
@@ -59,27 +69,34 @@ export default function ArchitectureSimulatorPage() {
           <span className="hidden lg:inline">
             Все узлы и связи — реальные компоненты кода. Кликни на любой блок чтобы увидеть детали.
           </span>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-foreground hover:text-primary"
-          >
+          <Link href="/" className="inline-flex items-center gap-1.5 text-foreground hover:text-primary">
             <Icon icon="solar:arrow-left-linear" className="text-[14px]" />
             На главную
           </Link>
         </div>
       </header>
 
-      {/* Main split: graph (flex-1) + readable timeline (fixed 400px) */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* Graph column — has its own column-rail above the canvas. */}
-        <div className="flex-1 min-w-0 flex flex-col">
+      {/* Two-column body. On lg+ the graph is sticky and the steps
+          panel scrolls naturally. On smaller screens both stack and
+          flow with the page. */}
+      <div className="lg:flex">
+        {/* Graph column — sticky on lg+, fixed-height inside the viewport. */}
+        <div
+          className={[
+            "flex-1 flex flex-col",
+            "lg:sticky lg:top-14",
+            "lg:h-[calc(100vh-3.5rem)]",
+            "border-b lg:border-b-0 border-border",
+          ].join(" ")}
+        >
           <ColumnRail />
-          <div className="flex-1 min-h-0 relative">
+          <div className="flex-1 min-h-[520px] relative">
             <GraphCanvas onNodeSelect={setSelectedNode} />
             <NodeDetailPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
           </div>
         </div>
 
+        {/* Right side — flows with page scroll. */}
         <StepsTimeline
           scenarios={SCENARIOS}
           current={current}

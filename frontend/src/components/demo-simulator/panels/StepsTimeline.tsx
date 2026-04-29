@@ -34,9 +34,12 @@ interface Props {
 
 export function StepsTimeline({ scenarios, current, onSelect }: Props) {
   return (
-    <aside className="shrink-0 w-[400px] border-l border-border bg-card flex flex-col h-full">
-      {/* Top — scenario picker + persona context */}
-      <header className="shrink-0 border-b border-border px-5 pt-4 pb-3 space-y-3">
+    <aside className="shrink-0 w-full lg:w-[400px] border-l border-border bg-card flex flex-col">
+      {/* Top — scenario picker + persona context. Sticky on lg so the
+          picker stays in reach while the user reads the step list below. */}
+      <header
+        className="shrink-0 border-b border-border px-5 pt-4 pb-3 space-y-3 bg-card lg:sticky lg:top-14 lg:z-20"
+      >
         <div>
           <div className="font-mono text-[10px] tracking-[0.18em] uppercase text-faint mb-1">
             Сценарий
@@ -81,8 +84,8 @@ export function StepsTimeline({ scenarios, current, onSelect }: Props) {
         </p>
       </div>
 
-      {/* Vertical static step list */}
-      <ol className="flex-1 overflow-y-auto px-5 py-4 space-y-3 relative">
+      {/* Vertical static step list — flows with page scroll. */}
+      <ol className="px-5 py-4 space-y-3 relative">
         {/* Vertical track behind the dots */}
         <div
           aria-hidden

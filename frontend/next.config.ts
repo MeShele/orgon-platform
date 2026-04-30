@@ -25,9 +25,17 @@ const nextConfig: NextConfig = {
   // Allow cross-origin requests from production domain
   allowedDevOrigins: ['orgon.asystem.kg'],
   
-  // Rewrites for API proxying
+  // Rewrites for API proxying. We split the proxy destination from
+  // NEXT_PUBLIC_API_URL because that one gets baked into the client
+  // bundle — when set to an internal docker hostname (e.g. http://
+  // orgon-backend:8890) the browser can't resolve it. BACKEND_INTERNAL_URL
+  // is server-only and lets the Next.js node process forward /api/*
+  // to the backend container while the client keeps using relative URLs.
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8890';
+    const apiUrl =
+      process.env.BACKEND_INTERNAL_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:8890';
     return [
       {
         source: '/api/:path*',

@@ -1,118 +1,71 @@
-version: '3.8'
+# ORGON demo stack — Docker Compose source for Coolify deployments.
+#
+# Coolify magic env vars (https://coolify.io/docs/services/magic-environment-variables):
+#   ${SERVICE_PASSWORD_PG}         → random Postgres password, shared
+#                                    between backend and the pg service
+#   ${SERVICE_PASSWORD_64_JWT}     → random 64-char JWT secret
+#   ${SERVICE_FQDN_FRONTEND_3000}  → auto-generated public FQDN for the
+#                                    frontend service (port 3000), routed
+#                                    via Traefik with Let's Encrypt cert
+#
+# Architecture: backend is intentionally NOT exposed externally. Only
+# the frontend gets a public FQDN; Next.js's standalone server proxies
+# /api/* to orgon-backend over the internal docker network.
 
 services:
-  postgres:
+  orgon-pg:
     image: postgres:16-alpine
-    container_name: orgon-postgres-dev
-    restart: unless-stopped
     environment:
-      - POSTGRES_USER=orgon_user
-      - POSTGRES_PASSWORD=orgon_dev_password
-      - POSTGRES_DB=orgon_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: orgon
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_PG}
+      POSTGRES_DB: orgon
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - orgon-network
+      - orgon-pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U orgon_user -d orgon_db"]
+      test: ["CMD-SHELL", "pg_isready -U orgon -d orgon"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  orgon-backend:
+    build:
+      context: ./backend
+    environment:
+      - DATABASE_URL=postgresql://orgon:${SERVICE_PASSWORD_PG}@orgon-pg:5432/orgon
+      - JWT_SECRET_KEY=${SERVICE_PASSWORD_64_JWT}
+      - SAFINA_BASE_URL=http://localhost:0
+      - SAFINA_STUB=1
+      - ORGON_AUTO_MIGRATE=1
+      - ORGON_ENV=production
+      - ORGON_PUBLIC_URL=${SERVICE_FQDN_FRONTEND_3000}
+      - CORS_ORIGINS=${SERVICE_FQDN_FRONTEND_3000}
+    depends_on:
+      orgon-pg:
+        condition: service_healthy
+    healthcheck:
+      # python is in the slim image; wget/curl are not.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if b'ok' in urllib.request.urlopen('http://127.0.0.1:8890/api/health').read() else 1)\""]
       interval: 10s
       timeout: 5s
-      retries: 5
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      retries: 12
+      start_period: 30s
 
-  backend:
+  orgon-frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: orgon-backend
-    restart: unless-stopped
+      context: ./frontend
+      args:
+        # Server-side proxy destination — never reaches the browser.
+        BACKEND_INTERNAL_URL: http://orgon-backend:8890
+        # Empty so client bundle uses relative URLs and goes through
+        # the Next.js node server's rewrite (defined in next.config.ts).
+        NEXT_PUBLIC_API_URL: ""
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - SAFINA_API_BASE_URL=https://my.safina.pro/ece
-      - SAFINA_API_KEY=${SAFINA_API_KEY}
-      - CORS_ORIGINS=${CORS_ORIGINS}
-      - HOST=0.0.0.0
-      - PORT=8890
+      - SERVICE_FQDN_FRONTEND_3000
+      - BACKEND_INTERNAL_URL=http://orgon-backend:8890
+      - NEXT_TELEMETRY_DISABLED=1
     depends_on:
-      postgres:
+      orgon-backend:
         condition: service_healthy
-    networks:
-      - orgon-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8890/api/dashboard/stats')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    container_name: orgon-frontend
-    restart: unless-stopped
-    environment:
-      - NEXT_PUBLIC_API_URL=https://${PUBLIC_DOMAIN}/api
-      - NODE_ENV=production
-    depends_on:
-      backend:
-        condition: service_healthy
-    networks:
-      - orgon-network
-    healthcheck:
-      test: ["CMD-SHELL", "ps aux | grep -q 'next-server' || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: orgon-tunnel
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    volumes:
-      - ./cloudflare-tunnel-config.yaml:/etc/cloudflared/config.yaml:ro
-      - ./cloudflare-credentials.json:/etc/cloudflared/credentials.json:ro
-    depends_on:
-      backend:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
-    networks:
-      - orgon-network
-    # Note: Using local config file with correct Docker service names:
-    # - Frontend: orgon-frontend:3000
-    # - Backend: orgon-backend:8890
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-networks:
-  orgon-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16
 
 volumes:
-  postgres-data:
-    driver: local
+  orgon-pg-data:

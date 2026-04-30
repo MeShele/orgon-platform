@@ -1,19 +1,20 @@
 # ORGON demo stack — Docker Compose source for Coolify deployments.
 #
 # Coolify magic env vars (https://coolify.io/docs/services/magic-environment-variables):
-#   ${SERVICE_PASSWORD_PG}         → random Postgres password, shared
-#                                    between backend and the pg service
-#   ${SERVICE_PASSWORD_64_JWT}     → random 64-char JWT secret
-#   ${SERVICE_FQDN_FRONTEND_3000}  → auto-generated public FQDN for the
-#                                    frontend service (port 3000), routed
-#                                    via Traefik with Let's Encrypt cert
+#   ${SERVICE_PASSWORD_PG}        random Postgres password, shared
+#                                  between backend and the pg service
+#   ${SERVICE_PASSWORD_64_JWT}    random 64-char JWT secret
+#   ${SERVICE_FQDN_FRONTEND_3000} auto-generated public FQDN for the
+#                                  frontend service, routed to port 3000
+#                                  via Coolify's proxy (Caddy/Traefik)
+#                                  with auto Let's Encrypt cert.
 #
-# Architecture: backend is intentionally NOT exposed externally. Only
-# the frontend gets a public FQDN; Next.js's standalone server proxies
-# /api/* to orgon-backend over the internal docker network.
+# Coolify matches the magic env name's service portion ("FRONTEND") to
+# a docker-compose service named "frontend". So we keep service names
+# short and prefix-free here, even though they correspond to ORGON.
 
 services:
-  orgon-pg:
+  pg:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: orgon
@@ -27,11 +28,11 @@ services:
       timeout: 3s
       retries: 10
 
-  orgon-backend:
+  backend:
     build:
       context: ./backend
     environment:
-      DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@orgon-pg:5432/orgon"
+      DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@pg:5432/orgon"
       JWT_SECRET_KEY: "${SERVICE_PASSWORD_64_JWT}"
       SAFINA_BASE_URL: "http://localhost:0"
       SAFINA_STUB: "1"
@@ -40,7 +41,7 @@ services:
       ORGON_PUBLIC_URL: "${SERVICE_FQDN_FRONTEND_3000}"
       CORS_ORIGINS: "${SERVICE_FQDN_FRONTEND_3000}"
     depends_on:
-      orgon-pg:
+      pg:
         condition: service_healthy
     healthcheck:
       # python is in the slim image; wget/curl are not.
@@ -50,24 +51,24 @@ services:
       retries: 12
       start_period: 30s
 
-  orgon-frontend:
+  frontend:
     build:
       context: ./frontend
       args:
         # Server-side proxy destination — never reaches the browser.
-        BACKEND_INTERNAL_URL: "http://orgon-backend:8890"
+        BACKEND_INTERNAL_URL: "http://backend:8890"
         # Empty so client bundle uses relative URLs and goes through
         # the Next.js node server's rewrite (defined in next.config.ts).
         NEXT_PUBLIC_API_URL: ""
     environment:
       # Mentioning SERVICE_FQDN_FRONTEND_3000 in this service's env block
-      # tells Coolify to publish "orgon-frontend" externally on port 3000
-      # under the auto-generated FQDN with a Let's Encrypt cert.
+      # tells Coolify to publish "frontend" externally on port 3000 under
+      # the auto-generated FQDN with a Let's Encrypt cert.
       SERVICE_FQDN_FRONTEND_3000: "${SERVICE_FQDN_FRONTEND_3000}"
-      BACKEND_INTERNAL_URL: "http://orgon-backend:8890"
+      BACKEND_INTERNAL_URL: "http://backend:8890"
       NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
-      orgon-backend:
+      backend:
         condition: service_healthy
 
 volumes:

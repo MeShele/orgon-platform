@@ -61,12 +61,14 @@ services:
         # the Next.js node server's rewrite (defined in next.config.ts).
         NEXT_PUBLIC_API_URL: ""
     environment:
-      # Mentioning SERVICE_FQDN_FRONTEND_3000 in this service's env block
-      # tells Coolify to publish "frontend" externally on port 3000 under
-      # the auto-generated FQDN with a Let's Encrypt cert.
-      SERVICE_FQDN_FRONTEND_3000: "${SERVICE_FQDN_FRONTEND_3000}"
       BACKEND_INTERNAL_URL: "http://backend:8890"
       NEXT_TELEMETRY_DISABLED: "1"
+    # Tell Coolify (and the runtime docker network) which port the
+    # frontend listens on. Coolify reads `expose` to know the upstream
+    # port for its proxy labels — without this it defaults to 80,
+    # which is wrong for Next.js standalone (port 3000).
+    expose:
+      - "3000"
     depends_on:
       backend:
         condition: service_healthy

@@ -32,14 +32,30 @@ services:
     build:
       context: ./backend
     environment:
+      # ─── core wiring ────────────────────────────────────────────────
       DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@pg:5432/orgon"
       JWT_SECRET_KEY: "${SERVICE_PASSWORD_64_JWT}"
-      SAFINA_BASE_URL: "http://localhost:0"
-      SAFINA_STUB: "1"
-      ORGON_AUTO_MIGRATE: "1"
       ORGON_ENV: "production"
       ORGON_PUBLIC_URL: "${SERVICE_FQDN_FRONTEND_3000}"
       CORS_ORIGINS: "${SERVICE_FQDN_FRONTEND_3000}"
+      # ─── first-boot bootstrap ──────────────────────────────────────
+      ORGON_AUTO_MIGRATE: "1"   # apply 000_canonical_schema.sql once
+      ORGON_AUTO_SEED:    "1"   # apply seed_test_organizations.sql once
+      # ─── Safina (demo / stub mode) ─────────────────────────────────
+      # When you receive the production EC private key from Safina,
+      # set SAFINA_STUB=0 + SAFINA_BASE_URL=https://my.safina.pro/ece/
+      # + SAFINA_EC_PRIVATE_KEY=<hex> in Coolify UI (this section in
+      # the compose stays as the safe default).
+      SAFINA_STUB: "1"
+      SAFINA_BASE_URL: "http://localhost:0"
+      ORGON_SIGNER_BACKEND: "env"   # env | kms | vault — see signer_backends.py
+      # ─── observability ─────────────────────────────────────────────
+      ORGON_JSON_LOGS: "1"          # structured logs read better in Coolify
+      # SENTRY_DSN — set in Coolify UI when you have a Sentry project.
+      # ─── billing (Stripe) ──────────────────────────────────────────
+      # Leaving STRIPE_API_KEY unset → /api/v1/billing/checkout returns
+      # a clean 503 ("Stripe is not configured"). For real billing set
+      # STRIPE_API_KEY + STRIPE_WEBHOOK_SECRET + STRIPE_PRICE_* in UI.
     depends_on:
       pg:
         condition: service_healthy

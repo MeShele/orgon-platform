@@ -31,14 +31,14 @@ services:
     build:
       context: ./backend
     environment:
-      - DATABASE_URL=postgresql://orgon:${SERVICE_PASSWORD_PG}@orgon-pg:5432/orgon
-      - JWT_SECRET_KEY=${SERVICE_PASSWORD_64_JWT}
-      - SAFINA_BASE_URL=http://localhost:0
-      - SAFINA_STUB=1
-      - ORGON_AUTO_MIGRATE=1
-      - ORGON_ENV=production
-      - ORGON_PUBLIC_URL=${SERVICE_FQDN_FRONTEND_3000}
-      - CORS_ORIGINS=${SERVICE_FQDN_FRONTEND_3000}
+      DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@orgon-pg:5432/orgon"
+      JWT_SECRET_KEY: "${SERVICE_PASSWORD_64_JWT}"
+      SAFINA_BASE_URL: "http://localhost:0"
+      SAFINA_STUB: "1"
+      ORGON_AUTO_MIGRATE: "1"
+      ORGON_ENV: "production"
+      ORGON_PUBLIC_URL: "${SERVICE_FQDN_FRONTEND_3000}"
+      CORS_ORIGINS: "${SERVICE_FQDN_FRONTEND_3000}"
     depends_on:
       orgon-pg:
         condition: service_healthy
@@ -55,14 +55,17 @@ services:
       context: ./frontend
       args:
         # Server-side proxy destination — never reaches the browser.
-        BACKEND_INTERNAL_URL: http://orgon-backend:8890
+        BACKEND_INTERNAL_URL: "http://orgon-backend:8890"
         # Empty so client bundle uses relative URLs and goes through
         # the Next.js node server's rewrite (defined in next.config.ts).
         NEXT_PUBLIC_API_URL: ""
     environment:
-      - SERVICE_FQDN_FRONTEND_3000
-      - BACKEND_INTERNAL_URL=http://orgon-backend:8890
-      - NEXT_TELEMETRY_DISABLED=1
+      # Mentioning SERVICE_FQDN_FRONTEND_3000 in this service's env block
+      # tells Coolify to publish "orgon-frontend" externally on port 3000
+      # under the auto-generated FQDN with a Let's Encrypt cert.
+      SERVICE_FQDN_FRONTEND_3000: "${SERVICE_FQDN_FRONTEND_3000}"
+      BACKEND_INTERNAL_URL: "http://orgon-backend:8890"
+      NEXT_TELEMETRY_DISABLED: "1"
     depends_on:
       orgon-backend:
         condition: service_healthy

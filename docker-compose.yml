@@ -42,13 +42,14 @@ services:
       # ─── first-boot bootstrap ──────────────────────────────────────
       ORGON_AUTO_MIGRATE: "1"   # apply 000_canonical_schema.sql once
       ORGON_AUTO_SEED:    "1"   # apply seed_test_organizations.sql once
-      # ─── Safina (demo / stub mode) ─────────────────────────────────
-      # When you receive the production EC private key from Safina,
-      # set SAFINA_STUB=0 + SAFINA_BASE_URL=https://my.safina.pro/ece/
-      # + SAFINA_EC_PRIVATE_KEY=<hex> in Coolify UI (this section in
-      # the compose stays as the safe default).
-      SAFINA_STUB: "1"
-      SAFINA_BASE_URL: "http://localhost:0"
+      # ─── Safina (live by default; can fall back to stub via env) ───
+      # SAFINA_STUB / SAFINA_BASE_URL / SAFINA_EC_PRIVATE_KEY are set in
+      # Coolify env. The :- defaults below keep the compose runnable in
+      # plain `docker compose up` without secrets (it'll start in stub
+      # mode with no key needed).
+      SAFINA_STUB: "${SAFINA_STUB:-1}"
+      SAFINA_BASE_URL: "${SAFINA_BASE_URL:-http://localhost:0}"
+      SAFINA_EC_PRIVATE_KEY: "${SAFINA_EC_PRIVATE_KEY:-}"
       ORGON_SIGNER_BACKEND: "env"   # env | kms | vault — see signer_backends.py
       # ─── observability ─────────────────────────────────────────────
       ORGON_JSON_LOGS: "1"          # structured logs read better in Coolify

@@ -1,13 +1,14 @@
 # ORGON demo stack — Docker Compose source for Coolify deployments.
 #
 # Coolify magic env vars (https://coolify.io/docs/services/magic-environment-variables):
-#   ${SERVICE_PASSWORD_PG}        random Postgres password, shared
-#                                  between backend and the pg service
-#   ${SERVICE_PASSWORD_64_JWT}    random 64-char JWT secret
-#   ${SERVICE_FQDN_FRONTEND_3000} auto-generated public FQDN for the
-#                                  frontend service, routed to port 3000
-#                                  via Coolify's proxy (Caddy/Traefik)
-#                                  with auto Let's Encrypt cert.
+#   ${SERVICE_PASSWORD_PG}      random Postgres password, shared between
+#                                backend and the pg service
+#   ${SERVICE_PASSWORD_64_JWT}  random 64-char JWT secret
+#   ${SERVICE_URL_FRONTEND}     full https URL of the frontend service,
+#                                derived by Coolify from docker_compose_domains.
+#                                We use the un-suffixed form (not the buggy
+#                                _3000 suffix variant which lags behind on
+#                                the auto-generated sslip.io URL).
 #
 # Coolify matches the magic env name's service portion ("FRONTEND") to
 # a docker-compose service named "frontend". So we keep service names
@@ -36,8 +37,8 @@ services:
       DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@pg:5432/orgon"
       JWT_SECRET_KEY: "${SERVICE_PASSWORD_64_JWT}"
       ORGON_ENV: "production"
-      ORGON_PUBLIC_URL: "${SERVICE_FQDN_FRONTEND_3000}"
-      CORS_ORIGINS: "${SERVICE_FQDN_FRONTEND_3000}"
+      ORGON_PUBLIC_URL: "${SERVICE_URL_FRONTEND}"
+      CORS_ORIGINS: "${SERVICE_URL_FRONTEND}"
       # ─── first-boot bootstrap ──────────────────────────────────────
       ORGON_AUTO_MIGRATE: "1"   # apply 000_canonical_schema.sql once
       ORGON_AUTO_SEED:    "1"   # apply seed_test_organizations.sql once
@@ -79,15 +80,29 @@ services:
     environment:
       BACKEND_INTERNAL_URL: "http://backend:8890"
       NEXT_TELEMETRY_DISABLED: "1"
-    # Tell Coolify (and the runtime docker network) which port the
-    # frontend listens on. Coolify reads `expose` to know the upstream
-    # port for its proxy labels — without this it defaults to 80,
-    # which is wrong for Next.js standalone (port 3000).
     expose:
       - "3000"
+    # Coolify's compose-mode label generator emits broken Caddy labels:
+    # `{{upstreams}}` without port, and ingress network set to the per-app
+    # network instead of `coolify`. We override here so caddy-docker-proxy
+    # can validate the site, issue the LE cert, and reach this container.
+    networks:
+      - default
+      - coolify
+    labels:
+      - "caddy_0=https://orgon.asystem.ai"
+      - "caddy_0.encode=zstd gzip"
+      - "caddy_0.handle_path=/*"
+      - "caddy_0.handle_path.0_reverse_proxy={{upstreams 3000}}"
+      - "caddy_0.header=-Server"
+      - "caddy_ingress_network=coolify"
     depends_on:
       backend:
         condition: service_healthy
+
+networks:
+  coolify:
+    external: true
 
 volumes:
   orgon-pg-data:

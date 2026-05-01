@@ -12,22 +12,43 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/lib/icons";
 import { api, API_BASE } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { formatWalletDisplayName } from "@/lib/walletDisplay";
 
 interface Tx {
   id?: number;
   tx_unid?: string;
+  unid?: string | null;
   tx_hash?: string | null;
   wallet_name?: string;
   status?: string;
   amount_decimal?: string | number;
   value?: string | number;
+  /** Backend returns the compound encoded string (`5010:::TRX###<id>`)
+   *  in `token` and the clean symbol in `token_name`. Prefer `token_name`
+   *  for display; fall back to extracting from `token`. */
   token?: string | null;
+  token_name?: string | null;
   to_address?: string;
   to_addr?: string;
-  network?: number;
+  network?: number | null;
   fee?: string | number;
   created_at?: string;
   info?: string;
+}
+
+/**
+ * Backend `tx.token` is a compound string of shape
+ *   "<networkId>:::<SYMBOL>###<wallet-uid>"
+ * For display we want only the SYMBOL between `:::` and `###`.
+ * If `token_name` is provided, prefer it. Returns "—" when empty.
+ */
+function tokenSymbol(tx: Tx): string {
+  const clean = (tx.token_name ?? "").trim();
+  if (clean) return clean;
+  const raw = (tx.token ?? "").trim();
+  if (!raw) return "—";
+  const m = raw.match(/^[^:]*:::([^#]+?)(?:###.*)?$/);
+  return (m?.[1] ?? raw).trim() || "—";
 }
 
 const STATUS_OPTIONS = [
@@ -201,16 +222,28 @@ export default function TransactionsPage() {
                   };
                   const statusLabel = STATUS_RU[kind] ?? tx.status ?? "—";
                   return (
-                    <tr key={tx.tx_unid ?? tx.id} className="border-b border-border last:border-b-0 hover:bg-muted/40">
+                    <tr key={tx.tx_unid ?? tx.unid ?? tx.id} className="border-b border-border last:border-b-0 hover:bg-muted/40">
                       <td className="pl-5 py-3">
-                        <Link href={`/transactions/${tx.tx_unid ?? ""}`} className="text-foreground hover:text-primary">
-                          <Mono>{tx.tx_hash ?? tx.tx_unid ?? "—"}</Mono>
+                        <Link
+                          href={`/transactions/${tx.tx_unid ?? tx.unid ?? ""}`}
+                          className="text-foreground hover:text-primary"
+                          title={tx.tx_hash ?? tx.tx_unid ?? tx.unid ?? undefined}
+                        >
+                          <Mono truncate startChars={8} endChars={4}>{tx.tx_hash ?? tx.tx_unid ?? tx.unid ?? "—"}</Mono>
                         </Link>
                       </td>
                       <td className="px-3 py-3"><StatusPill kind={kind} label={statusLabel} /></td>
-                      <td className="px-3 py-3 text-foreground"><Mono truncate startChars={10} endChars={4}>{tx.wallet_name ?? "—"}</Mono></td>
+                      <td className="px-3 py-3 text-foreground" title={tx.wallet_name ?? undefined}>
+                        <span className="text-[12px] font-mono">
+                          {formatWalletDisplayName({
+                            name: tx.wallet_name ?? null,
+                            wallet_name: tx.wallet_name ?? null,
+                            network: tx.network ?? null,
+                          })}
+                        </span>
+                      </td>
                       <td className="px-3 py-3"><Mono truncate>{dest}</Mono></td>
-                      <td className="px-3 py-3"><Badge variant="outline">{tx.token ?? "—"}</Badge></td>
+                      <td className="px-3 py-3"><Badge variant="outline">{tokenSymbol(tx)}</Badge></td>
                       <td className="px-3 py-3 text-right text-foreground tabular">{String(amount)}</td>
                       <td className="pr-5 py-3 text-right"><Mono size="xs" className="text-faint">{formatTime(tx.created_at)}</Mono></td>
                     </tr>

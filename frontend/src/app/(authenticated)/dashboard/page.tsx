@@ -24,8 +24,27 @@ interface Stats {
   last_sync?: string | null;
 }
 
+// Backend `/api/dashboard/recent` returns a normalized activity-feed shape:
+//   { type, timestamp, title, details: {...tx fields}, priority }
+// We expose both flat-field aliases (in case other callers still send the
+// older flat shape) AND the nested `details` form so the renderer can pull
+// from whichever is present.
 interface RecentItem {
   id?: number | string;
+  type?: string;
+  timestamp?: string;
+  title?: string;
+  priority?: string;
+  details?: {
+    tx_unid?: string;
+    token?: string | null;
+    token_name?: string | null;
+    value?: string | number;
+    to_address?: string;
+    status?: string;
+    wallet_name?: string;
+  };
+  // Legacy flat shape (older backend versions still in some envs)
   tx_unid?: string;
   tx_hash?: string | null;
   wallet_name?: string;
@@ -187,30 +206,37 @@ export default function DashboardPage() {
                     </tr>
                   ) : (
                     recentList.slice(0, 8).map((tx, i) => {
-                      const kind = STATUS_TO_KIND[(tx.status ?? "").toLowerCase()] ?? "neutral";
-                      const amount = tx.amount_decimal ?? tx.value ?? "—";
-                      const dest = tx.to_address || tx.to_addr || "—";
+                      // Normalise backend's `{title, timestamp, details}` shape
+                      // with the legacy flat shape so the row renders either way.
+                      const d = tx.details ?? {};
+                      const status = d.status ?? tx.status ?? "—";
+                      const kind = STATUS_TO_KIND[status.toLowerCase()] ?? "neutral";
+                      const amount = d.value ?? tx.amount_decimal ?? tx.value ?? "—";
+                      const dest = d.to_address ?? tx.to_address ?? tx.to_addr ?? "—";
+                      const tokenSym = d.token_name ?? d.token ?? tx.token ?? "";
+                      const walletName = d.wallet_name ?? tx.wallet_name ?? null;
+                      const ts = tx.timestamp ?? tx.created_at;
+                      const txUnid = d.tx_unid ?? tx.tx_unid ?? "";
                       return (
-                        <tr key={tx.tx_unid ?? tx.id ?? i} className="border-t border-border hover:bg-muted/40">
-                          <td className="px-5 py-3"><StatusPill kind={kind as any} label={tx.status ?? "—"} /></td>
+                        <tr key={txUnid || tx.id || i} className="border-t border-border hover:bg-muted/40">
+                          <td className="px-5 py-3"><StatusPill kind={kind as any} label={status} /></td>
                           <td className="px-3 py-3 text-foreground">
-                            <span
-                              className="text-[12px] font-mono"
-                              title={tx.wallet_name ?? undefined}
-                            >
-                              {formatWalletDisplayName({
-                                name: tx.wallet_name ?? null,
-                                wallet_name: tx.wallet_name ?? null,
-                                network: tx.network ?? null,
-                              })}
+                            <span className="text-[12px] font-mono" title={walletName ?? txUnid ?? undefined}>
+                              {walletName
+                                ? formatWalletDisplayName({
+                                    name: walletName,
+                                    wallet_name: walletName,
+                                    network: tx.network ?? null,
+                                  })
+                                : tx.title /* backend pre-formatted "Sent 1.01 TRX" */ ?? "—"}
                             </span>
                           </td>
                           <td className="px-3 py-3 text-right tabular text-foreground">
                             {String(amount)}{" "}
-                            <span className="text-muted-foreground">{tx.token ?? ""}</span>
+                            <span className="text-muted-foreground">{tokenSym}</span>
                           </td>
                           <td className="px-3 py-3"><Mono truncate>{dest}</Mono></td>
-                          <td className="px-5 py-3 text-right"><Mono size="xs" className="text-faint">{formatTime(tx.created_at)}</Mono></td>
+                          <td className="px-5 py-3 text-right"><Mono size="xs" className="text-faint">{formatTime(ts)}</Mono></td>
                         </tr>
                       );
                     })

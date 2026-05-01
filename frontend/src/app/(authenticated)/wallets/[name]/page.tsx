@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 import { Icon } from "@/lib/icons";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
-import { formatWalletDisplayName } from "@/lib/walletDisplay";
+import { formatWalletDisplayName, networkName } from "@/lib/walletDisplay";
 
 export default function WalletDetailPage() {
   const params = useParams();
@@ -65,7 +65,7 @@ export default function WalletDetailPage() {
                 network: (wallet.network as number | string | null) ?? null,
               })
             }
-            subtitle={`Сеть: ${wallet.network}`}
+            subtitle={`Сеть: ${networkName((wallet.network as number | string | null) ?? null)}`}
           />
           <div className="space-y-4 p-4">
             <div>

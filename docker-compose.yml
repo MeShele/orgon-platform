@@ -73,36 +73,83 @@ services:
     build:
       context: ./frontend
       args:
-        # Server-side proxy destination — never reaches the browser.
         BACKEND_INTERNAL_URL: "http://backend:8890"
-        # Empty so client bundle uses relative URLs and goes through
-        # the Next.js node server's rewrite (defined in next.config.ts).
         NEXT_PUBLIC_API_URL: ""
     environment:
       BACKEND_INTERNAL_URL: "http://backend:8890"
       NEXT_TELEMETRY_DISABLED: "1"
     expose:
       - "3000"
-    # Attach to the shared `coolify` network so caddy-docker-proxy
-    # (which runs there) can scan and reach this container. We also use
-    # Caddy's internal CA (tls internal) to skip ACME on the origin
-    # entirely — Cloudflare proxies orgon.asystem.ai with Full SSL,
-    # accepts the self-signed origin cert, and presents its Universal
-    # SSL cert to clients (same model as aku.asystem.ai etc).
+    # Bind a stable host port so the host's systemd Caddy can reach us
+    # through 127.0.0.1:13000 (loopback only, never exposed to public).
+    # The site config in /etc/caddy/conf.d/orgon.asystem.ai.conf is
+    # installed by the caddy-bootstrap sidecar below.
+    ports:
+      - "127.0.0.1:13000:3000"
     networks:
       - default
       - coolify
-    labels:
-      - "caddy_0=https://orgon.asystem.ai"
-      - "caddy_0.encode=zstd gzip"
-      - "caddy_0.handle_path=/*"
-      - "caddy_0.handle_path.0_reverse_proxy={{upstreams 3000}}"
-      - "caddy_0.header=-Server"
-      - "caddy_0.tls=internal"
-      - "caddy_ingress_network=coolify"
     depends_on:
       backend:
         condition: service_healthy
+
+  # One-shot installer that drops a per-domain Caddy site file into the
+  # host's /etc/caddy/conf.d/ and SIGUSR1's the host caddy process to
+  # reload. Coolify on this host runs systemd Caddy (NOT caddy-docker-
+  # proxy) — the only way to register a new vhost is to drop a .conf
+  # into conf.d/. The container needs:
+  #   privileged + pid: host  → so `pkill -USR1 caddy` reaches the host
+  #                              caddy process, not the container's PID 1
+  #   /etc/caddy bind mount   → to write the conf file on the host
+  # After dropping the file it sleeps forever so Coolify counts it as
+  # "running" instead of failing the deploy on a 0-exit container.
+  caddy-bootstrap:
+    image: alpine:3.19
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    volumes:
+      - /etc/caddy:/etc/caddy
+    depends_on:
+      frontend:
+        condition: service_started
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /etc/caddy/conf.d
+        cat > /etc/caddy/conf.d/orgon.asystem.ai.conf <<'CADDY_EOF'
+        orgon.asystem.ai {
+          encode gzip zstd
+
+          header {
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+            X-Content-Type-Options    "nosniff"
+            X-Frame-Options           "SAMEORIGIN"
+            Referrer-Policy           "strict-origin-when-cross-origin"
+            -Server
+          }
+
+          request_body {
+            max_size 25MB
+          }
+
+          reverse_proxy 127.0.0.1:13000 {
+            transport http {
+              read_timeout 60s
+              write_timeout 60s
+            }
+          }
+        }
+        CADDY_EOF
+        echo "[caddy-bootstrap] wrote /etc/caddy/conf.d/orgon.asystem.ai.conf"
+        if pkill -USR1 -x caddy 2>/dev/null; then
+          echo "[caddy-bootstrap] SIGUSR1 sent to caddy (config reload)"
+        else
+          echo "[caddy-bootstrap] WARNING: could not signal caddy on host PID space"
+        fi
+        exec tail -f /dev/null
 
 networks:
   coolify:

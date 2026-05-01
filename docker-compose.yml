@@ -21,6 +21,9 @@ services:
       POSTGRES_USER: orgon
       POSTGRES_PASSWORD: ${SERVICE_PASSWORD_PG}
       POSTGRES_DB: orgon
+    networks:
+      - default
+      - coolify
     volumes:
       - orgon-pg-data:/var/lib/postgresql/data
     healthcheck:
@@ -28,6 +31,51 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  # ─── one-shot DB migration ───────────────────────────────────────
+  # 2026-05-01 — splitting Postgres out of compose into a Coolify-
+  # managed standalone-postgresql (uuid zbezy4vjauvrsp9p78w4ayxl) so
+  # we get scheduled backups and independent app/DB lifecycle.
+  #
+  # This service runs once per deploy, dumps the in-compose `pg` and
+  # restores into the Coolify-managed pg, prints sanity counters,
+  # then sleeps. After the second deploy (where this whole block +
+  # the `pg` service above are removed), backend points at the new
+  # DB directly and the old volume `orgon-pg-data` is left as a
+  # rollback safety net.
+  pg-migrate:
+    image: postgres:16-alpine
+    restart: "no"
+    networks:
+      - default
+      - coolify
+    environment:
+      PGPASSWORD: ${SERVICE_PASSWORD_PG}
+      OLD_HOST: pg
+      NEW_HOST: zbezy4vjauvrsp9p78w4ayxl
+    depends_on:
+      pg:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        echo "[migrate] sleeping 5s for new DB readiness"
+        sleep 5
+        echo "[migrate] === starting pg_dump (old) | psql (new) ==="
+        pg_dump -h "$OLD_HOST" -U orgon -d orgon --no-owner --no-acl --clean --if-exists \
+          | psql -h "$NEW_HOST" -U orgon -d orgon -v ON_ERROR_STOP=1 > /tmp/restore.log 2>&1 \
+          || { echo "[migrate] FAILED — restore log:"; tail -50 /tmp/restore.log; exit 1; }
+        echo "[migrate] === migration done — counters ==="
+        echo -n "[migrate] OLD: "
+        psql -h "$OLD_HOST" -U orgon -d orgon -tAc \
+          "SELECT 'users='||(SELECT count(*) FROM users)||', wallets='||(SELECT count(*) FROM wallets)||', transactions='||(SELECT count(*) FROM transactions)||', audit_logs='||(SELECT count(*) FROM audit_logs);"
+        echo -n "[migrate] NEW: "
+        psql -h "$NEW_HOST" -U orgon -d orgon -tAc \
+          "SELECT 'users='||(SELECT count(*) FROM users)||', wallets='||(SELECT count(*) FROM wallets)||', transactions='||(SELECT count(*) FROM transactions)||', audit_logs='||(SELECT count(*) FROM audit_logs);"
+        echo "[migrate] === DONE ==="
+        exec tail -f /dev/null
 
   backend:
     build:

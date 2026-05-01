@@ -12,6 +12,7 @@ import { api } from "@/lib/api";
 import { Icon } from "@/lib/icons";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
+import { formatWalletDisplayName } from "@/lib/walletDisplay";
 
 export default function WalletDetailPage() {
   const params = useParams();
@@ -53,7 +54,17 @@ export default function WalletDetailPage() {
       <div className="space-y-4 p-2 sm:p-4 md:p-6 lg:p-8 max-w-3xl">
         <Card>
           <CardHeader
-            title={String(wallet.info || wallet.wallet_name || name)}
+            title={
+              String(wallet.info ?? "").trim() ||
+              formatWalletDisplayName({
+                label: (wallet.label as string | null) ?? null,
+                name: (wallet.name as string | null) ?? name,
+                wallet_name: (wallet.wallet_name as string | null) ?? null,
+                my_unid: (wallet.my_unid as string | null) ?? (wallet.unid as string | null) ?? null,
+                addr: (wallet.addr as string | null) ?? null,
+                network: (wallet.network as number | string | null) ?? null,
+              })
+            }
             subtitle={`Сеть: ${wallet.network}`}
           />
           <div className="space-y-4 p-4">

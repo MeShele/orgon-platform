@@ -169,9 +169,20 @@ export default function TransactionsPage() {
                 <tr><td colSpan={7} className="px-5 py-12 text-center text-muted-foreground">Загрузка…</td></tr>
               ) : txs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-16 text-center">
-                    <Icon icon="solar:transfer-horizontal-linear" className="text-[48px] text-faint" />
-                    <p className="mt-3 text-[14px] text-muted-foreground">Транзакций не найдено</p>
+                  <td colSpan={7} className="px-5 py-16">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                        <Icon icon="solar:transfer-horizontal-linear" className="text-2xl text-muted-foreground" />
+                      </div>
+                      <p className="text-[14px] font-medium text-foreground mb-1">Транзакций не найдено</p>
+                      <p className="text-[12px] text-muted-foreground mb-4 max-w-md">
+                        Здесь появятся все исходящие, входящие и запланированные транзакции по вашим кошелькам — с историей подписей и статусом синхронизации с блокчейном.
+                      </p>
+                      <Button variant="secondary" size="sm" onClick={() => router.push("/transactions/new")}>
+                        <Icon icon="solar:add-circle-linear" className="text-[14px]" />
+                        Новая транзакция
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ) : (

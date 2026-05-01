@@ -10,6 +10,10 @@ export interface SidebarItem {
   icon: string;
   activeIcon: string;
   roles: SidebarRole[];
+  /** When true, item renders with a "Скоро" badge — feature is scaffolded
+   *  but not yet a real flow. Visible in the sidebar so the customer sees
+   *  product breadth, but signposted as coming. */
+  roadmap?: boolean;
 }
 
 export interface SidebarGroup {
@@ -37,7 +41,6 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
       { href: "/organizations", label: "organizations", icon: "solar:buildings-linear",     activeIcon: "solar:buildings-bold",     roles: ["all"] },
       { href: "/partner",       label: "partner",       icon: "solar:hand-shake-linear",    activeIcon: "solar:hand-shake-bold",    roles: ["admin"] },
       { href: "/billing",       label: "billing",       icon: "solar:card-linear",          activeIcon: "solar:card-bold",          roles: ["admin"] },
-      { href: "/compliance",    label: "compliance",    icon: "solar:shield-check-linear",  activeIcon: "solar:shield-check-bold",  roles: ["admin"] },
     ],
   },
   {
@@ -51,21 +54,32 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
   {
     label: "platform",
     items: [
-      { href: "/users",                   label: "users",     icon: "solar:users-group-rounded-linear", activeIcon: "solar:users-group-rounded-bold", roles: ["admin"] },
       { href: "/networks",                label: "networks",  icon: "solar:global-linear",              activeIcon: "solar:global-bold",              roles: ["admin"] },
       { href: "/settings/keys",           label: "apiKeys",   icon: "solar:key-linear",                 activeIcon: "solar:key-bold",                 roles: ["admin"] },
       { href: "/settings/webhooks",       label: "webhooks",  icon: "solar:bolt-linear",                activeIcon: "solar:bolt-bold",                roles: ["admin"] },
       { href: "/settings/system",         label: "system",    icon: "solar:server-linear",              activeIcon: "solar:server-bold",              roles: ["admin"] },
-      { href: "/documents",               label: "documents", icon: "solar:document-linear",            activeIcon: "solar:document-bold",            roles: ["all"] },
     ],
   },
   {
     label: "account",
     items: [
       { href: "/profile",  label: "profile",  icon: "solar:user-id-linear",          activeIcon: "solar:user-id-bold",          roles: ["all"] },
-      { href: "/settings", label: "settings", icon: "solar:settings-linear",         activeIcon: "solar:settings-bold",         roles: ["all"] },
       { href: "/support",  label: "support",  icon: "solar:chat-round-linear",       activeIcon: "solar:chat-round-bold",       roles: ["all"] },
       { href: "/help",     label: "help",     icon: "solar:question-circle-linear",  activeIcon: "solar:question-circle-bold",  roles: ["all"] },
+    ],
+  },
+  // Roadmap = pages whose UI is scaffolded but the underlying flow is not
+  // yet a real product feature. Kept visible so a demo viewer sees breadth,
+  // but signposted with a "Скоро" badge so they don't click expecting prod.
+  // Routes themselves still resolve — the existing pages render their own
+  // honest "in development" banners.
+  {
+    label: "roadmap",
+    items: [
+      { href: "/compliance", label: "compliance", icon: "solar:shield-check-linear",        activeIcon: "solar:shield-check-bold",        roles: ["admin"],          roadmap: true },
+      { href: "/users",      label: "users",      icon: "solar:users-group-rounded-linear", activeIcon: "solar:users-group-rounded-bold", roles: ["admin"],          roadmap: true },
+      { href: "/documents",  label: "documents",  icon: "solar:document-linear",            activeIcon: "solar:document-bold",            roles: ["all"],            roadmap: true },
+      { href: "/settings",   label: "settings",   icon: "solar:settings-linear",            activeIcon: "solar:settings-bold",            roles: ["all"],            roadmap: true },
     ],
   },
 ];

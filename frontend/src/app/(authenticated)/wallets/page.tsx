@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/lib/icons";
 import { api, API_BASE } from "@/lib/api";
+import { formatWalletDisplayName, networkName } from "@/lib/walletDisplay";
 
 interface Wallet {
   id?: number;
@@ -23,19 +24,6 @@ interface Wallet {
   wallet_type?: number;
   token_short_names?: string;
   created_at?: string;
-}
-
-const NETWORK_LABEL: Record<number, string> = {
-  5000: "BSC",
-  5010: "TRX",
-  5020: "ETH",
-  5030: "POL",
-  5040: "BTC",
-};
-
-function networkLabel(n?: number): string {
-  if (!n) return "—";
-  return NETWORK_LABEL[n] ?? `NET-${n}`;
 }
 
 export default function WalletsPage() {
@@ -134,13 +122,14 @@ export default function WalletsPage() {
                 </tr>
               ) : (
                 wallets.map((w) => {
-                  const displayName = w.label?.trim() || w.name || "—";
+                  const displayName = formatWalletDisplayName(w);
                   return (
                     <tr key={w.id ?? w.my_unid} className="border-b border-border last:border-b-0 hover:bg-muted/40">
                       <td className="px-5 py-3.5">
                         <Link
                           href={`/wallets/${encodeURIComponent(w.name ?? "")}`}
                           className="flex items-center gap-2 text-foreground hover:text-primary"
+                          title={w.my_unid ?? w.name ?? undefined}
                         >
                           {w.is_favorite && (
                             <Icon icon="solar:star-bold" className="text-warning text-[14px] shrink-0" />
@@ -149,7 +138,7 @@ export default function WalletsPage() {
                         </Link>
                       </td>
                       <td className="px-3 py-3.5">
-                        <Badge variant="outline">{networkLabel(w.network)}</Badge>
+                        <Badge variant="outline">{networkName(w.network)}</Badge>
                       </td>
                       <td className="px-3 py-3.5">
                         <Mono size="xs" className="text-muted-foreground">

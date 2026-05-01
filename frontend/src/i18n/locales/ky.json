@@ -57,7 +57,11 @@
       "organization": "Уюм",
       "insights": "Аналитика",
       "platform": "Платформа",
-      "account": "Аккаунт"
+      "account": "Аккаунт",
+      "roadmap": "Жол картасы"
+    },
+    "badges": {
+      "comingSoon": "Жакында"
     }
   },
   "dashboard": {

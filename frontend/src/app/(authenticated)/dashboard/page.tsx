@@ -13,6 +13,7 @@ import { api } from "@/lib/api";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { Icon } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { formatWalletDisplayName } from "@/lib/walletDisplay";
 
 interface Stats {
   total_wallets?: number;
@@ -166,8 +167,22 @@ export default function DashboardPage() {
                 <tbody>
                   {recentList.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-5 py-12 text-center text-[13px] text-muted-foreground">
-                        Транзакций пока нет
+                      <td colSpan={5} className="px-5 py-14">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                            <Icon icon="solar:transfer-horizontal-linear" className="text-2xl text-muted-foreground" />
+                          </div>
+                          <p className="text-[14px] font-medium text-foreground mb-1">Транзакций пока нет</p>
+                          <p className="text-[12px] text-muted-foreground mb-4 max-w-sm">
+                            Когда вы создадите первую транзакцию или подпишете запрос — она появится здесь и в реальном времени отразится в аудит-логе.
+                          </p>
+                          <Link href="/transactions/new">
+                            <Button variant="secondary" size="sm">
+                              <Icon icon="solar:add-circle-linear" className="text-[14px]" />
+                              Создать транзакцию
+                            </Button>
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ) : (
@@ -179,7 +194,16 @@ export default function DashboardPage() {
                         <tr key={tx.tx_unid ?? tx.id ?? i} className="border-t border-border hover:bg-muted/40">
                           <td className="px-5 py-3"><StatusPill kind={kind as any} label={tx.status ?? "—"} /></td>
                           <td className="px-3 py-3 text-foreground">
-                            <Mono truncate startChars={8} endChars={4}>{tx.wallet_name ?? "—"}</Mono>
+                            <span
+                              className="text-[12px] font-mono"
+                              title={tx.wallet_name ?? undefined}
+                            >
+                              {formatWalletDisplayName({
+                                name: tx.wallet_name ?? null,
+                                wallet_name: tx.wallet_name ?? null,
+                                network: tx.network ?? null,
+                              })}
+                            </span>
                           </td>
                           <td className="px-3 py-3 text-right tabular text-foreground">
                             {String(amount)}{" "}
@@ -214,7 +238,17 @@ export default function DashboardPage() {
               </div>
               <ul>
                 {alertList.length === 0 ? (
-                  <li className="px-5 py-8 text-center text-[13px] text-muted-foreground">Уведомлений нет</li>
+                  <li className="px-5 py-10">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
+                        <Icon icon="solar:bell-off-linear" className="text-xl text-muted-foreground" />
+                      </div>
+                      <p className="text-[13px] font-medium text-foreground">Тишина</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[18rem]">
+                        Алерты по AML, превышениям лимитов и аномалиям будут появляться здесь.
+                      </p>
+                    </div>
+                  </li>
                 ) : (
                   alertList.slice(0, 4).map((a, i) => (
                     <li key={a.id ?? i} className={cn("flex items-start gap-3 px-5 py-3", i > 0 && "border-t border-border")}>

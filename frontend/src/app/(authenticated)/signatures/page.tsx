@@ -135,9 +135,17 @@ export default function SignaturesPage() {
           </div>
 
           {pendingList.length === 0 ? (
-            <div className="border border-border bg-card p-12 text-center">
-              <Icon icon="solar:check-circle-bold" className="text-[40px] text-success" />
-              <p className="mt-3 text-[14px] text-muted-foreground">Нет ожидающих подписи транзакций</p>
+            <div className="border border-border bg-card p-12">
+              <div className="flex flex-col items-center text-center">
+                <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center mb-3">
+                  <Icon icon="solar:check-circle-bold" className="text-2xl text-success" />
+                </div>
+                <p className="text-[14px] font-medium text-foreground mb-1">Очередь пуста</p>
+                <p className="text-[12px] text-muted-foreground max-w-md">
+                  Когда появится транзакция, требующая M-of-N подписи, она будет здесь — с таймером политики и кнопками «Подписать» / «Отклонить». Проверить логику можно в{" "}
+                  <a href="/demo/architecture" className="text-primary hover:underline">демо-симуляторе</a>.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -216,7 +224,19 @@ export default function SignaturesPage() {
               </thead>
               <tbody>
                 {historyList.length === 0 ? (
-                  <tr><td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">Истории пока нет</td></tr>
+                  <tr>
+                    <td colSpan={5} className="px-5 py-14">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                          <Icon icon="solar:history-linear" className="text-xl text-muted-foreground" />
+                        </div>
+                        <p className="text-[14px] font-medium text-foreground mb-1">Истории подписей пока нет</p>
+                        <p className="text-[12px] text-muted-foreground max-w-md">
+                          Каждое действие подписанта (одобрение, отклонение, истечение таймаута) останется здесь навсегда — таблица append-only, гарантировано на уровне БД-триггера.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
                 ) : (
                   historyList.map((h, i) => (
                     <tr key={i} className="border-b border-border last:border-b-0">

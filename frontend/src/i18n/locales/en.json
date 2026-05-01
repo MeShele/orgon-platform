@@ -57,7 +57,11 @@
       "organization": "Organization",
       "insights": "Insights",
       "platform": "Platform",
-      "account": "Account"
+      "account": "Account",
+      "roadmap": "Roadmap"
+    },
+    "badges": {
+      "comingSoon": "Coming"
     }
   },
   "dashboard": {

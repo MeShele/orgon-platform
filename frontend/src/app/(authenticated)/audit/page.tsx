@@ -436,14 +436,18 @@ export default function AuditPage() {
             <LoadingSpinner />
           </div>
         ) : logs.length === 0 ? (
-          <Card padding className="text-center py-12">
-            <Icon 
-              icon="solar:document-text-linear" 
-              className="mx-auto mb-4 text-6xl text-muted-foreground dark:text-muted-foreground"
-            />
-            <h3 className="text-lg font-medium text-foreground">
-              {t('noLogs')}
-            </h3>
+          <Card padding className="py-14">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Icon icon="solar:history-linear" className="text-3xl text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-1">
+                {t('noLogs')}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Каждое действие пользователя — логин, создание кошелька, подпись, экспорт — пишется сюда. Таблица append-only, защищена БД-триггером.
+              </p>
+            </div>
           </Card>
         ) : (
           <>

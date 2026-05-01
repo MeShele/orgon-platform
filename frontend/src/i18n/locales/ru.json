@@ -58,7 +58,11 @@
       "organization": "Организация",
       "insights": "Аналитика",
       "platform": "Платформа",
-      "account": "Аккаунт"
+      "account": "Аккаунт",
+      "roadmap": "Дорожная карта"
+    },
+    "badges": {
+      "comingSoon": "Скоро"
     }
   },
   "dashboard": {

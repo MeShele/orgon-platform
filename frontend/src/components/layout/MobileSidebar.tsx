@@ -24,6 +24,7 @@ const DEFAULT_GROUP_OPEN: Record<string, boolean> = {
   insights: false,
   platform: false,
   account: false,
+  roadmap: false,
 };
 const STORAGE_KEY = "orgon.sidebar.groups.v1";
 
@@ -180,8 +181,15 @@ export function MobileSidebar() {
                                     icon={isActive ? item.activeIcon : item.icon}
                                     className={cn("text-[18px] shrink-0", isActive && "text-primary")}
                                   />
-                                  <span className="text-[13px] font-medium tracking-tight">
-                                    {t(item.label)}
+                                  <span className="flex-1 min-w-0 flex items-center gap-2">
+                                    <span className="text-[13px] font-medium tracking-tight truncate">
+                                      {t(item.label)}
+                                    </span>
+                                    {item.roadmap && (
+                                      <span className="ml-auto shrink-0 rounded bg-muted text-muted-foreground px-1.5 py-0.5 text-[9px] font-mono tracking-[0.08em] uppercase">
+                                        {t("badges.comingSoon")}
+                                      </span>
+                                    )}
                                   </span>
                                 </Link>
                               </li>

@@ -144,6 +144,37 @@
 
 ---
 
+## Доказательство что Safina реально работает
+
+Если CTO/security клиента спрашивает "это не моки?" — **открой терминал**:
+
+```
+./scripts/safina-proof.sh
+```
+
+За 10 секунд скрипт делает 5 проверок и выводит зелёные ✓:
+
+1. JWT-логин под demo-admin
+2. `/api/health/safina` — `safina_reachable: true` (живой TLS-handshake с `my.safina.pro/ece/` на каждом запросе)
+3. `/api/health/detailed` — `services.safina_api.status: healthy` + статусы Postgres / cache
+4. `/api/wallets` — 15 кошельков с **каноничными Safina-UNID** (16-байт hex, формат Safina) — stub их не знал бы
+5. `/api/transactions` — реальная tx с `safina_id: 230` (FK на primary-key в БД Safina) и **проверяемым на блокчейне Tron-адресом** (tronscan.org)
+6. `/api/networks` — 7 сетей с реальными URL block-explorer'ов из Safina (включая `ORGON` и `ORGON TestNet`)
+
+**Что доказывает каждое:**
+
+| Сигнал | Почему stub так не сделает |
+|---|---|
+| `safina_reachable: true` | Это live ECDSA-подписанный запрос к Safina API. Stub вернул бы `false` или вообще не отвечал бы. |
+| `safina_id: 230` | Это FK на primary-key Safina. Stub не угадал бы их нумерацию. |
+| `UNID = 11FCEC937030E81C45258DE8002BE6F5` | Каноничный 16-байт hex-формат Safina (timestamp+random). Stub генерил бы UUID4. |
+| `to_addr = TRx6xXChS5sXz3mpvLSNfKuL6w3PBdMZzL` | Реальный Tron-адрес — открой на tronscan, увидишь блокчейн. |
+| `block_explorer = https://tronscan.org/...` | Метаданные сетей пришли из Safina, не захардкожены в ORGON. |
+
+**Дополнительно** — в `/api/docs` (Swagger UI) есть **193 операции** на 166 путях. Клиент может сам авторизоваться и потыкать "Try it out".
+
+---
+
 ## Что показывать НЕ нужно
 
 - `/compliance`, `/documents`, `/users`, `/settings` (общий) — сидят в группе "Дорожная карта" с бейджем "Скоро". Если клиент кликнет — не страшно, страница откроется с честной плашкой "В разработке". **Не углубляться, идти дальше.**

@@ -51,11 +51,14 @@ services:
       - coolify
     environment:
       PGPASSWORD: ${SERVICE_PASSWORD_PG}
-      OLD_HOST: pg
-      NEW_HOST: zbezy4vjauvrsp9p78w4ayxl
     depends_on:
       pg:
         condition: service_healthy
+    # NOTE: hostnames are hardcoded — compose interpolates $VAR at render
+    # time from the SHELL where compose runs, NOT from container env.
+    # Using literal values avoids that footgun. `pg` is the in-compose
+    # service; `zbezy4vjauvrsp9p78w4ayxl` is the Coolify-managed pg uuid
+    # which doubles as its hostname inside the `coolify` network.
     command:
       - sh
       - -c
@@ -64,15 +67,15 @@ services:
         echo "[migrate] sleeping 5s for new DB readiness"
         sleep 5
         echo "[migrate] === starting pg_dump (old) | psql (new) ==="
-        pg_dump -h "$OLD_HOST" -U orgon -d orgon --no-owner --no-acl --clean --if-exists \
-          | psql -h "$NEW_HOST" -U orgon -d orgon -v ON_ERROR_STOP=1 > /tmp/restore.log 2>&1 \
+        pg_dump -h pg -U orgon -d orgon --no-owner --no-acl --clean --if-exists \
+          | psql -h zbezy4vjauvrsp9p78w4ayxl -U orgon -d orgon -v ON_ERROR_STOP=1 > /tmp/restore.log 2>&1 \
           || { echo "[migrate] FAILED — restore log:"; tail -50 /tmp/restore.log; exit 1; }
         echo "[migrate] === migration done — counters ==="
         echo -n "[migrate] OLD: "
-        psql -h "$OLD_HOST" -U orgon -d orgon -tAc \
+        psql -h pg -U orgon -d orgon -tAc \
           "SELECT 'users='||(SELECT count(*) FROM users)||', wallets='||(SELECT count(*) FROM wallets)||', transactions='||(SELECT count(*) FROM transactions)||', audit_logs='||(SELECT count(*) FROM audit_logs);"
         echo -n "[migrate] NEW: "
-        psql -h "$NEW_HOST" -U orgon -d orgon -tAc \
+        psql -h zbezy4vjauvrsp9p78w4ayxl -U orgon -d orgon -tAc \
           "SELECT 'users='||(SELECT count(*) FROM users)||', wallets='||(SELECT count(*) FROM wallets)||', transactions='||(SELECT count(*) FROM transactions)||', audit_logs='||(SELECT count(*) FROM audit_logs);"
         echo "[migrate] === DONE ==="
         exec tail -f /dev/null

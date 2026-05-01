@@ -83,23 +83,15 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
     expose:
       - "3000"
-    # Attach to the shared `coolify` network so caddy-docker-proxy
-    # (which runs there) can scan and reach this container. We also use
-    # Caddy's internal CA (tls internal) to skip ACME on the origin
-    # entirely — Cloudflare proxies orgon.asystem.ai with Full SSL,
-    # accepts the self-signed origin cert, and presents its Universal
-    # SSL cert to clients (same model as aku.asystem.ai etc).
+    # Bind container port 3000 to host 127.0.0.1:13000.
+    # Host's systemd Caddy reverse-proxies orgon.asystem.ai → here
+    # via /etc/caddy/conf.d/orgon.asystem.ai.conf. Loopback-only:
+    # never publicly exposed. Same pattern as aku.asystem.ai (8083).
+    ports:
+      - "127.0.0.1:13000:3000"
     networks:
       - default
       - coolify
-    labels:
-      - "caddy_0=https://orgon.asystem.ai"
-      - "caddy_0.encode=zstd gzip"
-      - "caddy_0.handle_path=/*"
-      - "caddy_0.handle_path.0_reverse_proxy={{upstreams 3000}}"
-      - "caddy_0.header=-Server"
-      - "caddy_0.tls=internal"
-      - "caddy_ingress_network=coolify"
     depends_on:
       backend:
         condition: service_healthy

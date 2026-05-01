@@ -21,6 +21,70 @@ interface Plan {
   margin_min?: string | null;
 }
 
+// dfns-style 4-tier USD pricing. Used as a fallback when the backend
+// `/api/v1/billing/plans` returns empty (plans table not seeded yet) so
+// the marketing page never renders a blank grid. Pricing is a static
+// marketing fact that rarely changes — backend data path stays optional.
+// Yearly prices are -20% on monthly × 12 (matches the toggle's savings
+// calc).
+const FALLBACK_PLANS: Plan[] = [
+  {
+    id: "starter",
+    slug: "starter",
+    name: "Starter",
+    description: "Для пилотов и discovery-проектов",
+    monthly_price: "60",
+    yearly_price: "576",
+    currency: "USD",
+    features: { all_interfaces: true, max_wallets: 100, max_team_members: 1, max_blockchains: 1, support_24h: true },
+    sort_order: 1,
+    is_active: true,
+  },
+  {
+    id: "basic",
+    slug: "basic",
+    name: "Basic",
+    description: "Для растущих обменников и брокеров",
+    monthly_price: "600",
+    yearly_price: "5760",
+    currency: "USD",
+    features: { all_interfaces: true, max_wallets: 10000, max_team_members: 3, max_blockchains: 3, support_24h: true },
+    sort_order: 2,
+    is_active: true,
+  },
+  {
+    id: "pro",
+    slug: "pro",
+    name: "Pro",
+    description: "Для масштабируемых fintech-платформ",
+    monthly_price: "2500",
+    yearly_price: "24000",
+    currency: "USD",
+    features: { all_interfaces: true, max_wallets: 50000, max_team_members: 9, all_blockchains: true, support_24h: true },
+    sort_order: 3,
+    is_active: true,
+  },
+  {
+    id: "enterprise",
+    slug: "enterprise",
+    name: "Enterprise",
+    description: "Индивидуальные условия для банков и крупных fintech",
+    monthly_price: "0",
+    yearly_price: "0",
+    currency: "USD",
+    features: {
+      all_interfaces: true,
+      unlimited_wallets: true,
+      unlimited_team_members: true,
+      all_blockchains: true,
+      support_1h: true,
+      custom_pricing: true,
+    },
+    sort_order: 4,
+    is_active: true,
+  },
+];
+
 const FEATURE_LABELS: Record<string, string> = {
   // dfns-style 4-tier model
   all_interfaces:         "Все интерфейсы",
@@ -63,7 +127,6 @@ function describeFeature(key: string, value: unknown): string {
 
 export default function PricingPage() {
   const [plans, setPlans] = useState<Plan[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
 
   useEffect(() => {
@@ -78,9 +141,15 @@ export default function PricingPage() {
         const active = (Array.isArray(data) ? data : [])
           .filter((p) => p.is_active)
           .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-        setPlans(active);
+        // Backend has no seeded plans yet → use the static dfns-style
+        // fallback so the page never renders blank.
+        setPlans(active.length > 0 ? active : FALLBACK_PLANS);
       })
-      .catch((e) => !cancelled && setError(e.message ?? "Не удалось загрузить тарифы"));
+      .catch(() => {
+        // Network/5xx error → still show the static plans so visitors
+        // see prices instead of an error toast.
+        if (!cancelled) setPlans(FALLBACK_PLANS);
+      });
     return () => {
       cancelled = true;
     };
@@ -141,62 +210,69 @@ export default function PricingPage() {
       {/* PLAN GRID */}
       <section className="border-b border-border">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-14">
-          {!plans && !error && (
+          {!plans && (
             <div className="text-center text-muted-foreground py-20">Загрузка тарифов…</div>
           )}
-          {error && (
-            <div className="mx-auto max-w-md border border-destructive/40 bg-destructive/5 p-6 text-center text-destructive">
-              {error}
-            </div>
-          )}
           {plans && (
-            <div className="grid lg:grid-cols-3 gap-px bg-border border border-border">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border">
               {plans.map((plan, i) => {
-                const featured = plan.slug === "business";
+                const featured = plan.slug === "pro";
+                const isEnterprise = plan.slug === "enterprise";
                 const price = billing === "monthly" ? plan.monthly_price : plan.yearly_price;
-                const features = Object.entries(plan.features ?? {}).map(([k, v]) => describeFeature(k, v));
+                const features = Object.entries(plan.features ?? {})
+                  .filter(([, v]) => v !== false && v !== null && v !== undefined && v !== "")
+                  .map(([k, v]) => describeFeature(k, v));
                 return (
                   <article
                     key={plan.id}
                     className={cn(
-                      "p-8 lg:p-10 relative flex flex-col bg-card text-card-foreground",
-                      featured && "ring-2 ring-primary -m-px",
+                      "p-7 lg:p-8 relative flex flex-col bg-card text-card-foreground",
+                      featured && "ring-2 ring-primary -m-px z-10",
                     )}
                   >
                     {featured && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.16em] uppercase text-primary-foreground bg-primary px-3 py-1">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 font-mono text-[10px] tracking-[0.16em] uppercase text-primary-foreground bg-primary px-3 py-1 whitespace-nowrap">
                         Популярный
                       </div>
                     )}
                     <div className="font-mono text-[11px] tracking-[0.12em] uppercase text-primary">
                       0{i + 1} / {plan.name.toUpperCase()}
                     </div>
-                    <h2 className="mt-6 text-[32px] font-medium tracking-[-0.02em] text-foreground">
+                    <h2 className="mt-5 text-[28px] font-medium tracking-[-0.02em] text-foreground">
                       {plan.name}
                     </h2>
                     <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground">
                       {plan.description}
                     </p>
 
-                    <div className="mt-7">
-                      <div className="flex items-baseline gap-2">
-                        <BigNum size="xxl" className="text-foreground">
-                          {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Number(price))}
-                        </BigNum>
-                        <span className="font-mono text-[12px] text-muted-foreground">
-                          {plan.currency}
-                        </span>
-                      </div>
-                      <Mono size="sm" className="mt-1 block text-muted-foreground">
-                        {billing === "monthly" ? "/ месяц" : "/ год"}
-                        {plan.margin_min ? ` · комиссия от ${plan.margin_min}%` : ""}
-                      </Mono>
+                    <div className="mt-6">
+                      {isEnterprise ? (
+                        <>
+                          <BigNum size="xl" className="text-foreground">Custom</BigNum>
+                          <Mono size="sm" className="mt-1 block text-muted-foreground">
+                            индивидуальная цена
+                          </Mono>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex items-baseline gap-2">
+                            <span className="font-mono text-[14px] text-muted-foreground">$</span>
+                            <BigNum size="xl" className="text-foreground">
+                              {new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 }).format(Number(price))}
+                            </BigNum>
+                          </div>
+                          <Mono size="sm" className="mt-1 block text-muted-foreground">
+                            {billing === "monthly" ? "/ месяц" : "/ год"}
+                            {plan.margin_min ? ` · комиссия от ${plan.margin_min}%` : ""}
+                          </Mono>
+                        </>
+                      )}
                     </div>
 
-                    {plan.slug === "enterprise" ? (
+                    {isEnterprise ? (
                       <a
                         href="mailto:sales@orgon.asystem.kg?subject=ORGON%20Enterprise%20enquiry"
-                        className="mt-8"
+                        className="mt-7"
                       >
                         <Button variant="primary" fullWidth size="md">
                           Связаться с продажами
@@ -204,15 +280,15 @@ export default function PricingPage() {
                         </Button>
                       </a>
                     ) : (
-                      <Link href="/register" className="mt-8">
+                      <Link href="/register" className="mt-7">
                         <Button variant={featured ? "primary" : "secondary"} fullWidth size="md">
-                          Выбрать план
+                          Начать
                           <Icon icon="solar:arrow-right-linear" className="text-[14px]" />
                         </Button>
                       </Link>
                     )}
 
-                    <ul className="mt-8 pt-7 border-t border-border space-y-3">
+                    <ul className="mt-7 pt-6 border-t border-border space-y-3">
                       {features.length === 0 && (
                         <li className="text-[13px] text-muted-foreground">
                           Свяжитесь с нами для подробностей

@@ -1,94 +1,24 @@
-# ORGON demo stack — Docker Compose source for Coolify deployments.
+# ORGON application stack — Docker Compose source for Coolify deployments.
 #
-# Coolify magic env vars (https://coolify.io/docs/services/magic-environment-variables):
-#   ${SERVICE_PASSWORD_PG}      random Postgres password, shared between
-#                                backend and the pg service
+# Postgres is NO LONGER in this compose — it lives as a Coolify-managed
+# standalone-postgresql (uuid zbezy4vjauvrsp9p78w4ayxl, hostname inside
+# the `coolify` network = the same uuid). Backups, version upgrades and
+# lifecycle are managed through Coolify UI. This compose now only ships
+# the application (backend + frontend).
+#
+# Coolify magic env vars used here:
+#   ${SERVICE_PASSWORD_PG}      pg password — wired to the Coolify DB env
 #   ${SERVICE_PASSWORD_64_JWT}  random 64-char JWT secret
-#   ${SERVICE_URL_FRONTEND}     full https URL of the frontend service,
-#                                derived by Coolify from docker_compose_domains.
-#                                We use the un-suffixed form (not the buggy
-#                                _3000 suffix variant which lags behind on
-#                                the auto-generated sslip.io URL).
-#
-# Coolify matches the magic env name's service portion ("FRONTEND") to
-# a docker-compose service named "frontend". So we keep service names
-# short and prefix-free here, even though they correspond to ORGON.
+#   ${SERVICE_URL_FRONTEND}     full https URL of the frontend service
 
 services:
-  pg:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: orgon
-      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_PG}
-      POSTGRES_DB: orgon
-    networks:
-      - default
-      - coolify
-    volumes:
-      - orgon-pg-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U orgon -d orgon"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-  # ─── one-shot DB migration ───────────────────────────────────────
-  # 2026-05-01 — splitting Postgres out of compose into a Coolify-
-  # managed standalone-postgresql (uuid zbezy4vjauvrsp9p78w4ayxl) so
-  # we get scheduled backups and independent app/DB lifecycle.
-  #
-  # This service runs once per deploy, dumps the in-compose `pg` and
-  # restores into the Coolify-managed pg, prints sanity counters,
-  # then sleeps. After the second deploy (where this whole block +
-  # the `pg` service above are removed), backend points at the new
-  # DB directly and the old volume `orgon-pg-data` is left as a
-  # rollback safety net.
-  pg-migrate:
-    image: postgres:16-alpine
-    restart: "no"
-    networks:
-      - default
-      - coolify
-    environment:
-      PGPASSWORD: ${SERVICE_PASSWORD_PG}
-    depends_on:
-      pg:
-        condition: service_healthy
-    # NOTE: hostnames are hardcoded — compose interpolates $VAR at render
-    # time from the SHELL where compose runs, NOT from container env.
-    # Using literal values avoids that footgun. `pg` is the in-compose
-    # service; `zbezy4vjauvrsp9p78w4ayxl` is the Coolify-managed pg uuid
-    # which doubles as its hostname inside the `coolify` network.
-    command:
-      - sh
-      - -c
-      - |
-        set -e
-        echo "[migrate] sleeping 5s for new DB readiness"
-        sleep 5
-        echo "[migrate] === starting pg_dump (old) | psql (new) ==="
-        pg_dump -h pg -U orgon -d orgon --no-owner --no-acl --clean --if-exists \
-          | psql -h zbezy4vjauvrsp9p78w4ayxl -U orgon -d orgon -v ON_ERROR_STOP=1 > /tmp/restore.log 2>&1 \
-          || { echo "[migrate] FAILED — restore log:"; tail -50 /tmp/restore.log; exit 1; }
-        echo "[migrate] === migration done — counters ==="
-        echo -n "[migrate] OLD: "
-        psql -h pg -U orgon -d orgon -tAc \
-          "SELECT 'users='||(SELECT count(*) FROM users)||', wallets='||(SELECT count(*) FROM wallets)||', transactions='||(SELECT count(*) FROM transactions)||', audit_logs='||(SELECT count(*) FROM audit_logs);"
-        echo -n "[migrate] NEW: "
-        psql -h zbezy4vjauvrsp9p78w4ayxl -U orgon -d orgon -tAc \
-          "SELECT 'users='||(SELECT count(*) FROM users)||', wallets='||(SELECT count(*) FROM wallets)||', transactions='||(SELECT count(*) FROM transactions)||', audit_logs='||(SELECT count(*) FROM audit_logs);"
-        echo "[migrate] === DONE ==="
-        exec tail -f /dev/null
-
   backend:
     build:
       context: ./backend
     environment:
       # ─── core wiring ────────────────────────────────────────────────
-      # 2026-05-01 — backend now points at the Coolify-managed
-      # standalone-postgresql (uuid acts as hostname inside `coolify`
-      # network). Old in-compose `pg` service kept as a rollback safety
-      # net for one deploy cycle; will be removed in a follow-up commit.
+      # Backend connects to the Coolify-managed Postgres (uuid acts as
+      # hostname inside `coolify` external network).
       DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@zbezy4vjauvrsp9p78w4ayxl:5432/orgon"
       JWT_SECRET_KEY: "${SERVICE_PASSWORD_64_JWT}"
       ORGON_ENV: "production"
@@ -113,9 +43,6 @@ services:
       # Leaving STRIPE_API_KEY unset → /api/v1/billing/checkout returns
       # a clean 503 ("Stripe is not configured"). For real billing set
       # STRIPE_API_KEY + STRIPE_WEBHOOK_SECRET + STRIPE_PRICE_* in UI.
-    depends_on:
-      pg:
-        condition: service_healthy
     healthcheck:
       # python is in the slim image; wget/curl are not.
       test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if b'ok' in urllib.request.urlopen('http://127.0.0.1:8890/api/health').read() else 1)\""]
@@ -155,5 +82,10 @@ networks:
   coolify:
     external: true
 
-volumes:
-  orgon-pg-data:
+# Volume `orgon-pg-data` is intentionally NOT declared here anymore —
+# Postgres is Coolify-managed (uuid zbezy4vjauvrsp9p78w4ayxl) and owns
+# its own persistent volume. The legacy in-compose volume from before
+# the 2026-05-01 split remains on the host in /var/lib/docker/volumes/
+# as a rollback safety net (named volumes are not auto-deleted by
+# `docker compose down`). Drop it manually after one week of clean
+# operation:  docker volume rm <project>_orgon-pg-data

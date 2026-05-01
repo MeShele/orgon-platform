@@ -85,7 +85,11 @@ services:
       context: ./backend
     environment:
       # ─── core wiring ────────────────────────────────────────────────
-      DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@pg:5432/orgon"
+      # 2026-05-01 — backend now points at the Coolify-managed
+      # standalone-postgresql (uuid acts as hostname inside `coolify`
+      # network). Old in-compose `pg` service kept as a rollback safety
+      # net for one deploy cycle; will be removed in a follow-up commit.
+      DATABASE_URL: "postgresql://orgon:${SERVICE_PASSWORD_PG}@zbezy4vjauvrsp9p78w4ayxl:5432/orgon"
       JWT_SECRET_KEY: "${SERVICE_PASSWORD_64_JWT}"
       ORGON_ENV: "production"
       ORGON_PUBLIC_URL: "${SERVICE_URL_FRONTEND}"

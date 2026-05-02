@@ -23,12 +23,19 @@ export interface WalletForDisplay {
   network?: number | string | null;
 }
 
+// Authoritative Safina network IDs (from live GET /api/networks). The
+// previous mapping (5000=BSC, 5020=ETH, 5040=BTC) was a stale guess
+// based on stub_client.py data and never matched production. These
+// IDs come from `network_id` in Safina's response and are stable per
+// tenant.
 const NETWORK_NAME: Record<string, string> = {
-  "5000": "BSC",
-  "5010": "TRX",
-  "5020": "ETH",
-  "5030": "POL",
-  "5040": "BTC",
+  "1000": "BTC",
+  "3000": "ETH",
+  "3040": "ETH-Sepolia",
+  "5000": "TRX",
+  "5010": "TRX-Nile",
+  "5800": "ORGON",
+  "5810": "ORGON-test",
 };
 
 export function networkName(n?: number | string | null): string {

@@ -216,16 +216,49 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 > Эти 4 пункта — единственное что отделяет нас от «точно готовы к банку/фонду». Текущие demo / agent / OTC клиенты могут стартовать **без них**.
 
-### ❶ HSM/KMS-backend для signer-key — `~1 день работы`
+### ❶ HSM/KMS-backend для signer-key — **DONE 2026-05-02** (Wave 18)
 
-**Файл:** `backend/safina/signer_backends.py`. Уже есть абстракция и stub'ы (Wave 12). Нужно **реализовать одну** из:
+**Файл:** `backend/safina/signer_backends.py:KMSSignerBackend`. Реализован per ADRs из `docs/stories/2-3-kms-signer-architecture.md`. 17 unit-тестов в `backend/tests/test_kms_signer_backend.py` через in-process fake KMS (отказались от moto из-за SECP256K1 DIGEST-mode баги). Total backend test count: **167 passed, 0 skipped**.
 
-- `KMSSignerBackend` — AWS KMS asymmetric SECP256K1 key. ~200 строк boto3 + v-recovery. Чек-лист в docstring класса.
-- `VaultSignerBackend` — HashiCorp Vault Transit engine. ~150 строк hvac. Чек-лист там же.
+**Что нужно для prod-pilot с AWS KMS:**
 
-Затем: `ORGON_SIGNER_BACKEND=kms` (или `vault`) + AWS-creds env.
+1. **AWS-side setup:**
+   ```bash
+   aws kms create-key \
+     --key-spec ECC_SECG_P256K1 \
+     --key-usage SIGN_VERIFY \
+     --description "ORGON Safina signer — pilot <client>"
+   # Note the KeyId. Optionally:
+   aws kms create-alias --alias-name alias/orgon-safina-<client> --target-key-id <key-id>
+   ```
 
-**Почему блокер:** хранение private-key в process memory непереживёт первого аудитора крупного клиента (PCI DSS, ISO 27001).
+2. **IAM-policy** для backend-роли — ТОЛЬКО эти два action на ТОЛЬКО этот KeyId:
+   ```json
+   {"Version": "2012-10-17", "Statement": [{
+     "Effect": "Allow",
+     "Action": ["kms:Sign", "kms:GetPublicKey"],
+     "Resource": "<key-arn>"
+   }]}
+   ```
+
+3. **Coolify env vars:**
+   ```
+   ORGON_SIGNER_BACKEND=kms
+   AWS_KMS_KEY_ID=alias/orgon-safina-<client>     # или ARN, или KeyId UUID
+   AWS_REGION=eu-central-1                          # где создали ключ
+   AWS_ACCESS_KEY_ID=<service account access key>
+   AWS_SECRET_ACCESS_KEY=<service account secret>
+   # Можно убрать SAFINA_EC_PRIVATE_KEY — больше не используется в kms-режиме
+   ```
+
+4. **Smoke-test после deploy:**
+   - `/api/health/safina` → `safina_reachable: true`
+   - В логах backend: `KMSSignerBackend initialised: address=0x... key_id=alias/...`
+   - Создать тестовый кошелёк через `/api/wallets` → success → подпись прошла через KMS
+
+**Vault** (`VaultSignerBackend`) остаётся stub — отдельная stories когда понадобится. Stub поднимает `NotImplementedError` если выставить `ORGON_SIGNER_BACKEND=vault`.
+
+**Почему был блокер (теперь решён):** хранение private-key в process memory непереживёт аудита institutional-клиента (PCI DSS, ISO 27001, SOC 2). С KMS приватный ключ генерируется в AWS HSM (FIPS 140-2 L3) и НИКОГДА не покидает его — даже наш процесс не имеет доступа.
 
 ### ❷ Confirm Safina canonical sign-payload format — `~1 час после ответа Safina`
 

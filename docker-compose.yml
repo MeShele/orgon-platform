@@ -35,7 +35,15 @@ services:
       SAFINA_STUB: "${SAFINA_STUB:-1}"
       SAFINA_BASE_URL: "${SAFINA_BASE_URL:-http://localhost:0}"
       SAFINA_EC_PRIVATE_KEY: "${SAFINA_EC_PRIVATE_KEY:-}"
-      ORGON_SIGNER_BACKEND: "env"   # env | kms | vault — see signer_backends.py
+      # Signer backend selection. Three modes:
+      #   `env`   → reads SAFINA_EC_PRIVATE_KEY (above). Process holds the
+      #            EC key in memory. Good for dev / single-org pilots.
+      #   `kms`   → AWS KMS asymmetric ECC_SECG_P256K1 key. Private key
+      #            never leaves the HSM. Required env: AWS_KMS_KEY_ID,
+      #            AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY.
+      #            See docs/prod-readiness.md section 5 ❶ for setup.
+      #   `vault` → HashiCorp Vault Transit (still a stub — raises).
+      ORGON_SIGNER_BACKEND: "${ORGON_SIGNER_BACKEND:-env}"
       # ─── observability ─────────────────────────────────────────────
       ORGON_JSON_LOGS: "1"          # structured logs read better in Coolify
       # SENTRY_DSN — set in Coolify UI when you have a Sentry project.

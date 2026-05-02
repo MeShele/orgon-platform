@@ -48,13 +48,9 @@ def test_env_backend_signs_msg_hash_deterministic():
 
 
 # ────────────────────────────────────────────────────────────────────
-# Stubs raise NotImplementedError
+# Stubs (Vault still a stub; KMS implementation lives in
+# test_kms_signer_backend.py with its own fake-KMS infrastructure)
 # ────────────────────────────────────────────────────────────────────
-
-
-def test_kms_backend_raises_not_implemented():
-    with pytest.raises(NotImplementedError, match="stub"):
-        KMSSignerBackend("alias/orgon-safina")
 
 
 def test_vault_backend_raises_not_implemented():
@@ -89,11 +85,8 @@ def test_build_env_missing_key_raises(monkeypatch):
         build_signer_backend()
 
 
-def test_build_kms_propagates_stub(monkeypatch):
-    monkeypatch.setenv("ORGON_SIGNER_BACKEND", "kms")
-    monkeypatch.setenv("AWS_KMS_KEY_ID", "alias/orgon-safina")
-    with pytest.raises(NotImplementedError):
-        build_signer_backend()
+# NOTE: positive `ORGON_SIGNER_BACKEND=kms` selector test lives in
+# test_kms_signer_backend.py because it needs the fake-KMS fixture.
 
 
 def test_build_kms_missing_id_raises(monkeypatch):

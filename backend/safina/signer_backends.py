@@ -36,6 +36,56 @@ logger = logging.getLogger("orgon.safina.signer_backends")
 
 
 # ────────────────────────────────────────────────────────────────────
+# Constants & helpers used by KMS / Vault backends
+# ────────────────────────────────────────────────────────────────────
+
+# secp256k1 curve order. ECDSA signatures with `s > n/2` are non-canonical
+# under BIP-62. Most Ethereum tooling rejects high-s. AWS KMS may emit
+# either form, so we always normalise to low-s before doing v-recovery.
+_SECP256K1_N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+_SECP256K1_HALF_N = _SECP256K1_N // 2
+
+
+def _normalize_low_s(s: int) -> int:
+    """Return canonical low-s (BIP-62). If s > n/2, flip to n - s."""
+    return _SECP256K1_N - s if s > _SECP256K1_HALF_N else s
+
+
+def _der_to_raw_pubkey(der_bytes: bytes) -> bytes:
+    """Decode DER SubjectPublicKeyInfo → 64-byte raw uncompressed (x || y).
+
+    AWS KMS returns the public key in `SubjectPublicKeyInfo` DER form
+    (RFC 5480). We need the uncompressed coordinates as a flat 64-byte
+    buffer because `eth_keys.PublicKey(...)` and keccak-based address
+    derivation expect that layout.
+
+    Raises:
+        ValueError: not an EC public key, or curve != secp256k1.
+    """
+    # Lazy import — `cryptography` is already installed transitively via
+    # python-jose[cryptography]; only pay the import cost on backends
+    # that actually need DER work.
+    from cryptography.hazmat.primitives.asymmetric.ec import (
+        EllipticCurvePublicKey,
+        SECP256K1,
+    )
+    from cryptography.hazmat.primitives.serialization import load_der_public_key
+
+    pub = load_der_public_key(der_bytes)
+    if not isinstance(pub, EllipticCurvePublicKey):
+        raise ValueError(
+            f"Expected EC public key, got {type(pub).__name__}"
+        )
+    if not isinstance(pub.curve, SECP256K1):
+        raise ValueError(
+            f"Expected SECP256K1 curve, got {pub.curve.name!r}; "
+            "KMS key spec must be ECC_SECG_P256K1"
+        )
+    nums = pub.public_numbers()
+    return nums.x.to_bytes(32, "big") + nums.y.to_bytes(32, "big")
+
+
+# ────────────────────────────────────────────────────────────────────
 # Protocol
 # ────────────────────────────────────────────────────────────────────
 
@@ -89,47 +139,155 @@ class EnvSignerBackend:
 
 
 class KMSSignerBackend:
-    """AWS KMS asymmetric SECP256K1 key — stub.
+    """AWS KMS asymmetric SECP256K1 signer.
 
-    Setup checklist when wiring real KMS:
+    The private key is generated and held by AWS KMS (HSM-backed). It
+    NEVER leaves KMS — even our process can't read it. We send a 32-byte
+    digest, KMS signs, returns DER-encoded `(r, s)`. We recover `v`
+    locally by trying both candidates against a public key fetched once
+    at boot.
 
-    1. **Create the KMS key.** `aws kms create-key --key-spec
-       ECC_SECG_P256K1 --key-usage SIGN_VERIFY`. Note the KeyId.
-    2. **Grant the backend role.** Attach a policy allowing
-       `kms:Sign` and `kms:GetPublicKey` on the KeyId. The IAM role
-       itself MUST have nothing else — never share the role with
-       other workloads.
-    3. **Bootstrap address.** On startup, call
-       `kms.get_public_key(KeyId)`, decode the DER SubjectPublicKeyInfo,
-       extract the raw 64-byte public key, run keccak256 on it, take
-       the last 20 bytes → checksum address.
-    4. **Sign.** `kms.sign(KeyId, Message=msg_hash,
-       MessageType='DIGEST', SigningAlgorithm='ECDSA_SHA_256')`. KMS
-       returns DER-encoded `(r, s)` — decode with
-       `cryptography.hazmat.primitives.asymmetric.utils.decode_dss_signature`.
-    5. **Recover v.** ECDSA recovery id is NOT returned by KMS. Try
-       both `v=27` and `v=28`, build a `Signature(vrs=(v-27, r, s))`,
-       call `recover_public_key_from_msg_hash(msg_hash)`, compare
-       against the bootstrap address. Use whichever matches.
-    6. **Low-s normalisation.** KMS may return high-s (>= n/2). Most
-       Ethereum tooling rejects this — normalise to canonical low-s
-       per BIP-62 before recovery.
+    For institutional custody this is the minimum acceptable signer
+    posture: RCE / container escape / crash dump in ORGON cannot leak
+    the key, only signing access (which is itself revocable via IAM).
 
-    Reference: https://docs.aws.amazon.com/kms/latest/developerguide/asymmetric-key-specs.html
+    Configuration (env vars read by `build_signer_backend`):
+
+        ORGON_SIGNER_BACKEND=kms
+        AWS_KMS_KEY_ID=<key-id | arn | alias/name>
+        AWS_REGION=eu-central-1                   (or wherever the key lives)
+        AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  (standard boto3 chain)
+
+    AWS-side setup:
+
+        1. Create the key:
+             aws kms create-key \\
+                 --key-spec ECC_SECG_P256K1 \\
+                 --key-usage SIGN_VERIFY \\
+                 --description "ORGON Safina signer"
+        2. Attach an IAM policy granting ONLY this principal these
+           actions on this exact key ARN:  kms:Sign, kms:GetPublicKey.
+        3. (recommended) Set up KMS key alias, e.g.
+             aws kms create-alias --alias-name alias/orgon-safina --target-key-id <key-id>
+        4. (recommended) Enable CloudTrail logging for the key.
+
+    Boot semantics — fail fast:
+
+        `__init__` performs `kms.get_public_key(KeyId)` synchronously
+        and derives the Ethereum-style checksum address. Any error
+        (network, IAM denied, wrong key spec, malformed DER) propagates
+        out — caller (`build_signer_backend`) does NOT swallow them.
+        Result: ORGON refuses to start with a broken signer.
+
+    Sign semantics:
+
+        Returns `eth_keys.datatypes.Signature` with v ∈ {0, 1} and
+        canonical low-s, identical in shape to what `EnvSignerBackend`
+        returns. `SafinaSigner` adds 27 to v at the header layer.
     """
 
-    def __init__(self, key_id: str, region: str = "eu-central-1"):
-        raise NotImplementedError(
-            "KMSSignerBackend is a stub — see signer_backends.py docstring "
-            "for the wiring checklist. KeyId %r region %r." % (key_id, region)
+    def __init__(self, key_id: str, region: str = "eu-central-1") -> None:
+        if not key_id:
+            raise ValueError("KMSSignerBackend requires a non-empty key_id")
+
+        # Lazy boto3 import: only required when this backend is selected,
+        # so env-only deployments don't pay the import time / memory.
+        import boto3
+        from botocore.config import Config
+
+        self._key_id = key_id
+        self._region = region
+        self._kms = boto3.client(
+            "kms",
+            region_name=region,
+            config=Config(
+                retries={"max_attempts": 3, "mode": "adaptive"},
+                connect_timeout=5,
+                read_timeout=10,
+            ),
+        )
+
+        # Bootstrap: fetch public key once. This call validates KMS
+        # reachability, IAM permissions, and key spec all at once.
+        # Any error short-circuits process startup (fail-fast per ADR-3).
+        resp = self._kms.get_public_key(KeyId=key_id)
+        der = resp["PublicKey"]
+        self._public_key_bytes = _der_to_raw_pubkey(der)
+        self._address = keys.PublicKey(self._public_key_bytes).to_checksum_address()
+
+        logger.info(
+            "KMSSignerBackend initialised: address=%s key_id=%s region=%s",
+            self._address, self._key_id, self._region,
         )
 
     @property
-    def address(self) -> str:  # pragma: no cover — stub
-        raise NotImplementedError
+    def address(self) -> str:
+        return self._address
 
-    def sign_msg_hash(self, msg_hash: bytes) -> Signature:  # pragma: no cover — stub
-        raise NotImplementedError
+    def sign_msg_hash(self, msg_hash: bytes) -> Signature:
+        """Sign a 32-byte digest via AWS KMS.
+
+        Args:
+            msg_hash: 32-byte keccak digest (already prefixed with the
+                Ethereum personal-sign magic by SafinaSigner).
+
+        Returns:
+            `Signature` with v ∈ {0, 1} and canonical low-s.
+
+        Raises:
+            ValueError: msg_hash is not exactly 32 bytes.
+            botocore.exceptions.ClientError: any KMS-side error, surfaced
+                as-is. Caller (SafinaClient) decides retry policy.
+            RuntimeError: v-recovery failed — neither v=0 nor v=1 matched
+                the bootstrap public key. This is a critical bug
+                signalling DER-parse mismatch or wrong key spec.
+        """
+        if len(msg_hash) != 32:
+            raise ValueError(
+                f"msg_hash must be 32 bytes, got {len(msg_hash)}"
+            )
+
+        # KMS signs the digest as-is when MessageType=DIGEST. The
+        # SigningAlgorithm name says ECDSA_SHA_256 but with DIGEST mode
+        # the SHA-256 is NOT applied again — KMS treats the input as the
+        # 32-byte digest directly. (Critical: any other MessageType would
+        # double-hash with SHA-256 instead of using our keccak digest.)
+        resp = self._kms.sign(
+            KeyId=self._key_id,
+            Message=msg_hash,
+            MessageType="DIGEST",
+            SigningAlgorithm="ECDSA_SHA_256",
+        )
+
+        # DER-decoded r, s (ints).
+        from cryptography.hazmat.primitives.asymmetric.utils import (
+            decode_dss_signature,
+        )
+
+        r, s = decode_dss_signature(resp["Signature"])
+        s = _normalize_low_s(s)
+
+        # v-recovery: KMS does not return the recovery id. Try both
+        # candidates and pick the one whose recovered public key
+        # matches our cached bootstrap pubkey (ADR-6).
+        for v in (0, 1):
+            sig = Signature(vrs=(v, r, s))
+            try:
+                recovered = sig.recover_public_key_from_msg_hash(msg_hash).to_bytes()
+            except Exception:  # pragma: no cover — defensive
+                continue
+            if recovered == self._public_key_bytes:
+                return sig
+
+        # Both v=0 and v=1 failed. This is unreachable under correct
+        # operation — surfacing as RuntimeError makes the diagnostic
+        # explicit instead of silently returning a bad signature.
+        raise RuntimeError(
+            f"KMS v-recovery failed for key_id={self._key_id!r}: "
+            "neither v=0 nor v=1 produced the bootstrap public key. "
+            "Likely DER-parse mismatch or wrong KMS key spec "
+            "(must be ECC_SECG_P256K1)."
+        )
 
 
 # ────────────────────────────────────────────────────────────────────

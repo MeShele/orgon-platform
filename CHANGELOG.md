@@ -7,6 +7,126 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 18 — KMS-backed signer for Safina (2026-05-02)
+
+Closes the **single biggest institutional-readiness blocker** identified
+in `docs/prod-readiness.md` section 5 ❶: the EC private key used to sign
+every Safina API request was sitting in process memory of the backend
+container, accessible to any RCE / container escape / crash dump.
+Wave 12 (2026-04-29) had carved out a `SignerBackend` Protocol and three
+stubs (env / kms / vault); env was the only working one. This wave
+replaces the KMS stub with a real implementation.
+
+### Architecture
+
+Designed via a self-imposed BMAD-style ADR session
+(`docs/stories/2-3-kms-signer-architecture.md`, 13 sections). Eight
+decision records cover, with rationale and trade-offs:
+  - AWS KMS first, Vault deferred (ADR-1)
+  - Sync boto3, no aiobotocore (ADR-2) — preserves the existing
+    `SignerBackend` sync interface, no callsite changes
+  - Bootstrap address fetch + cache once in `__init__` (ADR-3) — fail
+    fast on init if KMS unreachable, IAM denied, or key spec mismatch
+  - DER decode via `cryptography.hazmat`, not hand-rolled ASN.1 (ADR-4)
+  - Low-s normalisation per BIP-62 *before* v-recovery (ADR-5)
+  - v-recovery: try v=0, v=1, raise `RuntimeError` if neither matches
+    cached pubkey (ADR-6)
+  - Test isolation via in-process fake KMS instead of moto (ADR-7)
+  - VaultSignerBackend stays a stub — out of scope (ADR-8)
+
+### Implementation (`backend/safina/signer_backends.py`)
+
+- New module-level helpers `_normalize_low_s(s)` and `_der_to_raw_pubkey(der)`,
+  plus `_SECP256K1_N` / `_SECP256K1_HALF_N` curve constants.
+- `KMSSignerBackend.__init__` does:
+    1. Lazy-import boto3 (so env-only deployments don't pay the cost)
+    2. `kms.get_public_key(KeyId)` → `_der_to_raw_pubkey` → cached
+       `_public_key_bytes` (64 bytes) and `_address` (checksum 0x...).
+- `sign_msg_hash`:
+    1. `kms.sign(KeyId, Message=msg_hash, MessageType="DIGEST",
+       SigningAlgorithm="ECDSA_SHA_256")` — KMS treats input as the
+       digest verbatim (no double-hash) when MessageType=DIGEST.
+    2. `decode_dss_signature(der)` → (r, s).
+    3. `_normalize_low_s(s)`.
+    4. v-recovery loop over (0, 1) — match against cached pubkey.
+    5. Return `eth_keys.datatypes.Signature` with v ∈ {0, 1}; SafinaSigner
+       adds 27 at the header layer (unchanged).
+
+### Tests (`backend/tests/test_kms_signer_backend.py`)
+
+17 new unit tests, all run under an in-process `_FakeKmsClient` that
+emulates exactly the two boto3 KMS APIs we touch (`get_public_key`,
+`sign`). Built on real `eth_keys.PrivateKey` + `cryptography` so
+signatures are real ECDSA — not happy-path stubs.
+
+The fake EXISTS because moto 5.2.0's KMS sign emulation has a bug:
+with `MessageType=DIGEST` it still SHA-256 hashes the input, while real
+AWS KMS treats DIGEST as "use as-is". A test against moto would either
+fail or require warping production code. Diagnosed live before writing
+tests — see Risk R1 mitigation in the architecture doc.
+
+Coverage:
+  - `_der_to_raw_pubkey` — round-trip with eth_keys keypair, rejects
+    NIST P-256 curve, rejects RSA key.
+  - `_normalize_low_s` — passthrough for low s, flip for high s, edge
+    at exactly n/2.
+  - `KMSSignerBackend.__init__` — empty key_id rejected, known address
+    derived, pubkey bytes cached.
+  - `sign_msg_hash` — round-trip recovers correct address, v ∈ {0, 1},
+    canonical low-s when KMS returns high-s (8 iterations), rejects
+    msg_hash != 32 bytes.
+  - v-recovery failure path — when KMS returns sig from DIFFERENT key
+    than bootstrap, we raise `RuntimeError` (don't silently emit a
+    wrong-address signature).
+  - End-to-end with `SafinaSigner` — full GET/POST header derivation
+    works with KMS backend behind it.
+  - `build_signer_backend` selector returns real KMSSignerBackend on
+    `ORGON_SIGNER_BACKEND=kms` (replaces the old NotImplementedError
+    stub propagation test).
+
+Two existing tests in `test_signer_backends.py` deleted as obsolete
+(`test_kms_backend_raises_not_implemented`, `test_build_kms_propagates_stub`).
+
+CI total: **152 → 167 passed, 0 skipped, 0 failed** (+15 net).
+
+### Dependencies
+
+- Added `boto3>=1.34,<2` to `backend/requirements.txt`. Image bloat
+  ~30 MB on a ~600 MB base — acceptable.
+- `cryptography` already pulled transitively via `python-jose[cryptography]`.
+
+### Out of scope
+
+- VaultSignerBackend — stays stub. Separate story when a customer
+  needs on-prem key management.
+- KMS key rotation policy — operational concern, documented in
+  `docs/prod-readiness.md` section 5 ❶ instead.
+- Multi-region KMS replication — DR concern, separate planning.
+- Live AWS KMS smoke test from CI — possible later if user provides
+  sandbox credentials. Local moto/fake coverage is sufficient for
+  merge.
+
+### Backwards compat
+
+- Existing prod (`orgon.asystem.ai`) keeps `ORGON_SIGNER_BACKEND=env`.
+  KMS is opt-in per environment via Coolify env vars. No deploy
+  required to keep current behaviour.
+- `SafinaSigner` API unchanged. All existing callsites work without
+  edits — backend swap happens entirely behind the Protocol.
+
+### Files changed
+
+  M backend/requirements.txt                    (+2 lines, +1 dep)
+  M backend/safina/signer_backends.py           (~150 lines added)
+  A backend/tests/test_kms_signer_backend.py    (~270 lines, new file)
+  M backend/tests/test_signer_backends.py       (−2 obsolete tests)
+  M .github/workflows/ci.yml                    (+1 line: new test file)
+  M docker-compose.yml                          (+8 lines: env-hint comment)
+  M docs/prod-readiness.md                      (section 5 ❶ TODO → DONE)
+  A docs/stories/2-3-kms-signer-architecture.md (architecture ADR doc)
+
+---
+
 ## Sprint 1 — auth hardening + audit immutability (2026-04-26)
 
 **Backend security**

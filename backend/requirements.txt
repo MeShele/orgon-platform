@@ -28,6 +28,10 @@ pycryptodome==3.21.0
 eth-account==0.13.4
 web3==7.7.0
 
+# AWS KMS (used by KMSSignerBackend in safina/signer_backends.py — only
+# loaded when ORGON_SIGNER_BACKEND=kms; env-backend doesn't import boto3.)
+boto3>=1.34,<2
+
 # Utilities
 python-dateutil==2.9.0
 pytz==2024.2
@@ -42,5 +46,10 @@ pytest==8.0.0
 pytest-asyncio==0.23.5
 pytest-cov==4.1.0
 httpx==0.28.1
+# moto considered for KMS mocking but its 5.2.0 SECP256K1 stub has a
+# MessageType=DIGEST bug — it re-hashes input through SHA-256 instead
+# of signing the digest as-is. Real AWS KMS does NOT re-hash with
+# DIGEST mode. We use an in-test fake KMS client built on top of
+# eth_keys.PrivateKey instead — exact emulation, fewer deps.
 stripe==11.4.0
 sentry-sdk[fastapi]==2.18.0

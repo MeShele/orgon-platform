@@ -123,12 +123,38 @@ export default function WalletsPage() {
               ) : (
                 wallets.map((w) => {
                   const displayName = formatWalletDisplayName(w);
+                  const href = `/wallets/${encodeURIComponent(w.name ?? "")}`;
+                  // Row click → navigation. Cmd/Ctrl/middle-click still
+                  // works because we delegate to router.push only on
+                  // plain left-click; modified clicks fall through and
+                  // the inner <Link> handles them via the browser's
+                  // default new-tab behaviour.
+                  const handleRowClick: React.MouseEventHandler<HTMLTableRowElement> = (e) => {
+                    if (e.defaultPrevented) return;
+                    if (e.button !== 0) return;
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                    router.push(href);
+                  };
                   return (
-                    <tr key={w.id ?? w.my_unid} className="border-b border-border last:border-b-0 hover:bg-muted/40">
+                    <tr
+                      key={w.id ?? w.my_unid}
+                      onClick={handleRowClick}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          router.push(href);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Открыть кошелёк ${displayName}`}
+                      className="border-b border-border last:border-b-0 hover:bg-muted/40 cursor-pointer focus:bg-muted/40 focus:outline-none"
+                    >
                       <td className="px-5 py-3.5">
                         <Link
-                          href={`/wallets/${encodeURIComponent(w.name ?? "")}`}
-                          className="flex items-center gap-2 text-foreground hover:text-primary"
+                          href={href}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-2 text-foreground hover:text-primary"
                           title={w.my_unid ?? w.name ?? undefined}
                         >
                           {w.is_favorite && (

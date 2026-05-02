@@ -221,11 +221,31 @@ export default function TransactionsPage() {
                     cancelled: "Отменена",
                   };
                   const statusLabel = STATUS_RU[kind] ?? tx.status ?? "—";
+                  const txHref = `/transactions/${tx.tx_unid ?? tx.unid ?? ""}`;
+                  const handleTxRowClick: React.MouseEventHandler<HTMLTableRowElement> = (e) => {
+                    if (e.defaultPrevented || e.button !== 0) return;
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                    router.push(txHref);
+                  };
                   return (
-                    <tr key={tx.tx_unid ?? tx.unid ?? tx.id} className="border-b border-border last:border-b-0 hover:bg-muted/40">
+                    <tr
+                      key={tx.tx_unid ?? tx.unid ?? tx.id}
+                      onClick={handleTxRowClick}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          router.push(txHref);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="link"
+                      aria-label="Открыть транзакцию"
+                      className="border-b border-border last:border-b-0 hover:bg-muted/40 cursor-pointer focus:bg-muted/40 focus:outline-none"
+                    >
                       <td className="pl-5 py-3">
                         <Link
-                          href={`/transactions/${tx.tx_unid ?? tx.unid ?? ""}`}
+                          href={txHref}
+                          onClick={(e) => e.stopPropagation()}
                           className="text-foreground hover:text-primary"
                           title={tx.tx_hash ?? tx.tx_unid ?? tx.unid ?? undefined}
                         >

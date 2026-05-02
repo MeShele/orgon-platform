@@ -43,6 +43,11 @@ services:
       # Leaving STRIPE_API_KEY unset → /api/v1/billing/checkout returns
       # a clean 503 ("Stripe is not configured"). For real billing set
       # STRIPE_API_KEY + STRIPE_WEBHOOK_SECRET + STRIPE_PRICE_* in UI.
+    # Bind backend port to host loopback so the host's systemd Caddy
+    # can route /ws/* (WebSocket upgrade) and /api/* directly to FastAPI,
+    # bypassing Next.js (whose rewrites don't proxy WebSocket upgrades).
+    ports:
+      - "127.0.0.1:18890:8890"
     healthcheck:
       # python is in the slim image; wget/curl are not.
       test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if b'ok' in urllib.request.urlopen('http://127.0.0.1:8890/api/health').read() else 1)\""]
@@ -50,6 +55,69 @@ services:
       timeout: 5s
       retries: 12
       start_period: 30s
+
+  # One-shot updater for the host's /etc/caddy/conf.d/orgon.asystem.ai.conf.
+  # Adds /ws/* + /api/* routes pointing at the backend's loopback port,
+  # leaves everything else going to the frontend (where it was before).
+  # Same pattern as the previous caddy-bootstrap that landed the original
+  # vhost — uses pid: host + privileged so `pkill -USR1 caddy` reaches the
+  # actual Caddy process running on the host (systemd, not in a container).
+  caddy-bootstrap:
+    image: alpine:3.19
+    restart: unless-stopped
+    privileged: true
+    pid: host
+    volumes:
+      - /etc/caddy:/etc/caddy
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /etc/caddy/conf.d
+        cat > /etc/caddy/conf.d/orgon.asystem.ai.conf <<'CADDY_EOF'
+        orgon.asystem.ai {
+          encode gzip zstd
+
+          header {
+            Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+            X-Content-Type-Options    "nosniff"
+            X-Frame-Options           "SAMEORIGIN"
+            Referrer-Policy           "strict-origin-when-cross-origin"
+            -Server
+          }
+
+          request_body {
+            max_size 25MB
+          }
+
+          # WebSocket — upgrade headers must be forwarded; Caddy's default
+          # reverse_proxy already handles `Upgrade: websocket` correctly.
+          handle /ws/* {
+            reverse_proxy 127.0.0.1:18890
+          }
+
+          # API goes straight to FastAPI — saves a hop through Next.js.
+          handle /api/* {
+            reverse_proxy 127.0.0.1:18890
+          }
+
+          # Everything else → Next.js frontend
+          reverse_proxy 127.0.0.1:13000 {
+            transport http {
+              read_timeout 60s
+              write_timeout 60s
+            }
+          }
+        }
+        CADDY_EOF
+        echo "[caddy-bootstrap] wrote /etc/caddy/conf.d/orgon.asystem.ai.conf"
+        if pkill -USR1 -x caddy 2>/dev/null; then
+          echo "[caddy-bootstrap] SIGUSR1 sent to caddy (config reload)"
+        else
+          echo "[caddy-bootstrap] WARNING: could not signal caddy on host PID space"
+        fi
+        exec tail -f /dev/null
 
   frontend:
     build:

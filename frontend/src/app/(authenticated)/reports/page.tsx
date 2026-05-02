@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import { pageLayout } from "@/lib/page-layout";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import useSWR from "swr";
 
 interface Report {
@@ -55,6 +56,18 @@ export default function ReportsPage() {
     <>
       <Header title="Отчёты" />
       <div className={pageLayout.container}>
+        <div className="flex items-center gap-2">
+          <HelpTooltip
+            text="Compliance отчёты — периодические свёртки для регулятора (Финнадзор)."
+            tips={[
+              "Месячный отчёт об объёмах транзакций — формируется автоматически 1-го числа.",
+              "Квартальные отчёты сегрегации активов — manual generate через POST /compliance/reports/generate.",
+              "SAR submissions — это per-alert, живут не здесь, а в /compliance AML drawer.",
+              "Все сгенерированные отчёты immutable, JSON-payload фиксируется навсегда.",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Какие отчёты тут</span>
+        </div>
         {/* Статистика */}
         {reports && reports.length > 0 && (
           <div className={pageLayout.grid.cols3}>

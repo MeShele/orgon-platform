@@ -6,6 +6,7 @@ import { Header } from "@/components/layout/Header";
 import { NetworkIcon } from "@/components/common/CryptoIcon";
 import { StatusDot } from "@/components/common/StatusBadge";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { api } from "@/lib/api";
 import { pageLayout } from "@/lib/page-layout";
 
@@ -52,6 +53,18 @@ export default function NetworksPage() {
     <>
       <Header title={t('title')} />
       <div className={pageLayout.container}>
+        <div className="flex items-center gap-2 -mt-2">
+          <HelpTooltip
+            text="Список blockchain-сетей, поддерживаемых вашим Safina-аккаунтом."
+            tips={[
+              "Сети тащатся из Safina API при загрузке страницы — список = что у Safina включено для вашего тенанта.",
+              "Test-сети (ETH-Sepolia, TRX-Nile, ORGON-test) и mainnet помечены отдельно.",
+              "Если сети не хватает — обратитесь в поддержку Safina, ORGON их сам не включает.",
+              "Status dot — health check от Safina к node-провайдеру (Infura/QuickNode/собственный full-node).",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Откуда берётся список сетей</span>
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {networks.map((net) => (
             <div

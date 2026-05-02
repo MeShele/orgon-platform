@@ -9,6 +9,7 @@ import { Header } from "@/components/layout/Header";
 import { Eyebrow, Mono, StatusPill } from "@/components/ui/primitives";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { Icon } from "@/lib/icons";
 import { api, API_BASE } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -122,7 +123,17 @@ export default function TransactionsPage() {
         {/* Top bar */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <Eyebrow dash>Транзакции</Eyebrow>
+            <span className="inline-flex items-center gap-1.5">
+              <Eyebrow dash>Транзакции</Eyebrow>
+              <HelpTooltip
+                text="История транзакций по всем кошелькам организации."
+                tips={[
+                  "Записи создаются в момент инициации (status='pending'), обновляются по webhook от Safina.",
+                  "Тестовые транзакции (test-network) и production не разделены — фильтруйте по сети, если нужно.",
+                  "AML-движок может пометить tx статусом 'on_hold' или 'rejected_signer_mismatch' — наводитесь на статус для пояснения.",
+                ]}
+              />
+            </span>
             <h2 className="mt-2 text-[24px] sm:text-[28px] font-medium tracking-[-0.02em] text-foreground">
               {txs.length > 0 ? `${txs.length} записей` : "Нет записей"}
             </h2>
@@ -177,7 +188,23 @@ export default function TransactionsPage() {
             <thead>
               <tr className="border-b border-border text-left">
                 <Th className="pl-5">Хэш</Th>
-                <Th>Статус</Th>
+                <Th>
+                  <span className="inline-flex items-center gap-1">
+                    Статус
+                    <HelpTooltip
+                      text="Жизненный цикл транзакции."
+                      tips={[
+                        "pending — создана, ждёт подписей multi-sig.",
+                        "signed — собран кворум подписей.",
+                        "submitted — отправлена в blockchain mempool.",
+                        "confirmed — включена в блок (терминальное успешное состояние).",
+                        "failed — отклонена сетью (gas, nonce, и т.д.).",
+                        "on_hold — задержана AML-правилом, требует решения compliance.",
+                        "rejected_signer_mismatch — локальная проверка подписи Safina не сошлась (Wave 22 enforce-mode).",
+                      ]}
+                    />
+                  </span>
+                </Th>
                 <Th>Кошелёк</Th>
                 <Th>Получатель</Th>
                 <Th>Токен</Th>

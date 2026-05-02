@@ -208,7 +208,20 @@ export default function AuditPage() {
     <>
       <Header title={t('title')} />
       <div className={pageLayout.container}>
-        
+        <div className="flex items-center gap-2">
+          <HelpTooltip
+            text="Audit log — append-only журнал всех действий пользователей и системы."
+            tips={[
+              "Записи никогда не редактируются и не удаляются (immutability trigger на DB-уровне).",
+              "Источники: ручные действия (login, sign tx, claim alert), system events (KMS keys, webhooks).",
+              "Для compliance audit регулятор может запросить выгрузку — Export CSV в правом верхнем углу.",
+              "AML actions (claim/resolve/release-hold/SAR submit) — отдельные `aml.*` action-типы.",
+              "B2B partner audit — отдельная таблица audit_log_b2b (см. /partner).",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Что это и retention policy</span>
+        </div>
+
         {/* Stats Cards */}
         {stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

@@ -5,6 +5,7 @@ import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader } from "@/components/common/Card";
 import { Badge } from "@/components/ui/Badge";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import Link from "next/link";
@@ -85,8 +86,20 @@ export default function OrganizationsPage() {
   return (
     <>
       <Header title="Организации" />
-      
+
       <div className="p-2 sm:p-4 md:p-6 lg:p-8 space-y-4">
+        <div className="flex items-center gap-2">
+          <HelpTooltip
+            text="Multi-tenant: одна установка ORGON обслуживает несколько организаций изолированно."
+            tips={[
+              "Каждая org имеет собственные кошельки, транзакции, AML-правила, KYC/KYB.",
+              "RLS (PostgreSQL row-level-security) гарантирует изоляцию даже при ошибках в коде.",
+              "Super_admin видит все org'и; company_admin — только свою.",
+              "Удаление org → soft-delete (status=cancelled), данные сохраняются для compliance audit.",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Зачем это и кто видит что</span>
+        </div>
         {/* Filters */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { Icon } from "@/lib/icons";
 import { api, API_BASE } from "@/lib/api";
 import { formatWalletDisplayName, networkName } from "@/lib/walletDisplay";
@@ -62,7 +63,17 @@ export default function WalletsPage() {
         {/* Top bar */}
         <div className="flex items-end justify-between gap-4 flex-wrap">
           <div>
-            <Eyebrow dash>Кошельки</Eyebrow>
+            <span className="inline-flex items-center gap-1.5">
+              <Eyebrow dash>Кошельки</Eyebrow>
+              <HelpTooltip
+                text="Список кошельков синхронизируется из Safina API на your tenant URL (по умолчанию https://my.safina.pro/ece/)."
+                tips={[
+                  "В test-окружении (orgon.asystem.ai) — это реальные test-сети Safina: ETH-Sepolia, TRX-Nile, ORGON-test.",
+                  "Адреса публичные, балансы запрашиваются live при загрузке.",
+                  "Приватные ключи никогда не покидают Safina/KMS — ORGON только подписывает запросы.",
+                ]}
+              />
+            </span>
             <h2 className="mt-2 text-[24px] sm:text-[28px] font-medium tracking-[-0.02em] text-foreground">
               {totalCount > 0 ? `${totalCount} ${pluralize(totalCount, ["кошелёк", "кошелька", "кошельков"])}` : "Нет кошельков"}
               {favCount > 0 && (
@@ -97,10 +108,34 @@ export default function WalletsPage() {
               <tr className="border-b border-border text-left">
                 <Th className="px-5">Название</Th>
                 <Th>Сеть</Th>
-                <Th>Тип</Th>
+                <Th>
+                  <span className="inline-flex items-center gap-1">
+                    Тип
+                    <HelpTooltip
+                      text="Тип кошелька в Safina."
+                      tips={[
+                        "1 — multi-sig wallet (минимум N подписей из M)",
+                        "2 — single-signer wallet",
+                        "3 — wallet с time-lock",
+                        "Большинство pilot-кошельков — multi-sig (тип 1).",
+                      ]}
+                    />
+                  </span>
+                </Th>
                 <Th>Адрес</Th>
                 <Th>Токены</Th>
-                <Th className="text-right pr-5">UNID</Th>
+                <Th className="text-right pr-5">
+                  <span className="inline-flex items-center gap-1">
+                    UNID
+                    <HelpTooltip
+                      text="Уникальный ID кошелька в Safina (UUID-like)."
+                      tips={[
+                        "Используется для подписания транзакций — нельзя путать с blockchain-адресом.",
+                        "Адрес — публичный (видно в blockchain explorer), UNID — внутренний идентификатор Safina.",
+                      ]}
+                    />
+                  </span>
+                </Th>
               </tr>
             </thead>
             <tbody>

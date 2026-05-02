@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/Header";
 import { Eyebrow, BigNum, Mono, StatusPill } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -113,7 +114,18 @@ export default function SignaturesPage() {
 
       <div className="px-4 sm:px-6 lg:px-10 py-8 space-y-8">
         <div>
-          <Eyebrow dash>Подписи</Eyebrow>
+          <span className="inline-flex items-center gap-1.5">
+            <Eyebrow dash>Подписи</Eyebrow>
+            <HelpTooltip
+              text="Multi-sig подписания транзакций."
+              tips={[
+                "Каждая исходящая транзакция требует N подписей из M участников (настройка кошелька в Safina).",
+                "Подпись делается через KMS (если ORGON_SIGNER_BACKEND=kms) — приватный ключ не покидает HSM.",
+                "ORGON локально верифицирует Safina-возвращённые подписи (Wave 22), несовпадение → tx rejected.",
+                "История подписей immutable — одобренное действие в audit-log не редактируется.",
+              ]}
+            />
+          </span>
           <h2 className="mt-2 text-[24px] sm:text-[28px] font-medium tracking-[-0.02em] text-foreground">
             Очередь подписей и история
           </h2>

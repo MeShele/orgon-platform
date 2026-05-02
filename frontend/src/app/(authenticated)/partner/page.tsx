@@ -9,6 +9,7 @@ import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import { pageLayout, tableStyles } from "@/lib/page-layout";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 
 type Tab = "overview" | "wallets" | "transactions" | "addresses" | "scheduled" | "info";
 
@@ -135,6 +136,18 @@ export default function PartnerPage() {
     <>
       <Header title="Партнёр API" />
       <div className={pageLayout.container}>
+        <div className="flex items-center gap-2">
+          <HelpTooltip
+            text="B2B Partner API — отдельный канал для интеграции внешних платформ (биржи, exchanger'ы)."
+            tips={[
+              "Аутентификация через HMAC-подпись (X-Signature заголовок), отдельная от user-сессии.",
+              "Replay-guard через X-Idempotency-Key (ORGON_PARTNER_REPLAY_OFF=0 в prod).",
+              "Webhook обратной связи: партнёр получает callback'и о статусах транзакций.",
+              "Все Partner API requests пишутся в audit_log_b2b — отдельная таблица от внутренней audit_log.",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Что это и зачем нужно</span>
+        </div>
         {/* Tabs */}
         <div className="flex gap-1 overflow-x-auto rounded-lg bg-muted p-1 dark:bg-muted/50">
           {tabs.map((tab) => (

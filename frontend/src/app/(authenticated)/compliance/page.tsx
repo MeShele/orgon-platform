@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { pageLayout } from "@/lib/page-layout";
 import useSWR from "swr";
 import { AmlAlertList } from "@/components/compliance/AmlAlertList";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 
 interface ComplianceData {
   total_verified: number;
@@ -42,6 +43,19 @@ export default function CompliancePage() {
     <>
       <Header title="Комплаенс" />
       <div className={pageLayout.container}>
+        <div className="flex items-center gap-2 -mt-2">
+          <HelpTooltip
+            text="Compliance dashboard объединяет KYC, KYB, AML triage и регуляторную отчётность в одном месте."
+            tips={[
+              "AML-вкладка — реальная очередь алертов из Sumsub-bridge + in-house rule engine.",
+              "KYC/KYB — Sumsub WebSDK, документы загружаются прямо к ним (FedRAMP-compliant).",
+              "Лицензирование — справочно, регуляторные требования КР для VA-операторов.",
+              "Отчётность — заглушка, реальный SAR-flow живёт в AML-вкладке (drawer → «Сформировать SAR»).",
+              "Кнопка «Правила» (вверху справа) — конфигурация AML rule engine (только для admin).",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Что такое эта страница</span>
+        </div>
         {/* Статистика */}
         <div className={pageLayout.grid.cols4}>
           <Card>

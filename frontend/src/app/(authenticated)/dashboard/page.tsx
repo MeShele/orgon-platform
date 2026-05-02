@@ -9,6 +9,7 @@ import { Eyebrow, BigNum, Mono, StatusPill } from "@/components/ui/primitives";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { api } from "@/lib/api";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { Icon } from "@/lib/icons";
@@ -143,7 +144,18 @@ export default function DashboardPage() {
 
         {/* KPI grid */}
         <section>
-          <Eyebrow dash>Сводка</Eyebrow>
+          <span className="inline-flex items-center gap-1.5">
+            <Eyebrow dash>Сводка</Eyebrow>
+            <HelpTooltip
+              text="Метрики обновляются с back-end в реальном времени (WebSocket) и кешируются 30с."
+              tips={[
+                "«Общий баланс» — сумма USD-эквивалентов по всем кошелькам. Курс берётся из CoinGecko каждые 60с.",
+                "«Транзакции, 24ч» — все статусы (pending/signed/confirmed/failed/on_hold). Удалённые из Safina не учитываются.",
+                "«Ожидают подписи» — multi-sig транзы, где не собран кворум. Кликните KPI чтобы перейти в очередь.",
+                "«Сети» — сколько разных blockchain-сетей у вас активно (test + prod считаются раздельно).",
+              ]}
+            />
+          </span>
           <div className="mt-4 grid grid-cols-2 lg:grid-cols-5 gap-px bg-border border border-border">
             <KpiTile label="Общий баланс" value={`$ ${formatNumber(balanceUsd, 2)}`} sub="USD эквивалент" big />
             <KpiTile label="Кошельки" value={String(stats?.total_wallets ?? "—")} sub="всего" />

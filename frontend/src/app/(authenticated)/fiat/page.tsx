@@ -10,6 +10,7 @@ import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import { pageLayout, tableStyles } from "@/lib/page-layout";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 
 type Tab = "onramp" | "offramp" | "accounts" | "history";
 
@@ -159,6 +160,18 @@ export default function FiatPage() {
     <>
       <Header title="Фиат операции" />
       <div className={pageLayout.container}>
+        <div className="flex items-center gap-2">
+          <HelpTooltip
+            text="Фиатные операции — депозиты/выводы/обмены через банковский рейл (карты, SWIFT, локальные методы)."
+            tips={[
+              "Интегрировано с FreedomPay для KG/KZ карт; SWIFT — через Safina partner banking.",
+              "Каждая операция связана с криптокошельком — фиат конвертируется на лету по rate (CoinGecko).",
+              "On-/off-ramp комиссия в API-Body: depositFee/withdrawFee. Видна перед подтверждением.",
+              "AML rules такие же как для крипто-tx — threshold/velocity/blacklist применяются.",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Что делает эта страница</span>
+        </div>
         {/* Tabs */}
         <div className="flex gap-1 overflow-x-auto rounded-lg bg-muted p-1 dark:bg-muted/50">
           {tabs.map((tab) => (

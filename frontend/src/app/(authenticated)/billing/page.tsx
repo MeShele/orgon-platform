@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import { pageLayout } from "@/lib/page-layout";
+import { HelpTooltip } from "@/components/common/HelpTooltip";
 import useSWR from "swr";
 
 interface Plan {
@@ -128,6 +129,18 @@ export default function BillingPage() {
     <>
       <Header title="Биллинг" />
       <div className={pageLayout.container}>
+        <div className="flex items-center gap-2">
+          <HelpTooltip
+            text="Подписка ORGON: тарифный план + использование лимитов + история счетов."
+            tips={[
+              "План определяет лимиты: число кошельков, транзакций в месяц, AML-правил, юзеров.",
+              "Использование считается на back-end и обновляется realtime в SWR (refresh 60s).",
+              "Биллинг через Stripe в production; в test-окружении STRIPE_API_KEY пуст и страница работает в read-only.",
+              "Превышение лимитов блокирует новые операции (HTTP 402 на API), не deletes existing.",
+            ]}
+          />
+          <span className="text-xs text-muted-foreground">Как считаются лимиты</span>
+        </div>
         {/* Текущий план и использование */}
         {usage && (
           <div className={pageLayout.grid.cols3}>

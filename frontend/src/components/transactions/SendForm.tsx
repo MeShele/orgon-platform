@@ -220,10 +220,15 @@ export function SendForm() {
                 );
               })}
             </select>
-          ) : (
+          ) : !selectedWallet ? (
             <select className={selectClass} disabled>
-              <option>{selectedWallet ? "Токены не найдены" : "Сначала выберите кошелёк"}</option>
+              <option>Сначала выберите кошелёк</option>
             </select>
+          ) : (
+            <EmptyTokensCallout
+              networkId={selectedWalletObj?.network}
+              walletAddr={selectedWalletObj?.addr}
+            />
           )}
           {tokenString && (
             <p className="mt-1 text-[10px] text-muted-foreground font-mono">{tokenString}</p>
@@ -373,5 +378,84 @@ export function SendForm() {
         </div>
       </form>
     </Card>
+  );
+}
+
+// ─── Empty tokens helper UI ─────────────────────────────────────────
+//
+// Shown when the selected wallet returns 0 tokens. This is the real
+// state of a fresh Safina wallet — we explain WHY it's empty and give
+// concrete next steps (faucet for testnets, deposit address for
+// mainnets), instead of the previous silent "Токены не найдены".
+
+const FAUCETS: Record<number, { name: string; faucet?: string; explorer?: string; isTestnet: boolean }> = {
+  1000: { name: "Bitcoin",            isTestnet: false },
+  1010: { name: "Bitcoin Test",       isTestnet: true,  faucet: "https://coinfaucet.eu/en/btc-testnet/" },
+  3000: { name: "Ethereum",           isTestnet: false },
+  3010: { name: "Ethereum Ropsten",   isTestnet: true,  faucet: "https://sepoliafaucet.com/" },
+  3040: { name: "Ethereum Sepolia",   isTestnet: true,  faucet: "https://sepoliafaucet.com/" },
+  5000: { name: "Tron",               isTestnet: false },
+  5010: { name: "Tron Nile TestNet",  isTestnet: true,  faucet: "https://nileex.io/join/getJoinPage" },
+};
+
+function EmptyTokensCallout({ networkId, walletAddr }: { networkId?: number; walletAddr?: string | null }) {
+  const net = (networkId !== undefined && FAUCETS[networkId]) || undefined;
+  const isTestnet = net?.isTestnet ?? false;
+  const faucetUrl = net?.faucet;
+  const networkLabel = net?.name ?? `Сеть ${networkId ?? "?"}`;
+
+  return (
+    <div className="rounded-lg border border-warning/40 bg-warning/5 p-3.5 space-y-3">
+      <div className="flex items-start gap-2.5">
+        <Icon icon="solar:info-circle-bold" className="text-warning text-base shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-foreground">На этом кошельке пока нет токенов</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+            {isTestnet
+              ? `Это тестовая сеть ${networkLabel}. Получите тестовые токены через faucet (бесплатно), и они появятся здесь после следующего sync с Safina (≤ 1 минуты).`
+              : `Чтобы отправить транзакцию, кошелёк должен иметь ненулевой баланс. Пополните его через свой Safina-кабинет или другой кошелёк, отправив средства на адрес ниже.`}
+          </p>
+        </div>
+      </div>
+
+      {isTestnet && faucetUrl && (
+        <a
+          href={faucetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[11px] font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+        >
+          <Icon icon="solar:hand-money-linear" className="text-[13px]" />
+          Открыть {networkLabel} Faucet
+          <Icon icon="solar:arrow-right-up-linear" className="text-[12px]" />
+        </a>
+      )}
+
+      {walletAddr && (
+        <div className="pt-2.5 border-t border-warning/20">
+          <div className="text-[10px] font-mono uppercase tracking-[0.08em] text-faint mb-1">
+            Адрес кошелька (для пополнения)
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="text-[11px] font-mono text-foreground break-all">{walletAddr}</code>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(walletAddr);
+              }}
+              className="shrink-0 inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:border-strong transition-colors"
+              aria-label="Копировать адрес"
+            >
+              <Icon icon="solar:copy-linear" className="text-[11px]" />
+              копировать
+            </button>
+          </div>
+        </div>
+      )}
+
+      <p className="text-[10px] text-muted-foreground">
+        Или выбери другой кошелёк выше — возможно у соседнего есть баланс.
+      </p>
+    </div>
   );
 }

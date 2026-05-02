@@ -25,7 +25,11 @@ function getWebSocketURL(): string {
   const host = window.location.hostname === 'localhost' && process.env.NEXT_PUBLIC_API_URL
     ? new URL(process.env.NEXT_PUBLIC_API_URL).host
     : window.location.host;
-  return `${protocol}//${host}/ws/updates`;
+  // Backend exposes /ws/auth/{token} which validates the JWT from the URL.
+  // Without a token the connection 404s and the header would show "Офлайн".
+  const token = localStorage.getItem("orgon_access_token") ?? "";
+  if (!token) return ""; // skip connect until login completes
+  return `${protocol}//${host}/ws/auth/${encodeURIComponent(token)}`;
 }
 
 export function WebSocketProvider({ children }: { children: ReactNode }) {

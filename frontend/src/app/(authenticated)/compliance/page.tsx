@@ -7,12 +7,13 @@ import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import { pageLayout } from "@/lib/page-layout";
 import useSWR from "swr";
+import { AmlAlertList } from "@/components/compliance/AmlAlertList";
 
 interface ComplianceData {
   total_verified: number;
   pending_review: number;
   rejected: number;
-  records: any[];
+  records: Record<string, unknown>[];
 }
 
 type Tab = "overview" | "aml" | "kyc" | "reports";
@@ -90,7 +91,7 @@ export default function CompliancePage() {
         </div>
 
         {/* Табы */}
-        <div className="flex gap-1 overflow-x-auto border-b border-border">
+        <div className="flex gap-1 overflow-x-auto border-b border-border items-end">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -105,6 +106,14 @@ export default function CompliancePage() {
               {tab.label}
             </button>
           ))}
+          <a
+            href="/compliance/rules"
+            className="ml-auto px-3 py-2 text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1"
+            title="Настройка правил мониторинга"
+          >
+            <Icon icon="solar:shield-keyhole-linear" />
+            Правила
+          </a>
         </div>
 
         {/* Контент табов */}
@@ -185,48 +194,7 @@ export default function CompliancePage() {
           </div>
         )}
 
-        {activeTab === "aml" && (
-          <div className="space-y-4">
-            <Card>
-              <div className="p-4 sm:p-6">
-                <h3 className="font-semibold text-foreground mb-3">Мониторинг AML/KYT</h3>
-                <div className={pageLayout.success + " mb-4"}>
-                  <p className="flex items-center gap-2">
-                    <Icon icon="solar:check-circle-bold" /> Все транзакции проверены — подозрительная активность не обнаружена
-                  </p>
-                </div>
-                <h4 className="text-sm font-medium text-foreground mb-2">Правила мониторинга</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>• Транзакции свыше $10 000 — автоматическая генерация SAR</li>
-                  <li>• Множественные мелкие транзакции (обнаружение дробления)</li>
-                  <li>• Транзакции с адресами высокого риска (чёрные списки)</li>
-                  <li>• Мониторинг трансграничных операций</li>
-                  <li>• Обнаружение необычных паттернов (на основе ML)</li>
-                </ul>
-              </div>
-            </Card>
-            <Card>
-              <div className="p-4 sm:p-6">
-                <h3 className="font-semibold text-foreground mb-3">Оценка рисков</h3>
-                <div className={pageLayout.grid.cols3}>
-                  {[
-                    { level: "Низкий риск", color: "bg-emerald-500", range: "0-30%", desc: "Автоматическое одобрение" },
-                    { level: "Средний риск", color: "bg-warning", range: "31-70%", desc: "Ручная проверка" },
-                    { level: "Высокий риск", color: "bg-destructive", range: "71-100%", desc: "Блокировка, подача SAR" },
-                  ].map((r) => (
-                    <div key={r.level} className="rounded-lg border border-border p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className={`w-3 h-3 rounded-full ${r.color}`} />
-                        <span className="text-sm font-medium text-foreground">{r.level}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{r.range} — {r.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
+        {activeTab === "aml" && <AmlAlertList />}
 
         {activeTab === "kyc" && (
           <div className="space-y-4">

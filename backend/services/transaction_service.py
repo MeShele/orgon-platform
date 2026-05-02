@@ -1,29 +1,60 @@
 # TODO: Add ON CONFLICT clauses to INSERT statements
 """Transaction business logic."""
 
+import json
 import logging
 import re
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 
 from backend.safina.client import SafinaPayClient
 from backend.safina.models import SendTransactionRequest
+from backend.safina.signature_verifier import (
+    get_verify_mode,
+    is_verification_enabled,
+    verify_safina_tx_signer,
+)
 from backend.database.db_postgres import AsyncDatabase
 from backend.events.manager import get_event_manager, EventType
+
+if TYPE_CHECKING:                       # avoid circular import at runtime
+    from backend.services.compliance_service import ComplianceService
 
 logger = logging.getLogger("orgon.services.transaction")
 
 
 class TransactionValidationError(Exception):
-    """Transaction validation failed."""
+    """Transaction validation failed (bad input — format, balance, etc)."""
     pass
 
 
+class TransactionBlockedError(Exception):
+    """Transaction blocked by AML rule engine policy gate (Wave 23, Story 2.8).
+
+    Distinguished from `TransactionValidationError` so the route layer
+    can return a richer body (which rules fired, severity) and so
+    operators can filter logs by policy-block vs validation-fail.
+    """
+
+    def __init__(self, message: str, triggered: Optional[list] = None):
+        super().__init__(message)
+        self.triggered = triggered or []
+
+
 class TransactionService:
-    def __init__(self, client: SafinaPayClient, db: AsyncDatabase):
+    def __init__(
+        self,
+        client: SafinaPayClient,
+        db: AsyncDatabase,
+        compliance: Optional["ComplianceService"] = None,
+    ):
         self._client = client
         self._db = db
+        # When None, rule-engine wire-up is a no-op — backwards-compatible
+        # with callers that haven't migrated to inject the compliance
+        # service yet (Wave 23, Story 2.8).
+        self._compliance = compliance
 
     async def list_transactions(
         self,
@@ -334,7 +365,8 @@ class TransactionService:
     async def send_transaction(
         self,
         request: SendTransactionRequest,
-        validate: bool = True
+        validate: bool = True,
+        org_id: Optional[str] = None,
     ) -> str:
         """
         Send a new transaction via Safina API.
@@ -342,12 +374,16 @@ class TransactionService:
         Args:
             request: Transaction request data
             validate: Whether to validate before sending (default True)
+            org_id: caller's organization UUID; powers the AML rule
+                engine. None = platform / unscoped — only global rules
+                (organization_id IS NULL) apply.
 
         Returns:
             Transaction UNID
 
         Raises:
-            TransactionValidationError: If validation fails
+            TransactionValidationError: If validation fails (bad input).
+            TransactionBlockedError:    If an AML rule blocks the tx.
         """
         # Validate if requested
         if validate:
@@ -375,6 +411,22 @@ class TransactionService:
         # Convert decimal separator for Safina
         safina_value = self.convert_decimal_to_safina(request.value)
 
+        # Wave 23 / Story 2.8 — in-house AML rule engine. Runs BEFORE
+        # the Safina call so policy `block` actions never reach the
+        # custody backend. `hold` action lets the Safina call through
+        # but pins local status to 'on_hold' so the multi-sig flow
+        # halts pending compliance review.
+        verdict = await self._evaluate_aml_rules(
+            request=request, safina_value=safina_value, org_id=org_id,
+        )
+        if verdict["verdict"] == "block":
+            triggered = verdict["triggered"]
+            names = ", ".join(t["rule_name"] for t in triggered)
+            raise TransactionBlockedError(
+                f"AML rule blocked transaction: {names}",
+                triggered=triggered,
+            )
+
         # Send to Safina API
         tx_unid = await self._client.send_transaction(
             token=request.token,
@@ -393,15 +445,20 @@ class TransactionService:
             network_token = parts[0]
             network = network_token.split(":::")[0] if ":::" in network_token else None
 
+        # If a `hold` rule fired, persist the tx with `on_hold` status
+        # so signers see the gate immediately. Otherwise the usual
+        # `pending` status applies.
+        local_status = "on_hold" if verdict["verdict"] == "hold" else "pending"
+
         # Cache locally — Postgres ON CONFLICT (unid was SQLite "INSERT OR IGNORE").
         now = datetime.now(timezone.utc)
         await self._db.execute(
             """INSERT INTO transactions
                (token, to_addr, value, unid, status, info, wallet_name, network, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                ON CONFLICT (unid) DO NOTHING""",
             (request.token, request.to_address, safina_value, tx_unid,
-             request.info, wallet_name, network, now, now),
+             local_status, request.info, wallet_name, network, now, now),
         )
 
         logger.info(
@@ -555,6 +612,13 @@ class TransactionService:
                             (tx.unid, sig["ecaddress"], sig.get("ecsign")),
                         )
 
+            # Wave 22, Story 2.7 — local signer verification.
+            # Runs only when ORGON_SAFINA_VERIFY_MODE != off AND a
+            # SAFINA_CANONICAL_VARIANT is wired. In `shadow` we log +
+            # alert but accept the tx; in `enforce` we additionally
+            # mark the row `rejected_signer_mismatch`.
+            await self._verify_safina_signers(tx, status)
+
         await self._db.execute(
             """INSERT INTO sync_state (key, value, updated_at) VALUES ($1, $2, $3)
                ON CONFLICT (key) DO UPDATE SET
@@ -562,3 +626,188 @@ class TransactionService:
             ("transactions_synced", now.isoformat(), now),
         )
         logger.info("Synced %d transactions from Safina", len(txs))
+
+    # ────────────────────────────────────────────────────────────────
+    # In-house AML rule engine (Wave 23 / Story 2.8)
+    # ────────────────────────────────────────────────────────────────
+
+    async def _evaluate_aml_rules(
+        self,
+        request: SendTransactionRequest,
+        safina_value: str,
+        org_id: Optional[str],
+    ) -> dict:
+        """Pre-Safina AML check.
+
+        Returns the verdict dict from `ComplianceService.evaluate_transaction_rules`
+        — `{"triggered": [...], "verdict": "allow|hold|block"}`. When no
+        compliance service was injected (legacy callers, tests), returns
+        a synthetic `allow` verdict so the rest of `send_transaction`
+        proceeds untouched.
+        """
+        if self._compliance is None:
+            return {"triggered": [], "verdict": "allow"}
+        # Normalise types — UUID-strings need to round-trip cleanly into
+        # the asyncpg layer (uuid.UUID works directly; bare str also works
+        # because Postgres casts).
+        from uuid import UUID
+        org_uuid: Optional[UUID] = None
+        if org_id:
+            try:
+                org_uuid = UUID(str(org_id))
+            except (ValueError, TypeError):
+                logger.warning("send_transaction: bad org_id %r", org_id)
+        return await self._compliance.evaluate_transaction_rules(
+            org_id=org_uuid,
+            tx={
+                "value": safina_value,
+                "to_address": request.to_address,
+                "token": request.token,
+            },
+        )
+
+    # ────────────────────────────────────────────────────────────────
+    # Local signer verification (Wave 22 / Story 2.7)
+    # ────────────────────────────────────────────────────────────────
+
+    async def _verify_safina_signers(self, tx, current_status: str) -> None:
+        """Verify each Safina-returned signed signature against the
+        configured canonical variant.
+
+        Behavior is fully gated on env: when verification is disabled
+        (`ORGON_SAFINA_VERIFY_MODE=off` or no variant set) this method
+        returns immediately without touching the DB. Mismatches in
+        shadow-mode emit AML alerts; in enforce-mode they additionally
+        flip `transactions.status` to `rejected_signer_mismatch`.
+
+        Alert writes are best-effort: a failure is logged but does not
+        roll back the tx INSERT (ADR-8). The tx itself is the source of
+        truth — alerts are a notification layer on top.
+        """
+        if not is_verification_enabled():
+            return
+        signed_list = getattr(tx, "signed", None) or []
+        if not signed_list:
+            return
+
+        mode = get_verify_mode()
+        network = self._extract_network(tx)
+        if network is None:
+            logger.warning(
+                "Skipping signer verification for tx %s: no network field",
+                getattr(tx, "unid", "?"),
+            )
+            return
+
+        had_mismatch = False
+        for sig in signed_list:
+            ec_address = sig.get("ecaddress")
+            ec_sign = sig.get("ecsign")
+            if not ec_address or not ec_sign:
+                continue
+            try:
+                result = verify_safina_tx_signer(
+                    tx_unid=str(tx.unid or ""),
+                    network=int(network),
+                    value=str(tx.value),
+                    to_address=str(tx.to_addr or ""),
+                    signature_hex=ec_sign,
+                    expected_signer=ec_address,
+                )
+            except Exception as exc:
+                logger.exception(
+                    "Signer verification raised for tx %s signer %s: %s",
+                    getattr(tx, "unid", "?"), ec_address, exc,
+                )
+                continue
+            if result is False:
+                had_mismatch = True
+                await self._record_signer_mismatch(tx, sig, mode)
+
+        if had_mismatch and mode == "enforce":
+            # Override the status the main INSERT/UPDATE just set.
+            # Done as a separate UPDATE because we don't want to retry
+            # the entire ON CONFLICT block on a status-only change.
+            await self._db.execute(
+                "UPDATE transactions SET status = $1, updated_at = $2 WHERE unid = $3",
+                ("rejected_signer_mismatch", datetime.now(timezone.utc), tx.unid),
+            )
+            logger.warning(
+                "tx %s rejected: signer mismatch in enforce-mode", tx.unid,
+            )
+
+    @staticmethod
+    def _extract_network(tx) -> Optional[int]:
+        """Pull a chain-id out of the Safina Transaction model.
+
+        Pydantic config is `extra="allow"`, so a `network` attribute
+        may be present even though it's not declared. Falls back to
+        the `<network>###<wallet>` token convention used by other
+        sites in this service.
+        """
+        explicit = getattr(tx, "network", None)
+        if explicit is not None:
+            try:
+                return int(explicit)
+            except (TypeError, ValueError):
+                pass
+        token = getattr(tx, "token", None)
+        if isinstance(token, str) and "###" in token:
+            head = token.split("###", 1)[0]
+            try:
+                return int(head)
+            except ValueError:
+                return None
+        return None
+
+    async def _record_signer_mismatch(self, tx, sig: dict, mode: str) -> None:
+        """Best-effort AML alert insert. Logs WARN and never raises.
+
+        We deliberately don't take a fresh DB transaction here —
+        `self._db.execute` runs on the shared pool. The caller's tx
+        INSERT has already committed by the time we reach this method.
+        """
+        details = {
+            "tx_unid": getattr(tx, "unid", None),
+            "tx_hash": getattr(tx, "tx", None),
+            "expected_signer": sig.get("ecaddress"),
+            "signature_hex": sig.get("ecsign"),
+            "verify_mode": mode,
+        }
+        org_id = getattr(tx, "organization_id", None)
+        description = f"Safina signer mismatch on tx {tx.unid}"
+        details_json = json.dumps(details, default=str)
+        try:
+            if org_id:
+                await self._db.execute(
+                    """
+                    INSERT INTO aml_alerts (
+                        organization_id, alert_type, severity,
+                        transaction_id, description, details, status
+                    )
+                    SELECT $1, 'safina:signer_mismatch', 'critical',
+                           t.id, $2, $3::jsonb, 'open'
+                    FROM transactions t WHERE t.unid = $4
+                    """,
+                    (org_id, description, details_json, tx.unid),
+                )
+            else:
+                # No explicit org context (legacy txs) — derive it from
+                # the transactions row that we just inserted.
+                await self._db.execute(
+                    """
+                    INSERT INTO aml_alerts (
+                        organization_id, alert_type, severity,
+                        transaction_id, description, details, status
+                    )
+                    SELECT t.organization_id, 'safina:signer_mismatch', 'critical',
+                           t.id, $1, $2::jsonb, 'open'
+                    FROM transactions t WHERE t.unid = $3
+                    """,
+                    (description, details_json, tx.unid),
+                )
+        except Exception as exc:
+            logger.exception(
+                "Failed to record aml_alert for signer mismatch on tx %s: %s",
+                getattr(tx, "unid", "?"), exc,
+            )

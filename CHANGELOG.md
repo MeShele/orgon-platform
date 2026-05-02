@@ -7,6 +7,737 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 26 — Release-from-hold UX polish (2026-05-02)
+
+Wave 23 set transactions to `status='on_hold'` when a rule with
+`action='hold'` fired. Lifting that hold previously required a manual
+SQL `UPDATE`. Wave 26 closes the loop: a single button in the AML
+triage drawer, with a required-reason confirmation, atomically flips
+the tx back to `pending` and writes an audit-log row.
+
+Story 2.11 — `docs/stories/2-11-release-from-hold-architecture.md`
+(7 ADRs, status `done`, 2 sprints).
+
+### Backend
+
+`POST /api/v1/compliance/aml/alerts/{alert_id}/release-hold`
+
+Body: `{ "reason": str (min_length=1, max 2000) }`
+
+Atomic via `conn.transaction()`:
+1. Lock the alert (RBAC-scoped via `_read_alert_for_update`)
+2. Lock the linked transaction (`SELECT ... FOR UPDATE`)
+3. Verify status=`on_hold` (else 409 with current state)
+4. `UPDATE transactions SET status='pending'`
+5. INSERT into `audit_log`:
+   - `action='aml.release_hold'`
+   - `resource_type='aml_alert'`, `resource_id=<alert_uuid>`
+   - `details={tx_unid, prev_status, new_status, reason}`
+
+Errors:
+- 404 — alert missing or out of RBAC scope (don't leak existence)
+- 422 — alert has no linked transaction / blank reason
+- 409 — tx is not in `on_hold` (already released, signed, etc.) —
+  body includes the current tx state for UI re-render
+
+The alert itself is **not** auto-resolved — operator may still want to
+add notes or pick a final decision (resolved / false_positive). This
+matches the Wave 21 separation between "review state" and
+"transaction state".
+
+### Frontend
+
+`AmlAlertDrawer` — when the linked transaction's status is `on_hold`
+and the alert is not yet terminal, a warning-coloured "Снять
+удержание" button appears next to the transaction link. Clicking
+opens a confirm Dialog that requires a non-empty reason textarea.
+
+The current tx status is now also surfaced inline next to the unid
+(`{unid} · on_hold`) so officers can see at a glance whether action
+is needed.
+
+`lib/amlAlerts.ts` — new `releaseHeldTransaction(alertId, reason)`
+fetcher; existing `AmlConflictError` handler propagates the 409 with
+the current state.
+
+### Tests
+
+7 endpoint tests in `test_release_hold.py`:
+- happy path (success + audit-log INSERT)
+- 404 when alert missing
+- 422 when alert has no linked tx
+- 409 when tx not in `on_hold`
+- 422 when reason blank (Pydantic min_length)
+- 403 for signer role
+- 404 for cross-org access (don't leak existence)
+
+Combined critical-path subset: 232 → **239 pass**, 0 skipped.
+`python -m compileall backend/` exit 0; `npx tsc --noEmit` exit 0.
+
+### What's deferred
+
+- **Bulk release** for multiple held tx at once — useful when a rule
+  was misconfigured and dozens of tx got held; out of scope for MVP.
+- **Auto-release on resolve** — if officer marks alert as
+  `false_positive`, automatically release linked tx in same call.
+  Not implemented — separation-of-state is intentional (see backend
+  ADR-3 in story file).
+
+---
+
+## Wave 25 — Rule-config admin UI (2026-05-02)
+
+Wave 23 wired the AML rule engine into the transaction-create flow,
+but `transaction_monitoring_rules` was DB-edit-only — operators had
+to write SQL `INSERT` statements to add a threshold or a velocity
+rule. Wave 25 closes that gap with a plain CRUD admin UI under
+`/compliance/rules`.
+
+Story 2.10 — `docs/stories/2-10-rule-config-admin-ui-architecture.md`
+(7 ADRs, status `done`, 3 sprints).
+
+### Backend (`/api/v1/compliance/rules/*`)
+
+Five endpoints:
+
+- `GET    /rules` — list (RBAC-scoped: own org + global, super_admin sees all)
+- `GET    /rules/{id}` — read one
+- `POST   /rules` — create (per-type `rule_config` validation, 422 on mismatch)
+- `PATCH  /rules/{id}` — partial update; `rule_config` revalidated
+- `DELETE /rules/{id}` — hard delete (audit-log row remains)
+
+`rule_config` validation per `rule_type`:
+- `threshold` — requires numeric `threshold_usd` (or legacy `threshold`)
+- `velocity` — requires positive integer `count` and `window_hours`
+- `blacklist_address` — requires non-empty `addresses` array of strings
+
+### RBAC (more granular than triage)
+
+| Role | List | Read | Create / Edit / Delete | Global rules |
+|---|---|---|---|---|
+| `super_admin` / `platform_admin` | ✓ | ✓ | ✓ (any org) | ✓ |
+| `company_admin` | ✓ | ✓ | ✓ (own org only) | read-only |
+| `company_auditor` | ✓ | ✓ | ✗ (403) | read-only |
+| `signer` / `end_user` / `company_operator` | ✗ | ✗ | ✗ | ✗ |
+
+Auditors are read-only by design — they need to see what fired during
+triage, but they can't change policy. Global rules
+(`organization_id IS NULL`) are super_admin-only for write operations
+even for org admins; this is enforced both at the route layer (403
+upfront) and in the service layer's WHERE clause.
+
+### Audit-log
+
+Every create/update/delete writes to `audit_log` atomically (within
+the same `conn.transaction()` as the mutation):
+
+- `action` ∈ `{rule.create, rule.update, rule.delete}`
+- `resource_type` = `monitoring_rule`
+- `resource_id` = rule UUID as string
+- `details` = `{before, after}` for updates, `{after}` for creates,
+  `{before}` for deletes — gives the auditor a full diff history
+
+### Frontend
+
+- New route `/compliance/rules/page.tsx` with table + Dialog form
+- `lib/amlRules.ts` — `fetchRules / createRule / updateRule / deleteRule` fetchers
+- Form is conditional on `rule_type`:
+  - `threshold` → numeric "Порог (USD)" input
+  - `velocity` → "Количество транзакций" + "За окно (часы)"
+  - `blacklist_address` → newline-separated addresses textarea
+- Inline `is_active` toggle (PATCH on click) — no full-form re-open needed
+- Hard-delete with confirm Dialog ("Удалить правило?")
+- Super_admin sees an extra "Скоуп" selector (org / global) in create mode
+- Auditors see the read-only table (no Add / Edit / Toggle / Delete buttons)
+- Top-right link from `/compliance` page → `/compliance/rules`
+
+### Tests
+
+- 18 endpoint tests in `test_monitoring_rules.py`: list / read / create
+  per type / per-type config validation (3 invalid configs) / global-
+  rule restriction / cross-org create blocked / super_admin global
+  create allowed / patch partial / patch revalidates config / global
+  edit blocked for company_admin / delete + audit / 404s / auditor
+  read-only / signer 403.
+- Combined critical-path subset: 214 → **232 pass**, 0 skipped.
+- `python -m compileall backend/` exit 0; `npx tsc --noEmit` exit 0.
+
+### What's deferred
+
+- **Visual rule builder** (drag-drop conditions, AND/OR trees) — for
+  pilot the form-per-type covers all three current types cleanly.
+- **Bulk import / CSV export** — useful when migrating rules from
+  another platform; small enough to add later.
+- **Per-rule simulation** ("dry-run this rule against last week's tx") —
+  useful for testing thresholds before flipping to enforce.
+- **Release-from-hold** in the AML drawer — Story 2.11.
+
+---
+
+## Wave 24 — SAR submission to Финнадзор (2026-05-02)
+
+Closes the regulator-reporting polish gap: when an AML alert is
+resolved as `reported`, the compliance officer can now generate a
+structured SAR (Suspicious Activity Report) and deliver it through a
+configurable backend without ORGON having to wait for the regulator
+to publish a public API.
+
+Story 2.9 — `docs/stories/2-9-sar-submission-architecture.md`
+(10 ADRs, status `done`, 4 sprints).
+
+### The same "design-around-uncertainty" pattern as Wave 22
+
+Финнадзор has not published an SAR API. Rather than block on weeks of
+regulator coordination:
+
+- **Pluggable backend registry** — `manual_export | email | api_v1 | dryrun`.
+  Default `manual_export` always works (no external services needed).
+- **Generator** produces a structured JSON payload + a Markdown
+  rendering. Both are persisted in `sar_submissions` so the operator
+  can re-download exactly what was submitted.
+- **`email` backend** uses stdlib SMTP, sends rendered MD as body +
+  full JSON as attachment to `FINSUPERVISORY_SAR_EMAIL`.
+- **`api_v1` backend** is a stub raising `NotImplementedError` —
+  ready to swap in `httpx.AsyncClient.post(...)` once the regulator
+  publishes a spec.
+
+### Schema (migration 030)
+
+`sar_submissions` table:
+- `id` UUID PK
+- `alert_id` UUID FK → `aml_alerts(id)`, **UNIQUE** (one SAR per alert)
+- `organization_id`, `submitted_by`, `submission_backend`
+- `payload_json` JSONB + `rendered_markdown` TEXT — both retained
+- `status` ∈ {prepared, sent, acknowledged, failed} CHECK constraint
+- `external_reference` — regulator-side SAR-номер once acknowledged
+- `submitted_at`, `acknowledged_at`
+
+UNIQUE constraint enforces idempotency at the DB level — re-POSTing
+the same alert returns the existing row.
+
+### Generator (`backend/regulators/finsupervisory/sar_generator.py`)
+
+Pure-function `build_sar_payload(alert, transaction, organization,
+officer)` → dict with stable schema `orgon.sar.v1`:
+- `filing_org` — name / registration_no / jurisdiction / address / contact
+- `officer` — name / email / phone / id
+- `alert` — id / type / severity / description / details_redacted /
+  resolution / investigation_notes / created_at
+- `transaction` — full tx fields if `aml_alerts.transaction_id` set,
+  else null (KYC-only alerts)
+- `supporting_documents` — placeholder for future file uploads
+
+**PII redaction matches Wave 21 frontend** (`PII_SCRUB_KEYS`):
+`passport_number`, `national_id`, `inn`, `dob`, `taxId`, `tax_id` →
+replaced with `***hidden***` in `details_redacted`. Names / emails /
+phones stay — the regulator needs to identify the subject. A test
+asserts the backend list matches the frontend list verbatim.
+
+`render_sar_markdown(payload)` → human-readable Markdown the operator
+can paste into a portal form 1:1 if no API exists.
+
+### Endpoints (`/api/v1/compliance/aml/alerts/{alert_id}/sar*`)
+
+- `POST /sar` — generate + persist + (optionally) deliver. Body
+  `{backend?, officer_phone?}`. Idempotent (UNIQUE alert_id) → 201
+  with `SarSubmissionResponse`. Errors:
+    - 404 — alert not found / out of scope
+    - 422 — unknown backend or `api_v1` (not implemented yet)
+- `GET /sar` — read submission as JSON (full response shape)
+- `GET /sar.json` — download payload as `attachment; filename=sar-{id}.json`
+- `GET /sar.md` — download Markdown as `attachment; filename=sar-{id}.md`
+
+All four reuse the AML triage RBAC scope (`super_admin` /
+`company_admin` / `company_auditor` / `platform_admin`); signers and
+end-users get 403.
+
+### Frontend
+
+- `lib/amlAlerts.ts` — new `submitSar()`, `fetchSar()`, `downloadSarFile()`
+  fetchers; `SarSubmission` / `SarBackend` / `SarStatus` types.
+- `AmlAlertDrawer` — new SAR card visible when alert is `reported`
+  or a submission already exists. Buttons:
+    - **«Сформировать SAR»** when no submission yet → POST + open preview
+    - **«Предпросмотр»** — opens the SAR Markdown in a Dialog
+    - **«Скачать .md» / «.json»** — Blob → temp anchor → download
+- SAR preview Dialog uses the same Radix Dialog primitive as resolve
+  confirmation. Renders Markdown as monospace whitespace-pre-wrap —
+  intentional, mirrors what the regulator will see.
+
+### Tests
+
+- 19 generator + backend tests in `test_sar_generator.py`: payload
+  shape, PII redaction (incl. nested keys), Markdown sections,
+  empty-state handling, registry resolution, env defaults, all four
+  backend behaviours (manual_export persists, email fails on missing
+  config, api_v1 raises NotImplementedError, dryrun no-op), JSON
+  serialisation contract.
+- 11 endpoint wire-up tests in `test_sar_endpoints.py`: POST creates,
+  POST is idempotent, 404 on out-of-scope alert, 422 on unknown
+  backend / api_v1, dryrun succeeds, GET returns row, .json returns
+  attachment, .md returns markdown response, 404 when no submission
+  yet, RBAC blocks signer.
+- Combined critical-path subset: 184 → **214 pass**, 0 skipped.
+- `python -m compileall backend/` exit 0; `npx tsc --noEmit` exit 0.
+
+### Deployment
+
+`FINSUPERVISORY_SAR_BACKEND` and `FINSUPERVISORY_SAR_EMAIL` added to
+`docker-compose.yml`. Default `manual_export` works on every tenant
+out of the box — no external service or extra dependency needed.
+
+### What's deferred
+
+- **Regulator HTTP API integration** — `api_v1` stub is ready; swap
+  body when Финнадзор publishes the spec.
+- **PDF generation** — would require `reportlab`/`weasyprint`. JSON +
+  Markdown is sufficient for current portal-based submissions and
+  avoids adding ~30 MB of dependencies.
+- **Supporting documents upload** — schema includes the array, but
+  upload UI + S3 wiring is its own story. Operator submits documents
+  to the regulator via secondary channel for now.
+- **Acknowledgement webhook from regulator** — `acknowledged_at` and
+  `external_reference` columns exist; updater is a follow-up.
+
+---
+
+## Wave 23 — In-house transaction rule engine (2026-05-02)
+
+Wires the existing `aml_alerts` table + `transaction_monitoring_rules`
+schema into the actual transaction-create flow. Pilot-clients can now
+configure threshold / velocity / blacklist-address rules in their org
+that **block** or **hold** transactions before they reach Safina —
+not just emit alerts post-mortem.
+
+Story 2.8 — `docs/stories/2-8-transaction-rule-engine-architecture.md`
+(10 ADRs, status `done`, 4 sprints).
+
+### What landed
+
+- **Three rule types** in `compliance_service.evaluate_transaction_rules`:
+    - `threshold` — `value > rule_config.threshold_usd` (Decimal-safe).
+    - `velocity` — `COUNT(transactions for org in last N hours) >= count`.
+    - `blacklist_address` — `to_address` (case-insensitive) ∈
+      `rule_config.addresses[]`.
+  Each is a separate pure helper; new rule types plug in by adding
+  one branch to `_rule_fired`.
+- **Action enum** on each rule: `alert | hold | block`. When multiple
+  rules fire, the strictest action wins (block > hold > alert). The
+  return value is `{"triggered": [...], "verdict": "allow|hold|block"}`.
+- **Defense-in-depth:** any failure inside the engine (DB error, bad
+  `rule_config` JSON, unknown `rule_type`) is logged and the verdict
+  defaults to `allow`. A glitchy AML rule never blocks production
+  tx-sends — that's an explicit design choice (better miss an alert
+  than reject a valid tx).
+- **Wire-up in `transaction_service.send_transaction`:** rule-check
+  runs **after** input/balance validation, **before** the Safina API
+  call. `block` raises `TransactionBlockedError` (new exception) →
+  HTTP 400 with `{error, message, triggered}` body. `hold` lets the
+  Safina call through but pins the local row to `status='on_hold'`,
+  so the multi-sig signing UI immediately shows the gate.
+- **`validate=False` does NOT bypass the rule engine** — that flag
+  only skips input/balance checks; AML rules always gate.
+- **Compliance sees the post-conversion value.** The Safina decimal
+  converter (`.` → `,`) runs before rule eval so threshold rules
+  written in Safina-format match the bytes that actually hit the chain.
+- **Backwards-compat:** `TransactionService(client, db)` constructor
+  with no `compliance=` arg still works (rule engine becomes a no-op).
+  Existing tests untouched.
+
+### DB migration 029
+
+`backend/migrations/029_transactions_on_hold.sql` extends Wave 22's
+`transactions_status_check` constraint with `on_hold`, plus a partial
+index `idx_transactions_status_on_hold` for compliance audits.
+Idempotent (DROP IF EXISTS + ADD), drop-in safe on existing pilot DBs.
+
+### Frontend
+
+- `StatusBadge` (`components/common/StatusBadge.tsx`) — `on_hold` gets
+  amber palette + label "На удержании".
+- `/transactions` table STATUS_RU — same Russian label.
+- `/transactions/{unid}` detail page — when `status='on_hold'`, a
+  warning Card surfaces above the actions block with a deep-link to
+  `/compliance?tab=aml`. Signing buttons (rendered only for `pending`)
+  do not appear, so a held tx physically cannot be signed without
+  going through the AML triage queue first.
+
+### Tests
+
+- 15 new tests in `test_rule_engine.py`: per-type fire/no-fire,
+  action → verdict mapping, strictest-wins resolution, DB error =
+  silent allow, pure-function checkers, unknown-type no-op, legacy
+  `check_transaction_against_rules` wrapper still returns a list.
+- 8 wire-up tests in `test_send_transaction_rule_wireup.py`:
+  no-compliance fall-through, allow / hold / block verdicts, bad
+  `org_id` string falls back to None, `validate=False` still gates,
+  compliance sees the post-conversion value, multiple-rules
+  block-when-any-is-block.
+- Combined critical-path subset: 161 → **184 pass**, 0 skipped.
+- `python -m compileall backend/` exit 0; `npx tsc --noEmit` exit 0.
+
+### What's deferred
+
+- **SAR submission to Финнадзор** — Story 2.9.
+- **Rule-config admin UI** — `transaction_monitoring_rules` is
+  DB-edit-only for MVP (Story 2.10).
+- **Lifting a hold from the AML drawer** — currently an officer
+  resolves the alert and an operator manually flips
+  `transactions.status` back to `pending`. End-to-end "release-from-hold"
+  button is a polish iteration after pilot launch.
+
+---
+
+## Wave 22 — Safina canonical-payload + local signer verification (2026-05-02)
+
+Closes the **last** institutional-blocker `❷` from
+`docs/prod-readiness.md`. After this wave all five blockers (❶ KMS
+signer · ❷ Safina canonical-payload · ❸ AML triage · ❹ KYC · ❺ KYB)
+are code-complete; pilot-launch readiness is ~99%, gated only on
+operator coordination (env creds + variant confirmation).
+
+Story 2.7 — `docs/stories/2-7-safina-canonical-payload-architecture.md`
+(12 ADRs, status `done`, 4 sprints).
+
+### The problem we worked around
+
+Without local verification of Safina-returned `signed[i].ecsign`, a
+compromised Safina backend could feed forged co-signers on a multi-sig
+and we'd accept them as valid. The blocker was procedural: nobody
+on ORGON-side knows the exact bytes Safina hashes, and getting
+written confirmation from their team was estimated at "weeks".
+
+### The architecture
+
+Instead of waiting:
+
+- **Pluggable variant registry** (`_CANONICAL_VARIANTS` in
+  `backend/safina/signature_verifier.py`) — six candidate canonical
+  payloads (pipe-joined in two field orders, two JSON shapes,
+  binary concat, keccak-pre-hashed).
+- **Three-mode runtime** via `ORGON_SAFINA_VERIFY_MODE`:
+    - `off` (default): no verification — backwards-compatible.
+    - `shadow`: verify, log + AML alert on mismatch, **don't block tx**.
+    - `enforce`: additionally flip `transactions.status` to
+      `rejected_signer_mismatch` and reject the transaction.
+- **Per-tenant variant selection** via `SAFINA_CANONICAL_VARIANT` env.
+  Without it set, verification stays off even if mode is non-`off`.
+- **Auto-discovery CLI** (`backend/scripts/safina_discover_canonical.py`)
+  — feed it one known-good signed sample, it probes all variants
+  and prints the matched name (or "no variant matched" with diagnostics).
+- **Legacy compat:** `ORGON_VERIFY_SAFINA_SIGS=1` (Wave 13 flag) maps
+  to `enforce` so an upgrading tenant doesn't silently lose verification.
+
+This converts a multi-week coordination block into a 1-hour offline
+discovery + a 24-hour shadow-mode soak before flipping enforce.
+
+### Wire-up in `transaction_service`
+
+`_verify_safina_signers` runs after each tx INSERT in `sync_transactions`:
+
+- Skips entirely when verification is disabled.
+- Extracts `network` from `tx.network` (Pydantic `extra="allow"`)
+  or the `<network>###<wallet>` token convention.
+- For each `signed[i]` entry with both `ecaddress` and `ecsign` —
+  calls `verify_safina_tx_signer()`.
+- Mismatches in `shadow` → AML alert insert (`alert_type='safina:signer_mismatch'`,
+  `severity='critical'`), tx untouched.
+- Mismatches in `enforce` → AML alert + UPDATE `transactions.status =
+  'rejected_signer_mismatch'`. Alert-write failures are logged but
+  don't block the status flip — tx-row is the source of truth, alert
+  is the notification layer (ADR-8).
+
+The AML alert lands in the Wave 21 triage queue alongside Sumsub
+flags — same drawer, same claim/resolve workflow.
+
+### DB migration 028
+
+`backend/migrations/028_transactions_signer_mismatch.sql` —
+non-destructive:
+- DROPs (IF EXISTS) and ADDs the `transactions_status_check`
+  constraint with the new `rejected_signer_mismatch` value alongside
+  the existing pending/signed/submitted/confirmed/failed.
+- Partial index `idx_transactions_status_signer_mismatch` for
+  compliance-audit queries — tiny because mismatch is rare.
+
+### Frontend
+
+- `StatusBadge` (`components/common/StatusBadge.tsx`) gets a styling
+  + Russian-label entry for `rejected_signer_mismatch`. The
+  transaction detail page surfaces it automatically — no separate
+  banner needed.
+- Transactions list (`/transactions`) STATUS_RU map gains "Подпись
+  не совпала" — same red palette as `failed`, but the dedicated
+  status name lets compliance filter SQL-side.
+
+### Tests
+
+- 25 round-trip tests in `test_safina_canonical.py`: each variant
+  signs-and-recovers cleanly, env parsing matrix (off/shadow/enforce/
+  legacy/invalid), unset variant raises `NotImplementedError`,
+  unknown variant raises `ValueError`, pre-hashed flag honoured.
+- 11 wire-up tests in `test_transaction_signer_verification.py`:
+  off-mode is no-op, shadow-mismatch emits alert without status
+  change, enforce-mismatch flips status, alert-write failure doesn't
+  block status flip, unknown variant doesn't crash sync, network
+  extraction from explicit attr or token prefix.
+- 6 CLI subprocess tests in `test_safina_discovery_cli.py`: self-test,
+  matching v2 / v6 / v3 samples, no-match → exit 1, missing field →
+  exit 2, stdin input.
+- Combined critical-path subset: 119 → **161 pass**, 0 skipped.
+- `python -m compileall backend/` exit 0; `npx tsc --noEmit` exit 0.
+
+### What's deferred
+
+- **In-house transaction-rule alerts** (`check_transaction_against_rules`)
+  — Story 2.8 wires that into the transaction-create flow.
+- **SAR submission to Финнадзор** — current flow stops at manual
+  `report_reference`. External integration is its own story.
+- **Vault signer backend** — `VaultSignerBackend` stays a stub.
+
+### Status of `prod-readiness.md` blockers
+
+After Wave 22:
+  - ❶ KMS signer — DONE (Wave 18)
+  - ❷ Safina canonical-payload + local verification — DONE (Wave 22)
+  - ❸ AML rule engine — DONE (Wave 19 write + Wave 21 triage)
+  - ❹ KYC document upload — DONE (Wave 19)
+  - ❺ KYB — DONE (Wave 20)
+
+All five institutional blockers code-complete.
+
+---
+
+## Wave 21 — AML alert triage UI (2026-05-02)
+
+Closes the last PARTIAL blocker `❸ AML rule engine` from
+`docs/prod-readiness.md`. Sumsub already wrote alerts into
+`aml_alerts` (Wave 19/20); Wave 21 makes them readable and
+resolvable end-to-end. Story 2.6 — 4 sprints, 12 ADRs, status
+`done`.
+
+### What landed
+
+- **Backend** (`routes_compliance.py` extension): six endpoints
+  under `/api/v1/compliance/aml/*` — list (with cursor pagination,
+  status/severity/alert_type/date filters), stats (KPI
+  open/investigating/resolved-30d + severity histogram), single-alert
+  drill-down (LEFT JOIN transactions for "related transaction"
+  surface), claim, resolve, notes.
+- **Conditional claim** — `UPDATE … WHERE status IN ('open',
+  'investigating') AND (assigned_to IS NULL OR assigned_to=$1)`
+  guarantees exactly-one-winner under concurrent claims; the loser
+  receives a 409 with the current row state so its UI can re-render
+  without a follow-up GET.
+- **Atomic audit-log writes** — every claim/resolve/note runs inside
+  `async with conn.transaction()` paired with an `audit_log` INSERT
+  (`resource_type='aml_alert'`, `action='aml.alert.{claim,resolve,note}'`).
+  If either side fails, both roll back. Audit-log is the canonical
+  history; `aml_alerts` itself only carries current state.
+- **Terminal status enforcement** — once `status='reported'`, the row
+  is immutable. Any `/claim`, `/resolve`, `/notes` POST returns 409
+  `terminal_status` instead of silently overwriting a regulator-
+  facing decision.
+- **RBAC** — `super_admin` / `company_admin` / `company_auditor` /
+  `platform_admin` may triage. `company_operator` is intentionally
+  excluded (separation of duties — operator initiates transactions,
+  AML reviews them). `signer` / `end_user` get 403. Multi-org users
+  scope via `dependencies.get_user_org_ids()` (existing helper);
+  super_admin sees all orgs unscoped.
+- **404 not 403 for out-of-scope** — non-super_admins requesting an
+  alert in another org get a 404, never a 403, so we don't leak
+  alert existence to non-members.
+- **Cursor pagination** — keyset over `(created_at DESC, id DESC)`,
+  base64-encoded opaque cursor. RBAC re-evaluated on every cursor
+  call, so a leaked cursor cannot widen scope. Default page 50,
+  max 200.
+
+### Frontend (`/compliance` AML tab)
+
+- New triage queue replaces the static "Все транзакции проверены"
+  placeholder. Real KPI cards from `/aml/alerts/stats` poll every 30s
+  via SWR.
+- Filter strip: status (default `open`), severity. List rows show
+  severity badge / alert_type / description / assignee / status
+  badge. Click → side-drawer.
+- New `<Drawer>` primitive (`components/ui/Drawer.tsx`) — same
+  Radix Dialog engine as the existing `<Dialog>`, slide-from-right
+  via Framer Motion (300ms, transform-only, `[0.22, 1, 0.36, 1]`
+  easing per global animation rules).
+- Drawer surfaces: severity badge, applicant info, assignee (name +
+  email tooltip), related-transaction link to `/transactions/{unid}`,
+  PII-scrubbed `details` JSON, accumulated investigation notes,
+  resolution panel (when terminal).
+- Triage actions: «Взять в работу» (claim), notes textarea,
+  «Ложное срабатывание» / «Закрыть как решённое» / «Передать
+  регулятору». Resolve flows route through a confirm Dialog with a
+  resolution textarea and (for `reported`) a required SAR-reference
+  field — UI gate matches the backend `report_reference` 422.
+- Deep-linkable: drawer state lives in `?alert={id}` query-param so
+  a triage view is shareable.
+- PII filter (`scrubPii`) hides document-IDs (`passport_number`,
+  `national_id`, `inn`, `dob`, `taxId`) before rendering. Names and
+  contact info stay — officers need them to make a decision.
+
+### DB migration 027
+
+`backend/migrations/027_aml_alerts_indexes.sql` — index-only,
+non-destructive:
+  - `idx_aml_alerts_org_created` — `(org, created_at DESC, id DESC)`
+    for default listing + keyset pagination.
+  - `idx_aml_alerts_org_status_created` — hot path for "open alerts
+    in this org".
+  - `idx_aml_alerts_transaction_id` (partial WHERE NOT NULL) —
+    drill-down "all alerts on this transaction".
+  - `idx_audit_log_aml_alert` (partial WHERE resource_type) — fast
+    history lookup for one alert.
+
+All `IF NOT EXISTS`, idempotent. `CONCURRENTLY` not used because the
+table is small in pilot environments; for tenants with >100k rows
+the operator should add it manually before applying.
+
+### Tests
+
+- 21 new tests in `test_aml_alerts.py`: list filters, cursor
+  round-trip, RBAC scoping (per-org for non-super, unscoped for
+  super), claim race / idempotency / terminal-state, resolve atomic
+  audit-log, `reported` requires `report_reference`, terminal
+  immutability, notes append, stats counts.
+- Parametrized RBAC matrix: `_NON_TRIAGE_ROLES × {GET list, GET
+  stats, POST claim/resolve/notes}` × every triage role can read.
+- `tests/test_sumsub_webhook.py` (Wave 19/20) and
+  `tests/test_signer_backends.py` / `test_kms_signer_backend.py`
+  (Wave 18) untouched; combined critical-path subset
+  **119/119 pass**.
+
+### What's deferred (Story 2.7+)
+
+- **In-house rule alerts on transaction-create** — service-layer
+  function `check_transaction_against_rules` already creates alerts
+  with `transaction_id` set, but is not yet wired into the
+  transaction submit flow. Story 2.7 — connect rule check + reject
+  / hold transaction when an open critical alert exists.
+- **SAR submission to Финнадзор** — current flow stops at a manual
+  `report_reference` field. External integration is its own story.
+- **Bulk operations / CSV export / WS push** — out of scope for
+  pilot velocity (low-volume AML stream; SWR 30s polling is enough).
+- **Custom rule-builder UI** — `transaction_monitoring_rules` is
+  DB-edit-only for MVP.
+
+### Status of `prod-readiness.md` blockers
+
+After Wave 21:
+  - ❶ KMS signer — DONE (Wave 18)
+  - ❷ Safina canonical-payload normalization — still pending (only
+    remaining institutional-tenant blocker)
+  - ❸ AML rule engine — DONE (Wave 19 write + Wave 21 triage)
+  - ❹ KYC document upload — DONE (Wave 19)
+  - ❺ KYB — DONE (Wave 20)
+
+---
+
+## Wave 20 — Sumsub KYB for businesses (2026-05-02)
+
+Extends Wave 19 to verify **organizations**, not just individuals.
+Closes the last institutional-onboarding gap: pilot banks / brokers /
+fintech tenants can now run KYB end-to-end through the same Sumsub
+WebSDK without our team handling any documents.
+
+Story 2.5 — `docs/stories/2-5-sumsub-kyb-architecture.md`
+(7 ADRs, status `done`, 4 sprints).
+
+### Why this is just delta from Wave 19
+
+Sumsub's KYC and KYB share the same applicant API — only `levelName`
+differs. So 80% of Wave 19 is reused as-is:
+  - `SumsubService` already takes `level_name` per call → unchanged
+  - `SumsubWebSdkContainer` parameterised on the access-token producer
+    → unchanged behaviour for KYC, new `tokenFetcher` prop for KYB
+  - Webhook receiver, signature verification, idempotency, status
+    mapping → all reused
+
+What's new:
+  - Separate DB table `sumsub_kyb_applicants(organization_id PK, …)`
+    parallel to `sumsub_applicants(user_id PK, …)`. KYC = per-user,
+    KYB = per-organization.
+  - `externalUserId` prefix scheme: `orgon-user-{int}` for KYC,
+    `orgon-org-{uuid}` for KYB. Webhook handler now routes events by
+    prefix; if a stray webhook arrives without an externalUserId we
+    fall back to a dual lookup (KYC then KYB).
+  - Two new endpoints in `routes_kyc_kyb.py`:
+    `POST /sumsub/kyb/access-token?organization_id=` (admin-only) and
+    `GET  /sumsub/kyb/applicant-status?organization_id=` (any member).
+  - New frontend page `/compliance/kyb` mirroring `/compliance/kyc`
+    state-machine, gated on `super_admin` / `company_admin` role.
+  - `SUMSUB_KYB_LEVEL_NAME` env var (default `basic-kyb-level`).
+    Other `SUMSUB_*` env vars from Wave 19 are reused — one Sumsub
+    account, one webhook secret covers both flows.
+
+### Webhook routing (`routes_webhooks_sumsub.py`)
+
+Re-architected to classify each event by `externalUserId` prefix
+before touching the DB. Three paths:
+
+  - `orgon-user-…` → existing KYC update path (sumsub_applicants +
+    kyc_submissions).
+  - `orgon-org-…`  → KYB update path (sumsub_kyb_applicants +
+    kyb_submissions). AML alerts emitted with the `organization_id`
+    taken directly from the cache row, not via the users-table join
+    used in KYC.
+  - `None / unknown` → dual lookup as a safety net for older
+    integrations or replayed test webhooks. If both miss, the event
+    is acked with `{ignored: "unknown applicant"}`, never 5xx.
+
+Both tables get `last_event_id` checked first for correlationId-based
+idempotency, identical to Wave 19.
+
+### DB migration 026
+
+`backend/migrations/026_sumsub_kyb.sql` is non-destructive:
+  - Adds `sumsub_*` columns to existing `kyb_submissions` (NULLable,
+    no rewrite of existing rows).
+  - Expands `kyb_submissions.status` CHECK constraint to include
+    `manual_review`, `needs_resubmit`, `not_started`.
+  - Creates `sumsub_kyb_applicants` table with org PK and
+    `applicant_id` UNIQUE.
+  - Reuses the trigger function `set_sumsub_applicants_updated_at`
+    from migration 025 — no new function, no name collision.
+
+### Disabled-mode behaviour
+
+Identical to Wave 19. With `SUMSUB_*` env vars empty:
+  - Both KYB endpoints return 503 with the same explanatory body.
+  - Frontend `/compliance/kyb` renders the same pre-launch banner,
+    just KYB-flavoured.
+  - No 5xx, no broken UX, no schema drift on redeploy with creds.
+
+### Tests
+
+  - 16 existing KYC webhook tests stay green.
+  - 5 new KYB-specific webhook tests cover: prefix routing to KYB
+    table, AML alert with explicit `organization_id`, idempotency on
+    duplicate correlationId, fallback dual-lookup when externalUserId
+    is missing, single-lookup when KYC prefix matches an unknown
+    applicant.
+  - Total sumsub + signer subset: **79/79 pass**.
+  - `python -m compileall backend/` exit 0; `npx tsc --noEmit` exit 0
+    on frontend.
+
+### What's deferred
+
+  - **AML triage UI** (Story 2.6) — alert ↔ transaction wiring,
+    org-scoped review queue. KYB AML alerts already land in
+    `aml_alerts` with `organization_id`; UI to act on them is next.
+  - **UBO server-side flow** — Sumsub's WebSDK iframe collects UBO
+    inside Sumsub for `basic-kyb-level`. If a tenant requires our own
+    server-side UBO discovery (for non-Sumsub-supported jurisdictions)
+    that's a Sprint 2.5.5 add-on.
+  - **Multi-org tenant switcher** — current page uses the user's
+    primary `organization_id` from `/users/me`. The existing tenant
+    switcher (`api.switchOrganization`) handles multi-org context.
+
+---
+
 ## Wave 19 — Sumsub KYC integration (2026-05-02)
 
 Closes blocker ❹ (KYC document upload) and the bulk of blocker ❸

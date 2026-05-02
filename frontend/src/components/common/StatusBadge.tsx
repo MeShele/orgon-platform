@@ -14,9 +14,24 @@ const statusStyles: Record<string, string> = {
   ok: "bg-emerald-50 text-success ring-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400",
   error:
     "bg-red-50 text-red-600 ring-red-500/20 dark:bg-red-500/10 dark:text-red-400",
+  // Wave 22 / Story 2.7 — local Safina signer-verification rejected
+  // this transaction. Same style as `failed` but a distinct label so
+  // operators can filter and compliance can audit.
+  rejected_signer_mismatch:
+    "bg-red-50 text-red-600 ring-red-500/20 dark:bg-red-500/10 dark:text-red-400",
+  // Wave 23 / Story 2.8 — in-house AML rule held this tx for review.
+  // Amber to signal "pending compliance action" rather than terminal.
+  on_hold:
+    "bg-amber-50 text-amber-700 ring-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400",
+};
+
+const statusLabelsRu: Record<string, string> = {
+  rejected_signer_mismatch: "Подпись не совпала",
+  on_hold: "На удержании",
 };
 
 export function StatusBadge({ status }: { status: string }) {
+  const label = statusLabelsRu[status] ?? status;
   return (
     <span
       className={cn(
@@ -25,7 +40,7 @@ export function StatusBadge({ status }: { status: string }) {
           "bg-muted text-muted-foreground ring-slate-500/20 dark:bg-slate-500/10 dark:text-muted-foreground"
       )}
     >
-      {status}
+      {label}
     </span>
   );
 }

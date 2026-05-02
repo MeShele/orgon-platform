@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader } from "@/components/common/Card";
 import { StatusBadge } from "@/components/common/StatusBadge";
@@ -121,6 +122,29 @@ export default function TransactionDetailPage() {
             </div>
           </div>
         </Card>
+
+        {/* Wave 23 / Story 2.8 — if an in-house AML rule held this tx,
+            surface it prominently with a deep-link to the AML triage queue. */}
+        {tx.status === "on_hold" && (
+          <Card>
+            <div className="flex items-start gap-3 p-4">
+              <Icon icon="solar:shield-warning-bold" className="text-2xl text-warning shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">
+                  Транзакция на удержании AML-правилом
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Сработавшее правило мониторинга поставило транзакцию на ручную проверку.
+                  Подписание заблокировано до разрешения compliance-офицером.
+                </p>
+                <Link href="/compliance?tab=aml" className="text-xs text-primary underline-offset-4 hover:underline inline-flex items-center gap-1 mt-1">
+                  Открыть очередь AML
+                  <Icon icon="solar:alt-arrow-right-linear" className="text-xs" />
+                </Link>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {tx.status === "pending" && (
           <Card>

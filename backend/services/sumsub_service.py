@@ -66,6 +66,7 @@ class SumsubService:
 
     DEFAULT_BASE_URL = "https://api.sumsub.com"
     DEFAULT_LEVEL = "basic-kyc-level"
+    DEFAULT_KYB_LEVEL = "basic-kyb-level"
     DEFAULT_TOKEN_TTL = 1800  # 30 minutes — Sumsub-recommended default
 
     def __init__(
@@ -74,6 +75,7 @@ class SumsubService:
         secret_key: str,
         webhook_secret: str,
         level_name: str | None = None,
+        kyb_level_name: str | None = None,
         base_url: str | None = None,
         http_client: httpx.AsyncClient | None = None,
     ):
@@ -88,13 +90,20 @@ class SumsubService:
         self._secret_key = secret_key.encode("utf-8")
         self._webhook_secret = webhook_secret.encode("utf-8")
         self._level_name = level_name or self.DEFAULT_LEVEL
+        self._kyb_level_name = kyb_level_name or self.DEFAULT_KYB_LEVEL
         self._base_url = (base_url or self.DEFAULT_BASE_URL).rstrip("/")
         # Keep the client injectable for tests; default to a lazily-built one.
         self._client = http_client
 
     @property
     def level_name(self) -> str:
+        """KYC verification level name (Sumsub Dashboard configurable)."""
         return self._level_name
+
+    @property
+    def kyb_level_name(self) -> str:
+        """KYB verification level name. Used for business onboarding."""
+        return self._kyb_level_name
 
     # ────────────────────────────────────────────────────────────────
     # Public API
@@ -285,6 +294,7 @@ def build_sumsub_service(
     secret_key: str | None,
     webhook_secret: str | None,
     level_name: str | None = None,
+    kyb_level_name: str | None = None,
     base_url: str | None = None,
 ) -> SumsubService | None:
     """Construct a `SumsubService` if all three secrets are present.
@@ -315,11 +325,13 @@ def build_sumsub_service(
         secret_key=secret_key,
         webhook_secret=webhook_secret,
         level_name=level_name,
+        kyb_level_name=kyb_level_name,
         base_url=base_url,
     )
     logger.info(
-        "Sumsub enabled: level=%s base=%s",
+        "Sumsub enabled: kyc-level=%s kyb-level=%s base=%s",
         service.level_name,
+        service.kyb_level_name,
         service._base_url,
     )
     return service

@@ -53,7 +53,23 @@ services:
       SUMSUB_SECRET_KEY: "${SUMSUB_SECRET_KEY:-}"
       SUMSUB_WEBHOOK_SECRET: "${SUMSUB_WEBHOOK_SECRET:-}"
       SUMSUB_LEVEL_NAME: "${SUMSUB_LEVEL_NAME:-basic-kyc-level}"
+      SUMSUB_KYB_LEVEL_NAME: "${SUMSUB_KYB_LEVEL_NAME:-basic-kyb-level}"
       SUMSUB_BASE_URL: "${SUMSUB_BASE_URL:-https://api.sumsub.com}"
+      # ─── Safina local signer verification (Wave 22, Story 2.7) ─────
+      # Off by default — backwards-compatible with all pre-Wave-22
+      # tenants. To bring up: run
+      # `python backend/scripts/safina_discover_canonical.py` against a
+      # known-good signed sample to confirm the variant, set the two
+      # vars below, redeploy. See docs/prod-readiness.md ❷ for runbook.
+      ORGON_SAFINA_VERIFY_MODE: "${ORGON_SAFINA_VERIFY_MODE:-off}"
+      SAFINA_CANONICAL_VARIANT: "${SAFINA_CANONICAL_VARIANT:-}"
+      # ─── SAR submission to Финнадзор (Wave 24, Story 2.9) ──────────
+      # Default `manual_export` works without external services —
+      # operator downloads JSON/MD and submits via portal manually.
+      # `email` requires FINSUPERVISORY_SAR_EMAIL + SMTP_* set.
+      # `api_v1` is reserved for the future regulator HTTP API.
+      FINSUPERVISORY_SAR_BACKEND: "${FINSUPERVISORY_SAR_BACKEND:-manual_export}"
+      FINSUPERVISORY_SAR_EMAIL: "${FINSUPERVISORY_SAR_EMAIL:-}"
       # ─── observability ─────────────────────────────────────────────
       ORGON_JSON_LOGS: "1"          # structured logs read better in Coolify
       # SENTRY_DSN — set in Coolify UI when you have a Sentry project.

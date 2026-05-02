@@ -25,6 +25,17 @@ class AsyncDatabase:
         self._max_size = max_size
         logger.info("AsyncDatabase initialized (pool: %d-%d, lazy=%s)", min_size, max_size, min_size == 0)
 
+    @property
+    def pool(self) -> Optional[asyncpg.Pool]:
+        """Public accessor for the underlying asyncpg pool.
+
+        Some services (ComplianceService, etc.) prefer to construct
+        their own pool-bound helpers instead of going through this
+        wrapper for every query. Exposing the pool keeps that
+        compositional pattern clean.
+        """
+        return self._pool
+
     async def connect(self):
         """Create connection pool."""
         if self._pool is None:

@@ -21,11 +21,21 @@ import { Icon } from "@/lib/icons";
 const SDK_SRC = "https://static.sumsub.com/idensic/static/sns-websdk-builder.js";
 const CONTAINER_ID = "orgon-sumsub-websdk";
 
+interface AccessTokenLike {
+  access_token: string;
+}
+
 interface Props {
   /** Called when user submits all docs and Sumsub queues review. */
   onComplete?: () => void;
   /** Lang for Sumsub's iframe internals. RU/EN/KY map to ru/en/en. */
   lang?: "ru" | "en" | "ky";
+  /**
+   * Async producer of a fresh access token. Defaults to the KYC
+   * fetcher (`fetchSumsubAccessToken`). KYB callers pass a closure
+   * that captures `organization_id` and calls `fetchSumsubKybAccessToken`.
+   */
+  tokenFetcher?: () => Promise<AccessTokenLike>;
 }
 
 function ensureSdkScript(): Promise<void> {
@@ -48,7 +58,11 @@ function ensureSdkScript(): Promise<void> {
   });
 }
 
-export function SumsubWebSdkContainer({ onComplete, lang = "ru" }: Props) {
+export function SumsubWebSdkContainer({
+  onComplete,
+  lang = "ru",
+  tokenFetcher,
+}: Props) {
   const [error, setError] = useState<string | null>(null);
   const [booting, setBooting] = useState(true);
   const launched = useRef(false);
@@ -57,10 +71,13 @@ export function SumsubWebSdkContainer({ onComplete, lang = "ru" }: Props) {
     if (launched.current) return;
     launched.current = true;
 
+    const fetchToken: () => Promise<AccessTokenLike> =
+      tokenFetcher ?? fetchSumsubAccessToken;
+
     let cancelled = false;
     (async () => {
       try {
-        const tokenResp = await fetchSumsubAccessToken();
+        const tokenResp = await fetchToken();
         await ensureSdkScript();
         if (cancelled) return;
         if (!window.snsWebSdk) {
@@ -70,7 +87,7 @@ export function SumsubWebSdkContainer({ onComplete, lang = "ru" }: Props) {
         // the original short-lived token nears expiry while user is still
         // in the iframe.
         const refresh = async () => {
-          const fresh = await fetchSumsubAccessToken();
+          const fresh = await fetchToken();
           return fresh.access_token;
         };
         // Map our 'ky' to Sumsub's nearest-supported 'en'.
@@ -97,7 +114,7 @@ export function SumsubWebSdkContainer({ onComplete, lang = "ru" }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [lang, onComplete]);
+  }, [lang, onComplete, tokenFetcher]);
 
   if (error) {
     return (

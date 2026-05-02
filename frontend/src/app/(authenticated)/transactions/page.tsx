@@ -219,6 +219,8 @@ export default function TransactionsPage() {
                     failed:    "Ошибка",
                     completed: "Завершена",
                     cancelled: "Отменена",
+                    rejected_signer_mismatch: "Подпись не совпала",
+                    on_hold:                  "На удержании",
                   };
                   const statusLabel = STATUS_RU[kind] ?? tx.status ?? "—";
                   const txHref = `/transactions/${tx.tx_unid ?? tx.unid ?? ""}`;

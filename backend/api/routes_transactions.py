@@ -8,7 +8,10 @@ from fastapi import Depends
 from backend.rbac import require_roles, require_any_auth
 from backend.dependencies import get_user_org_ids
 from backend.safina.errors import SafinaError
-from backend.services.transaction_service import TransactionValidationError
+from backend.services.transaction_service import (
+    TransactionBlockedError,
+    TransactionValidationError,
+)
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -135,13 +138,27 @@ async def send_transaction(request: SendTransactionRequest, validate: bool = Tru
     - Decimal separator conversion
     """
     service = _get_service()
+    org_id = user.get("organization_id")
     try:
-        tx_unid = await service.send_transaction(request, validate=validate)
+        tx_unid = await service.send_transaction(
+            request, validate=validate, org_id=org_id,
+        )
         return {"tx_unid": tx_unid, "status": "pending"}
     except TransactionValidationError as e:
         raise HTTPException(
             status_code=400,
             detail={"error": "Validation failed", "message": str(e)}
+        )
+    except TransactionBlockedError as e:
+        # Distinct error code so the frontend can surface the AML
+        # context (which rules fired, severity) — not a validation bug.
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Blocked by AML rule",
+                "message": str(e),
+                "triggered": e.triggered,
+            },
         )
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))

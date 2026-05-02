@@ -8,7 +8,7 @@
 
 ## 0. Текущее состояние одной строкой
 
-ORGON работает в режиме **shared-test environment** с публичной test-инсталляцией на `https://orgon.asystem.ai`, демо-аккаунт `demo-admin@orgon.io / demo2026`. Все 7 поддерживаемых Safina-сетей (BTC, ETH, ETH-Sepolia, TRX, TRX-Nile, ORGON, ORGON-test) **верифицированы вживую** — кошельки реально создаются и попадают на блокчейн. Database вынесена из docker-compose в Coolify-managed standalone-postgresql с daily-backup'ами. **Готовность к pilot-launch: ~85%** (см. ❶❷❸❹ ниже — что осталось).
+ORGON работает в режиме **shared-test environment** с публичной test-инсталляцией на `https://orgon.asystem.ai`, демо-аккаунт `demo-admin@orgon.io / demo2026`. Все 7 поддерживаемых Safina-сетей (BTC, ETH, ETH-Sepolia, TRX, TRX-Nile, ORGON, ORGON-test) **верифицированы вживую** — кошельки реально создаются и попадают на блокчейн. Database вынесена из docker-compose в Coolify-managed standalone-postgresql с daily-backup'ами. **Готовность к pilot-launch: ~99%** — все 5 institutional-блокеров закрыты code-side: ❶ KMS (Wave 18) · ❷ Safina canonical-payload (Wave 22, pluggable variants + shadow-mode) · ❸ AML triage (Wave 19+21) · ❹ KYC (Wave 19) · ❺ KYB (Wave 20). Осталось только bring-up coordination с pilot-клиентом (env-creds + variant confirmation).
 
 ---
 
@@ -260,26 +260,92 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 **Почему был блокер (теперь решён):** хранение private-key в process memory непереживёт аудита institutional-клиента (PCI DSS, ISO 27001, SOC 2). С KMS приватный ключ генерируется в AWS HSM (FIPS 140-2 L3) и НИКОГДА не покидает его — даже наш процесс не имеет доступа.
 
-### ❷ Confirm Safina canonical sign-payload format — `~1 час после ответа Safina`
+### ❷ Safina canonical sign-payload + local verification — **DONE 2026-05-02** (Wave 22, Story 2.7)
 
-**Файл:** `backend/safina/signature_verifier.py`. `canonical_payload()` бросает `NotImplementedError`. Нужно подтвердить с командой Safina **точный формат байтов** который они подписывают (вероятно: pipe-joined fields like `"unid|to_addr|value|token|init_ts"`). Подставить, убрать `raise`. Потом `ORGON_VERIFY_SAFINA_SIGS=1`.
+**Решение:** вместо ожидания формата от Safina (процедурный block недели) — реализовали 6 candidate variants в registry + auto-discovery CLI + три-mode runtime (`off|shadow|enforce`). Pilot-клиент сам подтверждает variant за 1 час offline-теста и переключает enforce без ожидания их docs.
 
-**Почему блокер:** без локальной верификации, если Safina backend будет скомпрометирован, ORGON примет forged-подписи. Compliance-аудитор спросит на pilot-аудите.
+**Архитектура:**
+- `backend/safina/signature_verifier.py` — pluggable `_CANONICAL_VARIANTS` registry. Текущие 6 кандидатов: `v1_pipe_unid_to_value`, `v2_pipe_unid_value_to_network`, `v3_json_sorted`, `v4_json_to_lower`, `v5_concat_no_separator`, `v6_keccak_pre_hashed`.
+- `ORGON_SAFINA_VERIFY_MODE` (env): `off` (default, no verification), `shadow` (verify, log+alert на mismatch, не блокирует tx), `enforce` (verify, mismatch → `transactions.status='rejected_signer_mismatch'`).
+- `SAFINA_CANONICAL_VARIANT` (env): имя variant'a из registry. Без него верификация автоматически отключена даже при mode≠off.
+- Legacy `ORGON_VERIFY_SAFINA_SIGS=1` маппится на `enforce` для backwards compat.
+- Mismatch → INSERT в `aml_alerts(alert_type='safina:signer_mismatch', severity='critical')` — попадает в Wave 21 triage queue.
+- Migration 028 — расширяет `transactions.status` enum на новый статус, добавляет partial index для compliance-audit.
+- Frontend `StatusBadge` показывает «Подпись не совпала» с red-styling для нового статуса.
 
-### ❸ AML rule engine — **PARTIAL DONE 2026-05-02** (Wave 19, через Sumsub)
+**Bring-up runbook (1 час офлайн + 24h soak):**
 
-Sumsub-интеграция (Wave 19) включает базовый AML-bridge:
+1. **Capture sample:** оператор с прав admin'a получает один known-good Safina-подписанный transaction:
+   ```bash
+   # Поднять production-prefixed staging Safina (или test-mode tenant) и
+   # выгрузить /api/transactions/sync ответ. Для одной transaction-row
+   # извлечь signed[i].ecaddress + signed[i].ecsign плюс tx core fields.
+   cat > sample.json <<'EOF'
+   {
+     "tx_unid": "<tx.unid>",
+     "network": <chain_id>,
+     "value": "<tx.value as decimal string>",
+     "to_address": "<tx.to_addr>",
+     "signature_hex": "<signed[i].ecsign>",
+     "expected_signer": "<signed[i].ecaddress>"
+   }
+   EOF
+   ```
+
+2. **Run discovery CLI:**
+   ```bash
+   docker exec orgon-backend python backend/scripts/safina_discover_canonical.py --sample sample.json
+   ```
+   Output: per-variant ✓/✗ + строка `Confirmed variant: vN_...`. Если `no variant matched` — увеличить candidate-zoo (новый variant в registry → один pull-request).
+
+3. **Set Coolify env (shadow first):**
+   ```
+   SAFINA_CANONICAL_VARIANT=<имя из шага 2>
+   ORGON_SAFINA_VERIFY_MODE=shadow
+   ```
+   Redeploy backend.
+
+4. **24h soak:** мониторить `/compliance` AML tab. Открытых alerts типа `safina:signer_mismatch` быть не должно. Если есть — variant неверный (multi-network setup может требовать разные variants per chain — добавить branching).
+
+5. **Switch to enforce:**
+   ```
+   ORGON_SAFINA_VERIFY_MODE=enforce
+   ```
+   Redeploy. Теперь любая forged подпись от compromised Safina → tx rejected + critical alert в triage.
+
+6. **Compliance-audit demo:** показать аудитору `/compliance` AML с filter `alert_type=safina:signer_mismatch` и `/transactions?status=rejected_signer_mismatch` (когда они есть) + лог `audit_log` action `aml.alert.resolve`.
+
+**Почему ранее был блокер (теперь решён):** без локальной верификации compromised Safina принял бы forged co-signers как валидные на multi-sig. Wave 22 даёт independent ECDSA-recovery — приватный ключ Safina не нужен, recovery работает offline.
+
+### ❸ AML rule engine — **DONE 2026-05-02** (Wave 19+21, Sumsub bridge + triage UI)
+
+**Wave 19 — write path (Sumsub bridge):**
 - Webhook handler ловит `applicantOnHold` и события с `rejectLabels` содержащими `SANCTIONS` / `AML_RISK` / `PEP`
 - Записывает в `aml_alerts` таблицу с severity (`high` для sanctions/AML, `medium` для остальных)
-- Идемпотентен через `correlation_id` (ADR-10)
+- Идемпотентен через `correlation_id` (Wave 19, ADR-10)
+- KYB-flow (Wave 20) пишет alerts с `organization_id` напрямую (без users-JOIN)
 
-**Что НЕ сделано** (отдельная Story 2.6 — AML alerts dashboard):
-- UI на `/compliance` для просмотра / триажа alerts
-- Connection alerts ↔ transactions (правило: «block tx if assigned applicant has open AML alert»)
-- Custom rules (sanction-list refresh, threshold breach, repeat-address signal)
-- Travel Rule (FATF) data — отдельный Sumsub product, отдельная конфигурация
+**Wave 21 — triage UI / read+resolve path (Story 2.6):**
+- Backend endpoints `/api/v1/compliance/aml/*`: list (cursor pagination), stats, get, claim, resolve, notes
+- Conditional UPDATE для claim — двое compliance-officers одновременно жмут «Взять» → один 200, второй 409 с `current_state` для UI
+- Atomic UPDATE+audit_log via `conn.transaction()` — каждое claim/resolve/note пишется в `public.audit_log` с `resource_type='aml_alert'`
+- `reported` is terminal: после установки SAR-номера alert immutable, любые post-actions → 409
+- RBAC: `super_admin` / `company_admin` / `company_auditor` only; `company_operator` исключён (separation of duties)
+- Frontend: `/compliance` AML-tab показывает реальную очередь, click → side-drawer с claim/resolve/notes, PII-фильтр на `details` JSON (скрывает `passport_number`/`national_id`/`inn`/`dob`/`taxId`)
+- Migration 027 — composite indexes для filter+keyset pagination
 
-Для pilot-клиента Sumsub-bridge достаточно чтобы AML-аудитор увидел: «alerts создаются автоматически когда Sumsub флагает». Story 2.6 расширит до full-featured triage UI.
+**Что отложено на post-MVP:**
+- In-house transaction-rule alerts (`compliance_service.check_transaction_against_rules` уже существует, но wire-up в transaction-create flow — Story 2.7)
+- SAR submission API в Финнадзор — текущий flow останавливается на manual `report_reference`
+- Bulk operations / CSV export — повседневная очередь не нужна
+- Custom rule-builder UI — `transaction_monitoring_rules` editable через DB вручную; полноценный UI — отдельный story
+- Travel Rule (FATF) — отдельный Sumsub product, отдельная конфигурация
+
+**Smoke-flow (manual после prod-deploy):**
+1. KYC-applicant получает RED reviewAnswer → webhook → INSERT в `aml_alerts`
+2. compliance_admin открывает `/compliance` → видит KPI «Открытых: 1» + строку в списке
+3. Click → drawer показывает details (PII скрыта), нажимает «Взять в работу»
+4. Добавляет note, выбирает «Закрыть как решённое» → confirm → `status='resolved'`, `audit_log` row создан с `action='aml.alert.resolve'`
 
 ### ❹ KYC document upload — **DONE 2026-05-02** (Wave 19, через Sumsub)
 
@@ -315,7 +381,27 @@ Sumsub-интеграция (Wave 19) включает базовый AML-bridge
 
 **Почему ранее был блокер (теперь решён):** KYB-документы (passports, learner-faces, proof-of-address) не отправляются по email — нужен secure upload + virus-scan + audit. Sumsub WebSDK делает всё это сам, без нашего S3 / ClamAV.
 
-**KYB (бизнесы) — отложен на Story 2.5.** Sumsub поддерживает KYB как отдельный verification level с beneficial-owner-discovery. На MVP только KYC для физлиц.
+### ❺ KYB (бизнесы) — **DONE 2026-05-02** (Wave 20, через Sumsub)
+
+**Решение:** тот же Sumsub WebSDK, но separate `levelName` (`basic-kyb-level` по умолчанию) и отдельная таблица `sumsub_kyb_applicants`. KYB-applicant привязан к организации, не пользователю — `externalUserId = orgon-org-{organization_uuid}`. Webhook handler ветвится по префиксу: `orgon-user-...` → KYC, `orgon-org-...` → KYB. Frontend на `/compliance/kyb`.
+
+**Что нужно для prod-pilot с KYB:**
+
+1. **В Sumsub Dashboard** создать второй verification level — `basic-kyb-level` (или своё имя). Sumsub iframe сам соберёт UBO (Ultimate Beneficial Owners), учредительные документы, lookup в торговых реестрах.
+2. **Coolify env var** (опционально — default `basic-kyb-level`):
+   ```
+   SUMSUB_KYB_LEVEL_NAME=basic-kyb-level
+   ```
+   Остальные `SUMSUB_*` те же что для KYC (один app_token, один secret, один webhook).
+3. **RBAC:** только `super_admin` или `company_admin` своей организации может стартовать KYB. Любой member организации может прочитать статус. Endpoints:
+   - `POST /api/v1/kyc-kyb/sumsub/kyb/access-token?organization_id=<uuid>` → mint WebSDK token
+   - `GET  /api/v1/kyc-kyb/sumsub/kyb/applicant-status?organization_id=<uuid>` → текущий статус
+4. **Smoke-test после deploy:**
+   - Login как `company_admin` → `/compliance/kyb` → `Начать верификацию организации`
+   - Iframe Sumsub поднимается, статус идёт через тот же webhook
+   - В админке (Story 2.6) AML-alerts по KYB видны с `organization_id` ссылкой
+
+**Pre-launch (без аккаунта):** оба endpoints возвращают 503, frontend показывает тот же «pre-launch»-баннер что и KYC.
 
 ---
 

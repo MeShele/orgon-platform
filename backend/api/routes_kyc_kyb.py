@@ -360,3 +360,192 @@ async def sumsub_applicant_status(
         level_name=row["level_name"],
         mapped_status=mapped,
     )
+
+
+# ════════════════════════════════════════════════════════════════════
+# Sumsub KYB (businesses) — Story 2.5 / Wave 20
+# ════════════════════════════════════════════════════════════════════
+#
+# KYB applicants are scoped to organizations rather than users.
+# externalUserId schema: "orgon-org-{organization_uuid}".  Webhook
+# handler routes events by prefix (see routes_webhooks_sumsub.py).
+#
+# RBAC: only super_admin or company_admin of the target organization
+# may start/check KYB. signer/viewer see 403.
+
+
+def _kyb_external_user_id(organization_id: UUID) -> str:
+    """Stable Sumsub externalUserId for an organization."""
+    return f"orgon-org-{organization_id}"
+
+
+def _check_kyb_access(user: dict, organization_id: UUID) -> None:
+    """Raise 403 unless caller may operate on this organization's KYB."""
+    role = (user.get("role") or "").lower()
+    if role == "super_admin":
+        return
+    if role != "company_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only company_admin can start KYB for an organization",
+        )
+    user_org_id = user.get("organization_id")
+    if not user_org_id or str(user_org_id) != str(organization_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="company_admin can only start KYB for their own organization",
+        )
+
+
+class SumsubKybAccessTokenResponse(BaseModel):
+    access_token: str = Field(..., description="Short-lived WebSDK token (KYB)")
+    expires_in: int
+    applicant_id: str
+    organization_id: UUID
+    external_user_id: str
+    level_name: str
+
+
+class SumsubKybApplicantStatusResponse(BaseModel):
+    applicant_id: str
+    organization_id: UUID
+    review_status: str
+    review_result: Optional[dict] = None
+    level_name: str
+    mapped_status: str
+
+
+@router.post(
+    "/sumsub/kyb/access-token",
+    response_model=SumsubKybAccessTokenResponse,
+    responses={
+        403: {"description": "Caller is not admin of this organization"},
+        503: {"description": "Sumsub not configured"},
+    },
+)
+async def sumsub_kyb_access_token(
+    organization_id: UUID = Query(..., description="Organization to verify"),
+    user: dict = Depends(get_current_user),
+    sumsub: SumsubService = Depends(get_sumsub_service),
+    pool=Depends(get_db_pool),
+):
+    """Mint a short-lived WebSDK token for an organization's KYB flow."""
+    _check_kyb_access(user, organization_id)
+
+    external_user_id = _kyb_external_user_id(organization_id)
+
+    try:
+        applicant = await sumsub.create_or_get_applicant(
+            external_user_id, level_name=sumsub.kyb_level_name
+        )
+    except SumsubError as exc:
+        logger.warning("Sumsub KYB create_or_get failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Sumsub API error",
+        )
+
+    applicant_id = applicant.get("id")
+    if not applicant_id:
+        raise HTTPException(
+            status_code=502, detail="Sumsub returned no applicant id"
+        )
+
+    review = applicant.get("review", {})
+    async with pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO sumsub_kyb_applicants (
+                organization_id, applicant_id, external_user_id, level_name,
+                review_status, review_result
+            )
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+            ON CONFLICT (organization_id) DO UPDATE
+            SET applicant_id     = EXCLUDED.applicant_id,
+                external_user_id = EXCLUDED.external_user_id,
+                level_name       = EXCLUDED.level_name,
+                review_status    = EXCLUDED.review_status,
+                review_result    = EXCLUDED.review_result,
+                updated_at       = now()
+            """,
+            organization_id,
+            applicant_id,
+            external_user_id,
+            sumsub.kyb_level_name,
+            review.get("reviewStatus", "init"),
+            None if not review else __import__("json").dumps(review),
+        )
+
+    try:
+        token_resp = await sumsub.generate_access_token(
+            external_user_id, level_name=sumsub.kyb_level_name
+        )
+    except SumsubError as exc:
+        logger.warning("Sumsub KYB access-token mint failed: %s", exc)
+        raise HTTPException(status_code=502, detail="Sumsub API error")
+
+    return SumsubKybAccessTokenResponse(
+        access_token=token_resp["token"],
+        expires_in=SumsubService.DEFAULT_TOKEN_TTL,
+        applicant_id=applicant_id,
+        organization_id=organization_id,
+        external_user_id=external_user_id,
+        level_name=sumsub.kyb_level_name,
+    )
+
+
+@router.get(
+    "/sumsub/kyb/applicant-status",
+    response_model=SumsubKybApplicantStatusResponse,
+    responses={
+        403: {"description": "Caller is not admin/member of this organization"},
+        404: {"description": "Organization has no KYB applicant yet"},
+        503: {"description": "Sumsub not configured"},
+    },
+)
+async def sumsub_kyb_applicant_status(
+    organization_id: UUID = Query(..., description="Organization to check"),
+    user: dict = Depends(get_current_user),
+    sumsub: SumsubService = Depends(get_sumsub_service),
+    pool=Depends(get_db_pool),
+):
+    """Read KYB review state for an organization. Any member of the
+    organization (or super_admin) may check status — only admins can
+    start the flow."""
+    role = (user.get("role") or "").lower()
+    if role != "super_admin":
+        # Non-super_admin must be a member of the org. Cheap check via
+        # user.organization_id; tighter checks (multi-org membership)
+        # would query user_organizations — beyond MVP scope.
+        if str(user.get("organization_id") or "") != str(organization_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not a member of this organization",
+            )
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT applicant_id, level_name, review_status, review_result "
+            "FROM sumsub_kyb_applicants WHERE organization_id = $1",
+            organization_id,
+        )
+
+    if not row:
+        raise HTTPException(
+            status_code=404,
+            detail="No Sumsub KYB applicant yet — call /sumsub/kyb/access-token first",
+        )
+
+    review_result = row["review_result"]
+    if isinstance(review_result, str):
+        review_result = __import__("json").loads(review_result)
+    mapped = _map_sumsub_to_orgon_status(row["review_status"], review_result)
+
+    return SumsubKybApplicantStatusResponse(
+        applicant_id=row["applicant_id"],
+        organization_id=organization_id,
+        review_status=row["review_status"],
+        review_result=review_result,
+        level_name=row["level_name"],
+        mapped_status=mapped,
+    )

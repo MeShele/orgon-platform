@@ -276,12 +276,21 @@ async def lifespan(app: FastAPI):
             secret_key=os.getenv("SUMSUB_SECRET_KEY"),
             webhook_secret=os.getenv("SUMSUB_WEBHOOK_SECRET"),
             level_name=os.getenv("SUMSUB_LEVEL_NAME") or None,
+            kyb_level_name=os.getenv("SUMSUB_KYB_LEVEL_NAME") or None,
             base_url=os.getenv("SUMSUB_BASE_URL") or None,
         )
 
         # Initialize services
         _wallet_service = WalletService(_safina_client, db)
-        _transaction_service = TransactionService(_safina_client, db)
+        # ComplianceService is built once and threaded into other
+        # services that need its rule engine (Wave 23, Story 2.8).
+        # `db.pool` exposes the asyncpg pool that ComplianceService
+        # uses directly — see backend/database/db_postgres.py.
+        from backend.services.compliance_service import ComplianceService
+        _compliance_service = ComplianceService(db.pool)
+        _transaction_service = TransactionService(
+            _safina_client, db, compliance=_compliance_service,
+        )
         _sync_service = SyncService(_safina_client, db)
         _balance_service = BalanceService(_safina_client, db)
         _network_service = NetworkService(_safina_client, db)

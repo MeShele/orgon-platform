@@ -1,240 +1,309 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Icon } from "@/lib/icons";
+// KYB (business onboarding) page — Wave 20, story 2.5.
+//
+// Mirrors /compliance/kyc but operates on an organization, not a user:
+//   - externalUserId schema:  orgon-org-<organization_uuid>
+//   - access-token endpoint:  POST /sumsub/kyb/access-token?organization_id=
+//   - status endpoint:        GET  /sumsub/kyb/applicant-status?organization_id=
+//   - RBAC: only super_admin / company_admin may start the flow
+//   - Status: any org member can read state
+//
+// Org context resolution: the user's primary org_id is fetched via
+// `api.getCurrentUser()` (existing helper). MVP behaviour assumes one
+// org per user — multi-org tenant switching is already exposed via
+// `api.switchOrganization()` elsewhere in the app and remains that
+// page's concern, not ours.
 
-const DOC_TYPES = [
-  { value: "registration_cert", label: "Свидетельство о регистрации", icon: "solar:document-bold" },
-  { value: "charter", label: "Устав компании", icon: "solar:notebook-bold" },
-  { value: "license", label: "Лицензия (если есть)", icon: "solar:diploma-bold" },
-  { value: "beneficiaries", label: "Данные бенефициаров", icon: "solar:users-group-rounded-bold" },
-];
+import { useEffect, useState, useCallback } from "react";
+import { Icon } from "@/lib/icons";
+import { SumsubWebSdkContainer } from "@/components/compliance/SumsubWebSdkContainer";
+import { SumsubNotConfiguredError, type SumsubMappedStatus } from "@/lib/sumsubKyc";
+import {
+  fetchSumsubKybStatus,
+  fetchSumsubKybAccessToken,
+  type SumsubKybApplicantStatusResponse,
+} from "@/lib/sumsubKyb";
+import { api } from "@/lib/api";
+
+const STATUS_LABELS: Record<SumsubMappedStatus, string> = {
+  not_started: "Не начата",
+  pending: "На рассмотрении",
+  manual_review: "Ручная проверка",
+  approved: "Подтверждена",
+  rejected: "Отклонена",
+  needs_resubmit: "Требуются доп. документы",
+};
+
+const STATUS_COLORS: Record<SumsubMappedStatus, string> = {
+  not_started: "bg-muted text-muted-foreground",
+  pending: "bg-warning/10 text-warning",
+  manual_review: "bg-primary/10 text-primary",
+  approved: "bg-success/10 text-success",
+  rejected: "bg-destructive/10 text-destructive",
+  needs_resubmit: "bg-warning/10 text-warning",
+};
+
+interface CurrentUser {
+  id?: number | string;
+  role?: string;
+  organization_id?: string | null;
+  organization_name?: string | null;
+}
 
 export default function KybPage() {
-  const [kybStatus, setKybStatus] = useState<any>(null);
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
+  const [orgName, setOrgName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [status, setStatus] = useState<SumsubKybApplicantStatusResponse | null>(null);
+  const [notConfigured, setNotConfigured] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [iframeOpen, setIframeOpen] = useState(false);
 
-  const [companyName, setCompanyName] = useState("");
-  const [regNumber, setRegNumber] = useState("");
-  const [taxId, setTaxId] = useState("");
-  const [legalAddress, setLegalAddress] = useState("");
-  const [country, setCountry] = useState("KG");
-  const [documents, setDocuments] = useState<{ type: string; file_url: string; file_name: string }[]>([]);
-  const [beneficiaries, setBeneficiaries] = useState<{ name: string; share_percent: number; nationality: string }[]>([
-    { name: "", share_percent: 100, nationality: "KG" },
-  ]);
-
-  // In production, org_id comes from user's current org context
-  const [orgId, setOrgId] = useState("");
-
-  useEffect(() => {
-    // Would fetch org_id from context and then status
-    setLoading(false);
+  const refresh = useCallback(async (organizationId: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchSumsubKybStatus(organizationId);
+      setStatus(res);
+      setNotConfigured(false);
+    } catch (e) {
+      if (e instanceof SumsubNotConfiguredError) {
+        setNotConfigured(true);
+      } else {
+        setError(e instanceof Error ? e.message : String(e));
+      }
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  function addDocument(type: string) {
-    if (documents.find((d) => d.type === type)) return;
-    setDocuments([...documents, { type, file_url: `placeholder://${type}`, file_name: `${type}_document` }]);
-  }
-
-  function removeDocument(type: string) {
-    setDocuments(documents.filter((d) => d.type !== type));
-  }
-
-  function updateBeneficiary(index: number, field: string, value: any) {
-    const updated = [...beneficiaries];
-    (updated[index] as any)[field] = value;
-    setBeneficiaries(updated);
-  }
-
-  function addBeneficiary() {
-    setBeneficiaries([...beneficiaries, { name: "", share_percent: 0, nationality: "KG" }]);
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-    setSuccess("");
-    setSubmitting(true);
-
-    try {
-      const res = await fetch("/api/v1/kyc-kyb/kyb/submit", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("orgon_access_token")}`,
-        },
-        body: JSON.stringify({
-          organization_id: orgId,
-          company_name: companyName,
-          registration_number: regNumber,
-          tax_id: taxId,
-          legal_address: legalAddress,
-          country,
-          documents,
-          beneficiaries: beneficiaries.filter((b) => b.name),
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Submission failed");
+  useEffect(() => {
+    (async () => {
+      try {
+        const me = (await api.getCurrentUser()) as CurrentUser;
+        setUser(me);
+        const oid = me.organization_id ?? null;
+        setOrgId(oid);
+        setOrgName(me.organization_name ?? null);
+        if (oid) {
+          await refresh(oid);
+        } else {
+          setLoading(false);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        setLoading(false);
       }
+    })();
+  }, [refresh]);
 
-      setSuccess("KYB заявка отправлена! Ожидайте проверки.");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const handleSdkComplete = useCallback(() => {
+    setIframeOpen(false);
+    if (orgId) setTimeout(() => refresh(orgId), 2000);
+  }, [orgId, refresh]);
 
-  const statusColors: Record<string, string> = {
-    approved: "bg-emerald-100 text-success",
-    pending: "bg-warning/10 text-warning",
-    rejected: "bg-destructive/10 text-destructive",
-    not_submitted: "bg-muted text-muted-foreground",
-  };
+  const role = (user?.role ?? "").toLowerCase();
+  const canStartKyb = role === "super_admin" || role === "company_admin";
+
+  const mappedStatus = (status?.mapped_status ?? "not_started") as SumsubMappedStatus;
+  const canStart =
+    canStartKyb &&
+    !iframeOpen &&
+    (mappedStatus === "not_started" ||
+      mappedStatus === "needs_resubmit" ||
+      mappedStatus === "rejected");
 
   return (
     <div className="space-y-6 p-2 sm:p-4 md:p-6 lg:p-8 max-w-3xl mx-auto">
+      {/* Page header */}
       <div className="flex items-center gap-3">
         <Icon icon="solar:buildings-bold" className="text-2xl text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-foreground">KYB Верификация</h1>
-          <p className="text-sm text-muted-foreground">Верификация организации по законодательству КР</p>
+          <h1 className="text-2xl font-bold text-foreground">KYB верификация</h1>
+          <p className="text-sm text-muted-foreground">
+            Проверка организации через Sumsub. Учредительные документы загружаются напрямую в их защищённый сервис.
+          </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Company Info */}
-        <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
-          <h3 className="font-semibold text-foreground">Данные компании</h3>
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <Icon icon="svg-spinners:ring-resize" className="text-3xl text-primary" />
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Название компании *</label>
-              <input
-                type="text" required value={companyName} onChange={(e) => setCompanyName(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Рег. номер</label>
-              <input
-                type="text" value={regNumber} onChange={(e) => setRegNumber(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">ИНН</label>
-              <input
-                type="text" value={taxId} onChange={(e) => setTaxId(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">Страна</label>
-              <select
-                value={country} onChange={(e) => setCountry(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
-              >
-                <option value="KG">Кыргызстан</option>
-                <option value="KZ">Казахстан</option>
-                <option value="RU">Россия</option>
-              </select>
+      {/* No organization context */}
+      {!loading && !orgId && (
+        <div className="rounded-xl border border-warning/40 bg-warning/5 p-6">
+          <div className="flex items-start gap-3">
+            <Icon icon="solar:buildings-bold" className="text-warning text-2xl shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-base font-medium text-foreground">
+                У вашей учётной записи нет организации
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                KYB-верификация запускается на уровне организации. Создайте организацию
+                в разделе настроек или попросите администратора добавить вас в существующую.
+              </p>
             </div>
           </div>
+        </div>
+      )}
 
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">Юридический адрес</label>
-            <textarea
-              value={legalAddress} onChange={(e) => setLegalAddress(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground"
-              rows={2}
+      {/* Sumsub-not-configured banner */}
+      {!loading && orgId && notConfigured && (
+        <div className="rounded-xl border border-warning/40 bg-warning/5 p-6">
+          <div className="flex items-start gap-3">
+            <Icon icon="solar:settings-bold" className="text-warning text-2xl shrink-0 mt-0.5" />
+            <div className="space-y-2">
+              <p className="text-base font-medium text-foreground">
+                Платформа в режиме pre-launch
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Sumsub KYB-интеграция готова к работе, но конкретно на этом окружении
+                ещё не выставлены креды. Свяжитесь с поддержкой
+                <a
+                  className="text-primary underline-offset-4 hover:underline mx-1"
+                  href="mailto:support@orgon.asystem.kg"
+                >
+                  support@orgon.asystem.kg
+                </a>
+                — мы подключим вас к pilot-окружению с активным KYB.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Под капотом всё подключено: Sumsub WebSDK, webhook receiver, AML-handler.
+                Чтобы включить — в Coolify нужно выставить{" "}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">SUMSUB_APP_TOKEN</code>,{" "}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">SUMSUB_SECRET_KEY</code>,{" "}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">SUMSUB_WEBHOOK_SECRET</code>{" "}
+                и при необходимости{" "}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">SUMSUB_KYB_LEVEL_NAME</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generic error */}
+      {!loading && orgId && !notConfigured && error && (
+        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-6">
+          <div className="flex items-start gap-3">
+            <Icon icon="solar:danger-circle-bold" className="text-destructive text-xl shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Не удалось загрузить статус</p>
+              <p className="text-xs text-muted-foreground mt-1">{error}</p>
+              <button
+                onClick={() => orgId && refresh(orgId)}
+                className="mt-3 text-xs text-primary hover:underline"
+              >
+                Попробовать ещё раз
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status panel */}
+      {!loading && orgId && !notConfigured && !error && (
+        <>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground mb-1">Организация</h3>
+                <p className="text-base font-medium text-foreground">
+                  {orgName ?? "Без названия"}
+                </p>
+                <p className="text-[11px] font-mono text-muted-foreground mt-1">{orgId}</p>
+              </div>
+              <span
+                className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${STATUS_COLORS[mappedStatus]}`}
+              >
+                {STATUS_LABELS[mappedStatus]}
+              </span>
+            </div>
+            {status?.review_result && typeof status.review_result === "object" && (
+              <div className="mt-3 text-xs text-muted-foreground space-y-1">
+                {"clientComment" in status.review_result && (
+                  <p>
+                    <span className="font-medium">Комментарий:</span>{" "}
+                    {String(status.review_result.clientComment)}
+                  </p>
+                )}
+                {"moderationComment" in status.review_result && (
+                  <p>
+                    <span className="font-medium">Модератор:</span>{" "}
+                    {String(status.review_result.moderationComment)}
+                  </p>
+                )}
+              </div>
+            )}
+            {status?.applicant_id && (
+              <p className="mt-3 text-[10px] font-mono text-muted-foreground">
+                applicant: {status.applicant_id}
+              </p>
+            )}
+          </div>
+
+          {/* Approved — terminal happy state */}
+          {mappedStatus === "approved" && (
+            <div className="rounded-xl border border-success/40 bg-success/5 p-6 text-center">
+              <Icon icon="solar:verified-check-bold" className="text-4xl text-success mx-auto mb-2" />
+              <p className="text-success font-medium">Организация подтверждена</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                KYB пройден — институциональный пилот доступен.
+              </p>
+            </div>
+          )}
+
+          {/* Pending / manual review */}
+          {(mappedStatus === "pending" || mappedStatus === "manual_review") && !iframeOpen && (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <p className="text-sm text-muted-foreground">
+                Документы получены и в очереди на проверку. Если Sumsub запросит дополнительные данные,
+                откройте окно верификации ещё раз.
+              </p>
+              {canStartKyb && (
+                <button
+                  onClick={() => setIframeOpen(true)}
+                  className="mt-4 px-4 py-2 text-sm bg-secondary text-foreground rounded-lg hover:bg-muted transition-colors border border-border"
+                >
+                  Открыть окно верификации
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Role-gate banner — non-admin viewers see status only */}
+          {!canStartKyb && mappedStatus !== "approved" && (
+            <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+              Только администратор организации может запустить или повторить KYB-верификацию.
+              Если нужно начать процесс — свяжитесь с {orgName ?? "вашим"} администратором.
+            </div>
+          )}
+
+          {/* CTA */}
+          {canStart && (
+            <button
+              onClick={() => setIframeOpen(true)}
+              className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 transition-opacity"
+            >
+              {mappedStatus === "not_started" ? "Начать верификацию организации" : "Пройти ещё раз"}
+            </button>
+          )}
+
+          {/* Iframe */}
+          {iframeOpen && orgId && (
+            <SumsubWebSdkContainer
+              onComplete={handleSdkComplete}
+              lang="ru"
+              tokenFetcher={() => fetchSumsubKybAccessToken(orgId)}
             />
-          </div>
-        </div>
-
-        {/* Documents */}
-        <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
-          <h3 className="font-semibold text-foreground">Документы</h3>
-
-          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-[13px]">
-            <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0" />
-            <div className="text-foreground">
-              Прямая загрузка файлов через интерфейс — в разработке. Отметьте перечень,
-              сами копии отправьте на{" "}
-              <a className="text-primary underline-offset-4 hover:underline" href="mailto:compliance@orgon.asystem.kg">compliance@orgon.asystem.kg</a>{" "}
-              с темой «KYB submission · {`{название компании}`}». Compliance-команда привяжет их к заявке.
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {DOC_TYPES.map((doc) => {
-              const added = documents.find((d) => d.type === doc.value);
-              return (
-                <div key={doc.value} className={`flex items-center justify-between p-3 rounded-lg border ${
-                  added ? "border-success/40 bg-success/5" : "border-border"
-                }`}>
-                  <div className="flex items-center gap-3">
-                    <Icon icon={doc.icon} className={added ? "text-success" : "text-muted-foreground"} />
-                    <span className="text-sm text-foreground">{doc.label}</span>
-                  </div>
-                  {added ? (
-                    <button type="button" onClick={() => removeDocument(doc.value)} className="text-destructive text-sm hover:underline">Снять отметку</button>
-                  ) : (
-                    <button type="button" onClick={() => addDocument(doc.value)} className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity">Отметить как готовый</button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Beneficiaries */}
-        <div className="rounded-xl border border-border bg-card p-6 dark:border-border dark:bg-card space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="font-semibold text-foreground">Бенефициары</h3>
-            <button type="button" onClick={addBeneficiary} className="text-sm text-primary hover:underline">+ Добавить</button>
-          </div>
-          {beneficiaries.map((b, i) => (
-            <div key={i} className="grid grid-cols-3 gap-3">
-              <input
-                type="text" placeholder="ФИО" value={b.name}
-                onChange={(e) => updateBeneficiary(i, "name", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
-              />
-              <input
-                type="number" placeholder="% доли" value={b.share_percent}
-                onChange={(e) => updateBeneficiary(i, "share_percent", Number(e.target.value))}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
-              />
-              <select
-                value={b.nationality} onChange={(e) => updateBeneficiary(i, "nationality", e.target.value)}
-                className="px-3 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
-              >
-                <option value="KG">KG</option>
-                <option value="KZ">KZ</option>
-                <option value="RU">RU</option>
-              </select>
-            </div>
-          ))}
-        </div>
-
-        {error && <div className="rounded-lg bg-destructive/5 border border-destructive/30 p-3 text-sm text-destructive">{error}</div>}
-        {success && <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-success">{success}</div>}
-
-        <button
-          type="submit" disabled={submitting || !companyName}
-          className="w-full py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:opacity-90 disabled:opacity-50"
-        >
-          {submitting ? "Отправка..." : "Отправить на верификацию"}
-        </button>
-      </form>
+          )}
+        </>
+      )}
     </div>
   );
 }

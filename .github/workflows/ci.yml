@@ -97,6 +97,8 @@ jobs:
             backend/tests/test_signer_backends.py \
             backend/tests/test_kms_signer_backend.py \
             backend/tests/test_signature_verifier.py \
+            backend/tests/test_sumsub_service.py \
+            backend/tests/test_sumsub_webhook.py \
             -v --tb=short
 
   frontend:

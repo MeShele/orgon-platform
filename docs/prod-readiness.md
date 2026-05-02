@@ -266,26 +266,56 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 **Почему блокер:** без локальной верификации, если Safina backend будет скомпрометирован, ORGON примет forged-подписи. Compliance-аудитор спросит на pilot-аудите.
 
-### ❸ AML rule engine — `~3-5 дней (in-house) или 2-3 дня (Sumsub)`
+### ❸ AML rule engine — **PARTIAL DONE 2026-05-02** (Wave 19, через Sumsub)
 
-**Файлы:** `backend/services/aml_service.py` (создать), wire в `routes_signatures.py:sign_transaction` чтобы проверка катилась перед отправкой подписи в Safina.
+Sumsub-интеграция (Wave 19) включает базовый AML-bridge:
+- Webhook handler ловит `applicantOnHold` и события с `rejectLabels` содержащими `SANCTIONS` / `AML_RISK` / `PEP`
+- Записывает в `aml_alerts` таблицу с severity (`high` для sanctions/AML, `medium` для остальных)
+- Идемпотентен через `correlation_id` (ADR-10)
 
-Опции:
-- **In-house правила** (sanction-list OFAC + threshold + repeat-address) — 3-5 дней
-- **Sumsub** — 2-3 дня (готовый SDK, ~$200/мес лицензия)
-- **Chainalysis Reactor** — для крупного клиента, ~$$$ годовой контракт
+**Что НЕ сделано** (отдельная Story 2.6 — AML alerts dashboard):
+- UI на `/compliance` для просмотра / триажа alerts
+- Connection alerts ↔ transactions (правило: «block tx if assigned applicant has open AML alert»)
+- Custom rules (sanction-list refresh, threshold breach, repeat-address signal)
+- Travel Rule (FATF) data — отдельный Sumsub product, отдельная конфигурация
 
-**Почему блокер:** банки и fintech с лицензией не подключатся без AML-движка по регуляторике (152-ФЗ, FATF Travel Rule, EU 6AMLD).
+Для pilot-клиента Sumsub-bridge достаточно чтобы AML-аудитор увидел: «alerts создаются автоматически когда Sumsub флагает». Story 2.6 расширит до full-featured triage UI.
 
-### ❹ KYC/KYB document upload в S3/R2 — `~1-2 дня`
+### ❹ KYC document upload — **DONE 2026-05-02** (Wave 19, через Sumsub)
 
-**Файлы:** `backend/api/routes_kyc_kyb.py`, `backend/services/storage_service.py` (создать).
+**Решение:** вместо собственного S3-bucket + ClamAV + drag-drop UI — подключили Sumsub WebSDK. Документы загружаются прямо в защищённый сервис Sumsub (FedRAMP-compliant, ISO 27001), нам приходит только ID applicant'a + статус через webhook.
 
-- Backend: signed URL-ы на upload (presigned PUT), проверка размера/типа, virus-scan hook (ClamAV или 3rd party)
-- Frontend: `(authenticated)/compliance/kyc/page.tsx` и `kyb/page.tsx` — drag-drop + progress
-- Заменить `placeholder://` на реальный bucket путь
+**Что нужно для prod-pilot с Sumsub:**
 
-**Почему блокер:** KYB-документы (учредители, лицензия, regulatory filings) не отправят по email — нужен normal upload UX.
+1. **Зарегистрировать Sumsub аккаунт.** Sales-цикл — 3-5 рабочих дней (NDA + MSA + DPA по GDPR/152-ФЗ). Sandbox доступен сразу для разработки.
+
+2. **В Sumsub Dashboard:**
+   - Создать **verification level** (default name `basic-kyc-level` — passport + selfie + liveness). Custom levels для retail vs institutional — настраиваются позже.
+   - Получить:
+     - **Production app token** (`SUMSUB_APP_TOKEN`) — формат `prd:abcd1234...`
+     - **Production secret key** (`SUMSUB_SECRET_KEY`)
+     - **Webhook secret** (`SUMSUB_WEBHOOK_SECRET`) — отдельный, под Webhooks tab
+   - Настроить webhook URL: `https://<client>.asystem.ai/api/v1/webhooks/sumsub`
+
+3. **Coolify env vars** для backend-service:
+   ```
+   SUMSUB_APP_TOKEN=prd:...
+   SUMSUB_SECRET_KEY=...
+   SUMSUB_WEBHOOK_SECRET=...
+   SUMSUB_LEVEL_NAME=basic-kyc-level         # опционально, default basic-kyc-level
+   SUMSUB_BASE_URL=https://api.sumsub.com    # опционально, default
+   ```
+
+4. **Smoke-test после deploy:**
+   - Login → `/compliance/kyc` — баннер «pre-launch» исчезает, появляется CTA «Начать верификацию»
+   - Click → загружается Sumsub WebSDK iframe
+   - Backend log: `Sumsub enabled: level=...` при boot
+
+**Pre-launch (без аккаунта):** все backend endpoints (`/sumsub/access-token`, `/sumsub/applicant-status`, `/webhooks/sumsub`) возвращают чистый **503 Service Unavailable**. Frontend `/compliance/kyc` показывает баннер «Платформа в режиме pre-launch — свяжитесь с support@... для подключения». Никаких 5xx-ошибок при отсутствии кредов.
+
+**Почему ранее был блокер (теперь решён):** KYB-документы (passports, learner-faces, proof-of-address) не отправляются по email — нужен secure upload + virus-scan + audit. Sumsub WebSDK делает всё это сам, без нашего S3 / ClamAV.
+
+**KYB (бизнесы) — отложен на Story 2.5.** Sumsub поддерживает KYB как отдельный verification level с beneficial-owner-discovery. На MVP только KYC для физлиц.
 
 ---
 

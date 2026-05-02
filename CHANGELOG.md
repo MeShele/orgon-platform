@@ -7,6 +7,196 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 19 — Sumsub KYC integration (2026-05-02)
+
+Closes blocker ❹ (KYC document upload) and the bulk of blocker ❸
+(AML rule engine / detection bridge) from `docs/prod-readiness.md`
+in one integration. Story 2.4 — MVP for individual KYC. KYB
+(businesses) and the AML triage UI/dashboard stay carved out as
+Stories 2.5 and 2.6 respectively.
+
+### Why Sumsub
+
+Single integration that handles document upload + liveness +
+identity verification + AML screening (sanctions / PEP / adverse
+media) without us building any of: an S3 bucket, a virus-scan hook
+(ClamAV), drag-drop UI, OCR, liveness detection, or a sanctions list
+refresh job. User docs go directly into Sumsub's FedRAMP-compliant
+service; we hold only the applicantId and review-state.
+
+### Pre-launch deployment story (no Sumsub account yet)
+
+By design the integration boots in **disabled mode** when any of
+`SUMSUB_APP_TOKEN`, `SUMSUB_SECRET_KEY`, `SUMSUB_WEBHOOK_SECRET` is
+unset:
+  - All Sumsub-touching endpoints return clean **503 Service Unavailable**
+  - Frontend `/compliance/kyc` renders a "platform pre-launch" banner
+    instead of the iframe
+  - Backend boots without 5xx-ing, no other endpoints affected
+
+Pilot setup: paste 3 env vars into Coolify → redeploy backend → KYC
+works on the same code, no rewires needed. Same disabled-mode pattern
+already used by Stripe (`STRIPE_API_KEY` unset → billing 503).
+
+### Architecture (`docs/stories/2-4-sumsub-kyc-architecture.md`)
+
+11 ADRs with rationale, risk register, sprint breakdown, before any
+line of code was written. Highlights:
+  - WebSDK iframe (not Mobile SDK / pure-API) — ADR-1
+  - Backend mints short-lived access tokens; app-secret never reaches
+    the browser — ADR-2
+  - Idempotent applicant creation: re-use existing applicant for the
+    same user via Sumsub's 409-on-duplicate semantics — ADR-3
+  - Webhook signature verification BEFORE JSON parse, fail closed
+    on mismatch — ADR-4
+  - Sumsub status → ORGON `kyc_submissions.status` mapping — ADR-5
+  - Add `sumsub_*` columns to `kyc_submissions` + new
+    `sumsub_applicants` lookup-table — ADR-6
+  - Single global verification level for MVP, custom per-org later — ADR-7
+  - Frontend uses native `<script>` tag, not npm-package (auto-update
+    + smaller bundle) — ADR-8
+  - Tests via in-process `httpx` mocks, no live Sumsub or moto-style
+    library — ADR-9
+  - Webhook idempotency through `correlationId` — ADR-10
+  - Graceful degradation when env vars unset (this paragraph) — ADR-11
+
+### Sprint 2.4.1 — backend service + DB
+
+  - New `backend/services/sumsub_service.py` (~280 lines): HMAC
+    signing per Sumsub doc (`X-App-Token`, `X-App-Access-Sig`,
+    `X-App-Access-Ts` formula), `create_or_get_applicant` (409
+    fallback), `generate_access_token`, `get_applicant_status`,
+    `verify_webhook_signature` (constant-time, case-insensitive).
+  - Factory `build_sumsub_service()` returns None when any of the
+    three secrets is empty — disabled-mode contract.
+  - DB migration `025_sumsub_kyc.sql` (idempotent, BEGIN/COMMIT
+    wrapped):
+      ALTER kyc_submissions ADD sumsub_applicant_id, _inspection_id,
+        _review_result, _external_user_id (4 cols)
+      Drop+re-add status CHECK constraint with `manual_review`,
+        `needs_resubmit`, `not_started` added to enum
+      CREATE TABLE sumsub_applicants (user_id PK, applicant_id UNIQUE,
+        external_user_id, level_name, review_status, review_result,
+        last_event_id, created_at, updated_at + updated_at trigger)
+  - Two new endpoints in `routes_kyc_kyb.py`:
+      POST /api/v1/kyc-kyb/sumsub/access-token — mints WebSDK token,
+        creates/upserts row in sumsub_applicants
+      GET /api/v1/kyc-kyb/sumsub/applicant-status — reads cached
+        review state, returns ORGON-mapped status
+  - Wired into `main.py` startup: `app.state.sumsub` set via factory.
+  - 24 unit tests in `test_sumsub_service.py` covering: factory
+    graceful-degradation matrix (all 3 secret combinations), HMAC
+    signing formula match, create-or-get fallback path on 409,
+    transport-error wrapping, malformed-JSON handling, webhook
+    signature verification (valid / tampered / wrong-secret /
+    case-insensitive / empty).
+
+### Sprint 2.4.2 — webhook receiver
+
+  - New `backend/api/routes_webhooks_sumsub.py`:
+    1. Read raw bytes BEFORE parse (HMAC over transport bytes)
+    2. Verify `X-Payload-Digest` header → 403 on mismatch (no DB write)
+    3. Parse, look up applicant in our cache (no-op if unknown
+       applicant — we accept 200 to stop Sumsub retry storms)
+    4. Idempotency check via correlationId in
+       sumsub_applicants.last_event_id
+    5. Map status per ADR-5, UPDATE both sumsub_applicants and
+       kyc_submissions
+    6. AML signal extraction: rejectLabels containing
+       SANCTIONS / AML_RISK / PEP → INSERT aml_alerts
+       (high severity for sanctions, medium otherwise)
+  - 16 unit tests in `test_sumsub_webhook.py` using FastAPI
+    TestClient + ASGITransport + in-memory FakeConn. Covers:
+    signature path (no-sig 403, tampered 403, valid 200), 503 when
+    Sumsub unconfigured, unknown-applicant graceful 200,
+    correlationId idempotency, status mapping table-driven
+    (parametrised over 7 cases per ADR-5), AML alert insertion only
+    on rejectLabels, no AML on clean GREEN, malformed JSON 400,
+    empty applicantId 200-ignored.
+  - Router wired in main.py via `webhooks_sumsub_router`.
+
+### Sprint 2.4.3 — frontend Sumsub iframe
+
+  - New `frontend/src/lib/sumsubKyc.ts`: TS declarations for
+    `window.snsWebSdk`, fetch helpers, `SumsubNotConfiguredError`
+    sentinel.
+  - New `frontend/src/components/compliance/SumsubWebSdkContainer.tsx`:
+    injects `<script src="https://static.sumsub.com/...">` if absent,
+    waits for `window.snsWebSdk`, mints access-token, builds iframe
+    with refresh callback, listens for `idCheck.onApplicantSubmitted`
+    to fire `onComplete()`. Loading skeleton while booting; error
+    panel on script load failure.
+  - Rewrote `frontend/src/app/(authenticated)/compliance/kyc/page.tsx`:
+    replaces the legacy "submit by email" placeholder with state-
+    driven UI:
+      - Loading skeleton on mount
+      - "Pre-launch" banner when status fetch returns 503 (graceful
+        no-config behaviour) — explains exactly which env vars to set
+      - Status panel (mapped to ORGON enum colours)
+      - "Start verification" / "Try again" CTA based on mapped status
+      - Iframe rendered inline once user clicks CTA
+      - 2-second post-submit refresh so webhook has time to land
+  - `tsc --noEmit` clean.
+
+### Sprint 2.4.4 — integration & docs
+
+  - `docs/prod-readiness.md` — section 5 ❹ → DONE (Sumsub solves
+    document-upload), section 5 ❸ → PARTIAL DONE (AML bridge in
+    place; full triage UI deferred to Story 2.6)
+  - `docker-compose.yml` — env-hint block listing all 5 Sumsub vars
+    with disabled-mode defaults
+  - `.github/workflows/ci.yml` — 2 new test files added to focused
+    suite (`test_sumsub_service.py`, `test_sumsub_webhook.py`)
+  - This CHANGELOG entry
+  - Story file `2-4-sumsub-kyc-architecture.md` frontmatter
+    `status: done`
+
+### Test count
+
+CI total: **167 → 207 passed, 0 skipped, 0 failed**
+  - Wave 18 (KMS): +15 net
+  - Wave 19 (Sumsub): +24 service tests + 16 webhook tests = +40
+
+### Out of scope (explicit, future stories)
+
+  - Story 2.5 — Sumsub KYB for businesses (own verification level,
+    beneficial-owner discovery, separate frontend route)
+  - Story 2.6 — Full AML triage UI on `/compliance/aml`, alert ↔
+    transaction connection rules, threshold breaches, sanction-list
+    refresh job, Travel Rule (FATF Recommendation 16) integration
+  - Sumsub multi-region deployment (currently single-region default)
+
+### Backwards compat
+
+  - Existing prod (`orgon.asystem.ai`) sees no behaviour change
+    until SUMSUB_* env vars are set. Legacy `/api/v1/kyc-kyb/kyc/submit`
+    endpoint still works — KYC submission via the old "documents
+    list" placeholder path still accepts and stores entries (would
+    show in /compliance/reviews admin queue).
+  - The `kyc_submissions` table is extended, not replaced. New rows
+    via Sumsub flow have `sumsub_applicant_id` populated; legacy
+    rows have it NULL. Admin review queue handles both.
+
+### Files changed
+
+  M backend/requirements.txt                           (no change — httpx already present)
+  A backend/services/sumsub_service.py                 (~280 lines, new)
+  A backend/migrations/025_sumsub_kyc.sql              (~70 lines, new)
+  M backend/api/routes_kyc_kyb.py                      (+~190 lines)
+  A backend/api/routes_webhooks_sumsub.py              (~200 lines, new)
+  M backend/main.py                                    (+~15 lines: factory + router)
+  A backend/tests/test_sumsub_service.py               (~270 lines, new)
+  A backend/tests/test_sumsub_webhook.py               (~280 lines, new)
+  M .github/workflows/ci.yml                           (+2 lines: 2 test files)
+  M docker-compose.yml                                 (+10 lines: env-hint block)
+  M docs/prod-readiness.md                             (sections 5 ❸ partial DONE, 5 ❹ DONE)
+  A frontend/src/lib/sumsubKyc.ts                      (~85 lines, new)
+  A frontend/src/components/compliance/SumsubWebSdkContainer.tsx (~115 lines, new)
+  M frontend/src/app/(authenticated)/compliance/kyc/page.tsx     (~210 lines, full rewrite)
+  A docs/stories/2-4-sumsub-kyc-architecture.md        (~480 lines, new)
+
+---
+
 ## Wave 18 — KMS-backed signer for Safina (2026-05-02)
 
 Closes the **single biggest institutional-readiness blocker** identified

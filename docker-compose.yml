@@ -44,6 +44,16 @@ services:
       #            See docs/prod-readiness.md section 5 ❶ for setup.
       #   `vault` → HashiCorp Vault Transit (still a stub — raises).
       ORGON_SIGNER_BACKEND: "${ORGON_SIGNER_BACKEND:-env}"
+      # ─── Sumsub KYC (Wave 19, Story 2.4) ──────────────────────────
+      # Empty values keep the service in disabled mode — backend boots,
+      # /api/v1/kyc-kyb/sumsub/* endpoints return 503, frontend shows
+      # "platform pre-launch" banner. Paste real values to activate.
+      # See docs/prod-readiness.md section 5 ❹ for setup.
+      SUMSUB_APP_TOKEN: "${SUMSUB_APP_TOKEN:-}"
+      SUMSUB_SECRET_KEY: "${SUMSUB_SECRET_KEY:-}"
+      SUMSUB_WEBHOOK_SECRET: "${SUMSUB_WEBHOOK_SECRET:-}"
+      SUMSUB_LEVEL_NAME: "${SUMSUB_LEVEL_NAME:-basic-kyc-level}"
+      SUMSUB_BASE_URL: "${SUMSUB_BASE_URL:-https://api.sumsub.com}"
       # ─── observability ─────────────────────────────────────────────
       ORGON_JSON_LOGS: "1"          # structured logs read better in Coolify
       # SENTRY_DSN — set in Coolify UI when you have a Sentry project.

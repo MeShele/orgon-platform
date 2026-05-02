@@ -266,6 +266,19 @@ async def lifespan(app: FastAPI):
         else:
             _safina_client = None
 
+        # Initialize Sumsub KYC service (Wave 19, story 2.4).
+        # `build_sumsub_service` returns None when any of SUMSUB_APP_TOKEN
+        # / SUMSUB_SECRET_KEY / SUMSUB_WEBHOOK_SECRET is unset — endpoints
+        # then yield 503 cleanly. Pilot setup: paste 3 env vars, redeploy.
+        from backend.services.sumsub_service import build_sumsub_service
+        app.state.sumsub = build_sumsub_service(
+            app_token=os.getenv("SUMSUB_APP_TOKEN"),
+            secret_key=os.getenv("SUMSUB_SECRET_KEY"),
+            webhook_secret=os.getenv("SUMSUB_WEBHOOK_SECRET"),
+            level_name=os.getenv("SUMSUB_LEVEL_NAME") or None,
+            base_url=os.getenv("SUMSUB_BASE_URL") or None,
+        )
+
         # Initialize services
         _wallet_service = WalletService(_safina_client, db)
         _transaction_service = TransactionService(_safina_client, db)
@@ -522,6 +535,7 @@ from backend.api.routes_partner_analytics import router as partner_analytics_rou
 from backend.api.routes_safina_integration import router as safina_integration_router
 from backend.api.routes_partner_scheduled import router as partner_scheduled_router
 from backend.api.routes_admin_partners import router as admin_partners_router
+from backend.api.routes_webhooks_sumsub import router as webhooks_sumsub_router
 # routes_partner_addresses is broken-on-arrival: it calls
 # AddressBookService.list_addresses / create_address / etc., which don't
 # exist (the service only has get_contacts/create_contact). Disabled until
@@ -564,6 +578,7 @@ app.include_router(partner_scheduled_router)
 app.include_router(admin_partners_router)  # Admin REST: provision / rotate / revoke partners
 # app.include_router(partner_addresses_router)  # disabled — see import comment
 app.include_router(safina_integration_router)  # Safina API gap closure
+app.include_router(webhooks_sumsub_router)     # Sumsub KYC webhook (Wave 19, story 2.4)
 
 # B2B Partner-API middleware stack (tier-based rate limit + API-key auth)
 app.add_middleware(AuditLoggingMiddleware)

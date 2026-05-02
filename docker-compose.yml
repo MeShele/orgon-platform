@@ -102,11 +102,16 @@ services:
             reverse_proxy 127.0.0.1:18890
           }
 
-          # Everything else → Next.js frontend
-          reverse_proxy 127.0.0.1:13000 {
-            transport http {
-              read_timeout 60s
-              write_timeout 60s
+          # Catch-all → Next.js frontend. Required because Caddy `handle`
+          # directives are mutually exclusive — without an explicit
+          # default-handle fallback, requests not matching /ws/* or
+          # /api/* would 404 instead of reaching the frontend.
+          handle {
+            reverse_proxy 127.0.0.1:13000 {
+              transport http {
+                read_timeout 60s
+                write_timeout 60s
+              }
             }
           }
         }

@@ -41,6 +41,16 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: `${apiUrl}/api/:path*`,
       },
+      // WebSocket endpoint for real-time updates. Next.js rewrites
+      // forward upgrade headers when the destination supports WS, so
+      // /ws/updates → backend's FastAPI websocket handler at the same
+      // path. Header `via: 1.1 Caddy` shows the host Caddy sits in
+      // front but we proxy through Next first to keep the routing
+      // single-source.
+      {
+        source: '/ws/:path*',
+        destination: `${apiUrl}/ws/:path*`,
+      },
     ];
   },
 };

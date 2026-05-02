@@ -75,7 +75,7 @@ export function Tooltip({
             className={`absolute z-50 ${positionClasses[position]}`}
             style={{ maxWidth }}
           >
-            <div className="relative bg-card dark:bg-muted text-white text-sm rounded-lg shadow-xl px-3 py-2 border border-border">
+            <div className="relative bg-foreground text-background text-sm rounded-lg shadow-xl px-3 py-2 border border-border">
               {content}
               <div
                 className={`absolute w-0 h-0 border-4 ${arrowClasses[position]}`}

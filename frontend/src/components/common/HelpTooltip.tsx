@@ -32,7 +32,7 @@ export function HelpTooltip({ text, example, tips, diagram, side = "top" }: Help
           <Tooltip.Content
             side={side}
             sideOffset={4}
-            className="z-50 max-w-sm rounded-lg bg-card px-4 py-3 text-xs text-white shadow-xl border border-border dark:bg-muted animate-in fade-in-0 zoom-in-95"
+            className="z-50 max-w-sm rounded-lg bg-foreground px-4 py-3 text-xs text-background shadow-xl border border-border animate-in fade-in-0 zoom-in-95"
           >
             <div className="space-y-2">
               {/* Main text */}

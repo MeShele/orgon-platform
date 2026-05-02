@@ -161,12 +161,7 @@ export function AddMemberModal({ organizationId, isOpen, onClose, onSuccess }: A
             <button
               type="submit"
               disabled={loading}
-              className={clsx(
-                "px-6 py-2 text-sm font-medium rounded-lg text-white transition-colors disabled:opacity-50",
-                loading
-                  ? "bg-slate-400 cursor-not-allowed"
-                  : "bg-card hover:bg-muted dark:bg-white dark:text-slate-950 dark:hover:bg-muted"
-              )}
+              className="px-6 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? (
                 <>

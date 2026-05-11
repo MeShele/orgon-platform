@@ -161,6 +161,23 @@ async def send_transaction(request: SendTransactionRequest, validate: bool = Tru
             },
         )
     except SafinaError as e:
+        # Safina 4xx → user-error (e.g. wallet has no tokens to send, bad
+        # address). Surface as 400 with a clean message so the UI can show
+        # "no balance" / "invalid token" instead of a generic 502.
+        sc = getattr(e, "status_code", None)
+        if sc and 400 <= sc < 500:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "Safina rejected the request",
+                    "message": str(e),
+                    "hint": (
+                        "Кошелёк пуст или указанный token не привязан к нему. "
+                        "Проверьте депозит через faucet и повторите."
+                        if sc == 404 else None
+                    ),
+                },
+            )
         raise HTTPException(status_code=502, detail=str(e))
 
 

@@ -105,7 +105,10 @@ class SafinaPayClient:
             except (SafinaAuthError, SafinaError):
                 raise
             except httpx.HTTPStatusError as e:
-                raise SafinaError(f"HTTP {e.response.status_code}: {e.response.text}")
+                raise SafinaError(
+                    f"HTTP {e.response.status_code}: {e.response.text}",
+                    status_code=e.response.status_code,
+                )
             except Exception as e:
                 raise SafinaError(f"Unexpected error: {e}")
 

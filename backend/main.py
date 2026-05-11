@@ -49,6 +49,7 @@ from backend.api.middleware_b2b import (
     APIKeyAuthMiddleware,
     RateLimitMiddleware as PartnerRateLimitMiddleware,
     AuditLoggingMiddleware,
+    JwtAuditMiddleware,
 )
 from backend.middleware.security import LoginRateLimitMiddleware
 
@@ -216,6 +217,20 @@ async def lifespan(app: FastAPI):
                     logger.info("Users table has %d users, skipping seed", user_count)
         except Exception as e:
             logger.warning("User seeding skipped: %s", e)
+
+        # Link demo users to the seeded test org so org-scoped flows
+        # (rules, alerts, RLS reads) work end-to-end under demo creds.
+        # Migration 031 is idempotent and a no-op if the org / users
+        # aren't present yet.
+        try:
+            from pathlib import Path as _Path
+            overlay_path = _Path(__file__).parent / "migrations" / "031_demo_admin_org_link.sql"
+            if overlay_path.exists():
+                async with _async_db.get_connection() as conn:
+                    await conn.execute(overlay_path.read_text(encoding="utf-8"))
+                logger.info("Applied 031_demo_admin_org_link.sql (demo-admin → Safina Exchange KG)")
+        except Exception as e:
+            logger.warning("Demo-admin org link skipped: %s", e)
     else:
         logger.info("📂 Using SQLite database (fallback)")
         db = init_sqlite_db(config["database"]["path"])
@@ -593,6 +608,10 @@ app.include_router(webhooks_sumsub_router)     # Sumsub KYC webhook (Wave 19, st
 app.add_middleware(AuditLoggingMiddleware)
 app.add_middleware(PartnerRateLimitMiddleware)
 app.add_middleware(APIKeyAuthMiddleware)
+
+# JWT-side audit: log UI mutations into the same `audit_log_b2b` table that
+# /api/audit/logs reads from. Closes the dashboard-actions audit gap.
+app.add_middleware(JwtAuditMiddleware)
 
 # General-API rate limit (login brute-force, 100 req/min/IP). Last-added so
 # Starlette runs it outermost — bouncers hit before partner-tier check.

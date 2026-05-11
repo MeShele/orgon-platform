@@ -487,6 +487,149 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 
 
 # ============================================================================
+# JWT AUDIT MIDDLEWARE
+# ============================================================================
+
+
+class JwtAuditMiddleware(BaseHTTPMiddleware):
+    """Audit JWT-authenticated UI actions into `audit_log_b2b`.
+
+    The B2B `AuditLoggingMiddleware` only captures `/api/v1/partner/*`
+    routes (HMAC-signed partner API). UI endpoints used by the
+    dashboard (JWT bearer auth) had no audit trail — meaning
+    `/api/audit/logs` returned 0 even after login + wallet create +
+    send transaction. This middleware closes that gap by inspecting
+    the bearer token after the response is produced and writing one
+    audit row per mutation (POST/PATCH/PUT/DELETE) to the same table
+    `/api/audit/logs` reads from.
+
+    Conservative scope:
+    - Only mutation methods are logged. GETs are noisy and would
+      drown the log without telling auditors anything new.
+    - Read errors / decode failures are swallowed — auditing must
+      never break the actual request.
+    - Skipped: B2B partner paths (have their own audit), health/docs.
+    """
+
+    # Methods worth logging — read-only requests are excluded.
+    _MUTATION_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
+
+    # Paths we intentionally exclude.
+    _EXEMPT_PREFIXES = (
+        "/api/health",
+        "/api/docs",
+        "/api/openapi.json",
+        "/api/redoc",
+        "/api/v1/partner",  # has its own AuditLoggingMiddleware
+        "/api/auth/login",  # logging credentials would be a leak
+        "/api/auth/refresh",
+        "/api/monitoring",
+    )
+
+    def __init__(self, app) -> None:
+        super().__init__(app)
+
+    @staticmethod
+    def _derive_action(method: str, path: str) -> str:
+        """Build an action string like `wallets.post` or `compliance.rules.patch`."""
+        clean = path.lstrip("/")
+        if clean.startswith("api/v1/"):
+            clean = clean[len("api/v1/"):]
+        elif clean.startswith("api/"):
+            clean = clean[len("api/"):]
+        parts = [p for p in clean.split("/") if p and not p.startswith("{")]
+        # Drop UUID-ish trailing segments to keep action stable across IDs.
+        if parts and (len(parts[-1]) >= 16 or parts[-1].count("-") == 4):
+            parts = parts[:-1]
+        return ".".join([*parts, method.lower()]) if parts else method.lower()
+
+    @staticmethod
+    def _derive_resource_type(path: str) -> Optional[str]:
+        """Take the first meaningful path segment as the resource type."""
+        clean = path.lstrip("/")
+        for prefix in ("api/v1/", "api/"):
+            if clean.startswith(prefix):
+                clean = clean[len(prefix):]
+                break
+        parts = clean.split("/")
+        return parts[0] if parts and parts[0] else None
+
+    @staticmethod
+    def _extract_user_id(request: Request) -> Optional[str]:
+        """Pull `user_id` out of the bearer token without raising."""
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return None
+        token = auth_header[7:]
+        try:
+            # Local import to avoid pulling auth_service at module-init time.
+            from backend.services.auth_service import AuthService
+            payload = AuthService.decode_token(token)
+            if not payload:
+                return None
+            uid = payload.get("user_id") or payload.get("sub")
+            return str(uid) if uid is not None else None
+        except Exception:
+            return None
+
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        path = request.url.path
+        method = request.method.upper()
+
+        # Fast-paths: only audit mutations on /api/* (UI) and skip exempts.
+        if method not in self._MUTATION_METHODS:
+            return await call_next(request)
+        if not path.startswith("/api/"):
+            return await call_next(request)
+        if any(path.startswith(p) for p in self._EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        start = time.time()
+        response = await call_next(request)
+        duration_ms = int((time.time() - start) * 1000)
+
+        # Audit is best-effort — never block or fail the actual response.
+        try:
+            audit_service = getattr(request.app.state, "audit_service", None) \
+                or getattr(request.app.state, "audit_service_b2b", None)
+            if audit_service is None:
+                return response
+
+            user_id = self._extract_user_id(request)
+            # Skip anonymous mutations entirely — they will already 401/403
+            # at the route layer, and "anon" rows in audit add noise.
+            if not user_id:
+                return response
+
+            await audit_service.log_action(
+                partner_id=None,
+                user_id=user_id,
+                action=self._derive_action(method, path),
+                resource_type=self._derive_resource_type(path),
+                resource_id=None,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+                request_id=None,
+                result="success" if response.status_code < 400 else "failure",
+                error_message=None,
+                metadata={
+                    "method": method,
+                    "path": path,
+                    "status_code": response.status_code,
+                    "duration_ms": duration_ms,
+                    "source": "jwt",
+                },
+            )
+        except Exception:
+            # Last-resort: never let audit failure surface to the client.
+            pass
+
+        return response
+
+
+# ============================================================================
 # DEPENDENCY INJECTION HELPERS
 # ============================================================================
 

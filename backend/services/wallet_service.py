@@ -122,9 +122,36 @@ class WalletService:
                 return None
         return dict(wallet)
 
+    @staticmethod
+    def _ensure_addr_singular(result: dict) -> dict:
+        """Safina `/wallet/:name` returns `addrs` (plural, multi-sig list).
+        Frontend / DB schema use `addr` (singular). Map across so the
+        single-wallet detail endpoint surfaces a usable address when the
+        list endpoint (`/wallets`) returned empty.
+        """
+        addrs = result.get("addrs")
+        existing = result.get("addr")
+        if (not existing) and addrs:
+            if isinstance(addrs, list) and addrs:
+                result["addr"] = str(addrs[0])
+            elif isinstance(addrs, str) and addrs:
+                # Safina sometimes serialises addrs as comma-separated str
+                first = addrs.split(",")[0].strip()
+                result["addr"] = first
+        return result
+
     async def get_wallet(self, name: str) -> dict | None:
-        """Get wallet details from Safina + local DB."""
+        """Get wallet details from Safina + local DB.
+
+        Accepts either the canonical Safina `name` (== `my_unid`) or
+        the user-facing wallet name. Falls back to my_unid lookup if
+        name lookup misses.
+        """
         local = await self._db.fetchrow("SELECT * FROM wallets WHERE name = $1", params=(name,))
+        if not local:
+            local = await self._db.fetchrow(
+                "SELECT * FROM wallets WHERE my_unid = $1", params=(name,),
+            )
 
         detail = None
         if self._client is not None:
@@ -145,7 +172,41 @@ class WalletService:
         if local:
             result["label"] = local.get("label")
             result["is_favorite"] = local.get("is_favorite", 0)
-        return result
+        return self._ensure_addr_singular(result)
+
+    async def get_wallet_by_unid(self, unid: str) -> dict | None:
+        """Lookup wallet by canonical Safina UNID.
+
+        Tries Safina `/walletbyunid/:unid` first, falls back to local
+        DB (`my_unid` then `name`). Used by `/api/wallets/by-unid/...`.
+        """
+        detail = None
+        if self._client is not None:
+            try:
+                detail = await self._client.get_wallet_by_unid(unid)
+            except Exception as e:
+                logger.warning("Safina get_wallet_by_unid(%s) failed: %s", unid, e)
+
+        local = await self._db.fetchrow(
+            "SELECT * FROM wallets WHERE my_unid = $1", params=(unid,),
+        )
+        if not local:
+            local = await self._db.fetchrow(
+                "SELECT * FROM wallets WHERE name = $1", params=(unid,),
+            )
+
+        if detail:
+            result = detail.model_dump()
+        elif local:
+            result = dict(local)
+            result["wallet_name"] = local.get("name", unid)
+        else:
+            return None
+
+        if local:
+            result["label"] = local.get("label")
+            result["is_favorite"] = local.get("is_favorite", 0)
+        return self._ensure_addr_singular(result)
 
     async def get_wallet_tokens(self, wallet_name: str) -> list[dict]:
         """Get tokens for a wallet."""
@@ -282,16 +343,33 @@ class WalletService:
         now = datetime.now(timezone.utc)
 
         for w in wallets:
+            addr = w.addr or ""
+            # List endpoint returns empty addr for fresh wallets — fetch
+            # the detail endpoint (`/wallet/:name`) which returns `addrs`
+            # (the multi-sig address list) and use the first entry.
+            if not addr:
+                try:
+                    det = await self._client.get_wallet(w.name)
+                    if det is not None:
+                        det_dict = det.model_dump()
+                        d_addrs = det_dict.get("addrs")
+                        if isinstance(d_addrs, list) and d_addrs:
+                            addr = str(d_addrs[0])
+                        elif isinstance(d_addrs, str) and d_addrs:
+                            addr = d_addrs.split(",")[0].strip()
+                except Exception as e:
+                    logger.debug("addr-detail fetch failed for %s: %s", w.name, e)
+
             await self._db.execute(
                 """INSERT INTO wallets
                    (wallet_id, name, network, wallet_type, info, addr, addr_info,
                     my_unid, token_short_names, synced_at, updated_at)
                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-                   
+
                ON CONFLICT (name) DO UPDATE SET
                    wallet_id = EXCLUDED.wallet_id, network = EXCLUDED.network, wallet_type = EXCLUDED.wallet_type, info = EXCLUDED.info, addr = EXCLUDED.addr, addr_info = EXCLUDED.addr_info, my_unid = EXCLUDED.my_unid, token_short_names = EXCLUDED.token_short_names, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at""",
                 (w.wallet_id, w.name, w.network, w.wallet_type, w.info,
-                 w.addr, w.addr_info, w.myUNID, w.tokenShortNames, now, now),
+                 addr, w.addr_info, w.myUNID, w.tokenShortNames, now, now),
             )
 
         await self._db.execute(

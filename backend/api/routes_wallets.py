@@ -32,8 +32,7 @@ async def get_wallet_by_unid(unid: str, user: dict = Depends(require_roles("comp
     """Get wallet by UNID (Safina wallet identifier)."""
     service = _get_service()
     try:
-        # Try Safina API directly
-        wallet = await service.get_wallet(unid)
+        wallet = await service.get_wallet_by_unid(unid)
         if not wallet:
             raise HTTPException(status_code=404, detail="Wallet not found")
         return wallet

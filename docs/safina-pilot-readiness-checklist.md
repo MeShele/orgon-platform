@@ -9,14 +9,22 @@
 
 ## A. Что запросить у Safina (через бизнес-канал ASYSTEM)
 
-| # | Артефакт | Зачем | Можно ли без него |
+⚠️ **Самый критический пункт (2026-05-11 fire-test):** `POST /tx_sign`
+возвращает 200 OK, но Safina **молча не учитывает подпись** —
+`wait[]` не очищается, tx не broadcast'ится в блокчейн. Wiki это
+поведение не описывает. **До разрешения этого вопроса live multi-sig
+flow невозможен.** Подробности — `docs/SESSION_2026-05-11_FIRE_TEST_FINDINGS.md`.
+
+| # | Артефакт / вопрос | Зачем | Можно ли без него |
 |---|---|---|---|
-| 1 | `SAFINA_EC_PRIVATE_KEY` для prod-tenant клиента | Уникальный ключ под одного клиента. Текущий в `.env` — общий test-keypair с Examples-страницы wiki pm.kaz.one, для prod **не использовать** | ✗ обязательно |
-| 2 | **Один sample signed-tx** с известным `signer_address` | Прогнать `backend/scripts/safina_discover_canonical.py --sample sample.json` → выбрать canonical-variant из 6 кандидатов. Без этого `ORGON_SAFINA_VERIFY_MODE=off` навсегда | ✗ обязательно для compliance audit |
-| 3 | Подтверждение base URL | По wiki — `my.safina.pro/ece/` универсальный. Уточнить нужен ли клиенту dedicated endpoint | можно с default |
-| 4 | IP whitelist (если есть) | Safina может ограничивать source-IP. Узнать заранее, потому что наш egress = `coolify-orion` VM | nice-to-have |
-| 5 | Лимиты tenant (TPS / daily cap / per-tx) | Чтобы не упереться в первые часы | желательно |
-| 6 | Контакт incident channel | На случай нештатной ситуации в нерабочее время | желательно |
+| **0** | **Объяснить почему `POST /tx_sign` возвращает 200 OK, но подпись не учитывается** | **Блокер end-to-end multi-sig flow**. Возможные причины (наша гипотеза): canonical-payload mismatch ИЛИ EC-key не зарегистрирован как signer для email-account | ✗ **обязательно перед реальными деньгами** |
+| 1 | **Один sample signed-tx** с известным `signer_address` + полный JSON request body POST /tx_sign который сделал valid signature | Прогнать `backend/scripts/safina_discover_canonical.py --sample sample.json` → выбрать canonical-variant из 6 кандидатов | ✗ обязательно |
+| 2 | `SAFINA_EC_PRIVATE_KEY` для prod-tenant клиента | Уникальный ключ под одного клиента. Текущий в `.env` — общий test-keypair с Examples-страницы wiki pm.kaz.one, для prod **не использовать** | ✗ обязательно |
+| 3 | **Объяснить семантику `wait: [{email: ...}]` поля** | В реальном API responses приходит `email`, а в wiki написано "EC-addresses". Это расхождение нужно понять: email = display name? required registration EC↔email? | ✗ обязательно |
+| 4 | Подтверждение base URL | По wiki — `my.safina.pro/ece/` универсальный. Уточнить нужен ли клиенту dedicated endpoint | можно с default |
+| 5 | IP whitelist (если есть) | Safina может ограничивать source-IP. Узнать заранее, потому что наш egress = `coolify-orion` VM (через outbound NAT хоста orion `65.21.205.230`) | nice-to-have |
+| 6 | Лимиты tenant (TPS / daily cap / per-tx) | Чтобы не упереться в первые часы | желательно |
+| 7 | Контакт incident channel | На случай нештатной ситуации в нерабочее время | желательно |
 
 **Где запрашивать:** через внутренний канал группы ASYSTEM (Урмат знает контакт). В коде/доках Orgon публичного email/Telegram Safina-команды нет.
 
@@ -118,11 +126,13 @@
 
 ## F. Known limitations (честно)
 
-1. **Wallet `addr` появляется только после депозита** — природа Tron-Nile / ETH-Sepolia / mainnet. Для демо без живых денег `/wallets` будет показывать пустые addr. Это **не баг**.
-2. **`addr` через `walletbyunid/:unid` от Safina** — наш `WalletDetail` модель имеет поле `addrs` (plural), но в её парсинге `addrs: Optional[str]` — то есть Safina возвращает строку, а не список. Если у клиента multi-sig — нужно проверить как они её сериализуют.
-3. **Audit log сейчас в `audit_log_b2b`** (UI mutations) и в `audit_log` (AML actions из compliance_service) — две таблицы. `/api/audit/logs` читает только первую. AML actions через UI не видны в основном feed'е. Закрытие — отдельная story (UNION view).
-4. **Canonical-variant НЕ подтверждён** — `ORGON_SAFINA_VERIFY_MODE=off` на проде. Без sample signed-tx от Safina переключить в enforce невозможно.
-5. **KMS не прогонялся против реального AWS** — только in-process fake-KMS. Первый live-sign будет на pilot. Закладывать 1 день AWS-sandbox для smoke-теста.
+1. ⚠️ **`POST /tx_sign` возвращает 200 OK, но Safina silent-rejects подпись** (open question, 2026-05-11). End-to-end multi-sig flow не работает до получения объяснения от Safina. Tx висит в `pending` без broadcast.
+2. **Wallet `addr` появляется только после депозита** — природа Safina API на всех сетях (Tron-Nile, ETH-Sepolia, mainnet). Для демо без живых денег `/wallets` будет показывать пустые addr. Это **не баг**.
+3. **`addr` vs `addrs` field name mismatch** — Safina detail-endpoint `/wallet/:name` возвращает `addrs` (plural, multi-sig list), наш list-endpoint `/wallets` — `addr` (singular). Mapping добавлен в `wallet_service.py` после fire-test 2026-05-11. Но для unactivated кошельков обе формы пустые.
+4. **Audit log хранится в двух таблицах:** `audit_log_b2b` (UI mutations через JwtAuditMiddleware + B2B partner API через AuditLoggingMiddleware) и `audit_log` (AML/rule actions через ComplianceService). `/api/audit/logs` читает только `audit_log_b2b`. AML actions через UI не видны в основном feed'е. Закрытие — отдельная story (UNION view).
+5. **Canonical-variant НЕ подтверждён** — `ORGON_SAFINA_VERIFY_MODE=off` на проде. Без sample signed-tx от Safina переключить в enforce невозможно. **6 кандидатов** в registry, скрипт `safina_discover_canonical.py --self-test` проходит — ждём sample-tx.
+6. **KMS не прогонялся против реального AWS** — только in-process fake-KMS (17 unit tests passing). Первый live-sign будет на pilot. Закладывать 1 день AWS-sandbox для smoke-теста перед production-данными.
+7. **Замена `SAFINA_EC_PRIVATE_KEY`** через прямое редактирование `.env` в VM (script `scripts/safina-key-switch.sh switch <key>` — auto-rollback при failed smoke) применяется мгновенно через `docker restart`, но Coolify на следующем full redeploy перезапишет из своей БД. Для persistence — параллельно обновить через Coolify UI (Environment Variables tab).
 
 ---
 

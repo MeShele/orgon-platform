@@ -7,6 +7,183 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 27 — Fire-test bug pass (2026-05-11)
+
+Live mutation-flow under demo-admin against prod `https://orgon.asystem.ai`.
+Found 7 prod bugs that the 239-test unit suite did not catch, plus one
+**open question to Safina** that blocks live end-to-end multi-sig.
+
+Full session report: `docs/SESSION_2026-05-11_FIRE_TEST_FINDINGS.md`.
+
+### Bugs fixed
+
+1. **jsonb codec missing on asyncpg pool** (`e3c1122`).
+   `POST /api/v1/compliance/rules` 500'd because `RETURNING *` brought
+   `rule_config` back as a `str`, then Pydantic `MonitoringRule`
+   refused to construct from non-dict. Registered safe `json.loads`
+   decoder + passthrough `_jsonb_encode` for legacy
+   `json.dumps(x)::jsonb` INSERTs. Fixes the same class of bug across
+   audit_log details, aml_alerts details, sar payload, org settings.
+
+2. **`/api/wallets/by-unid/{unid}` 404 on existing UNID** (`67ef88b`).
+   Handler dispatched to `service.get_wallet(unid)` which only looks
+   up by `name`. Added `service.get_wallet_by_unid()` that routes
+   through Safina `/walletbyunid/:unid` and falls back to local DB
+   `my_unid` column.
+
+3. **Wallet `addr` empty after sync** (`67ef88b`). Safina `/wallets`
+   list does not return `addr` for fresh wallets; the detail endpoint
+   `/wallet/:name` returns `addrs` (plural, multi-sig list). Both
+   `get_wallet` / `get_wallet_by_unid` now map `addrs[0] → addr` on
+   read; `sync_wallets` fetches detail for any wallet with empty
+   `addr` and stores `addrs[0]`. Caveat: for unactivated wallets
+   Safina returns no `addrs` either, so `addr` stays empty until first
+   on-chain deposit — this is Safina-side, not our bug.
+
+4. **`audit_log` empty for all UI-driven actions** (`67ef88b`).
+   The B2B `AuditLoggingMiddleware` only captured `/api/v1/partner/*`
+   (HMAC-signed partner API). JWT-authenticated UI mutations on
+   `/api/auth`, `/api/wallets`, `/api/transactions`, etc, wrote
+   nothing. Added `JwtAuditMiddleware` that:
+   - Inspects bearer token in-flight (uses `AuthService.decode_token`)
+   - Logs one row per POST/PATCH/PUT/DELETE on `/api/*`
+   - Writes to `audit_log_b2b` so `/api/audit/logs` (which reads from
+     that same table) immediately surfaces the entry
+   - Best-effort: never raises, never blocks the actual response
+   - Skips `/api/auth/login`, `/api/auth/refresh`, partner paths,
+     health/docs
+
+5. **demo-admin has no organization** (`67ef88b` + `74f39c0`).
+   `/api/organizations` returned `[]` because `user_organizations`
+   was empty. The entrypoint.sh seed_test_organizations.sql gate
+   mis-fires when main.py creates users before the org seed runs.
+   New `031_demo_admin_org_link.sql` migration:
+   - Upserts the seed org (`Safina Exchange KG`,
+     `123e4567-e89b-12d3-a456-426614174000`) — `74f39c0` extension
+   - Links demo-admin/signer/viewer to it with admin/operator/viewer
+     roles
+   - Idempotent (ON CONFLICT DO UPDATE / DO NOTHING)
+   - Applied from `main.py` lifespan AFTER the boot-seed creates the
+     users — entrypoint.sh overlay runs too early to find them
+
+6. **Send 502 on empty wallet** (`67ef88b`). Safina returned 404
+   ("NO Wallet") on `POST /tx` when target wallet had no tokens, but
+   `SafinaError` had no `status_code` field, so the route generic
+   `except` wrapped it as 502 Bad Gateway — wrong, since this is
+   user-recoverable state. Added `status_code` to `SafinaError`;
+   route maps 4xx Safina responses to 400 with a Russian hint about
+   faucet flow.
+
+7. **Live send_transaction 500: column "info" does not exist**
+   (`4e823f1`). `transaction_service.py` did
+   `INSERT INTO transactions (..., info, ...)` but the canonical
+   schema (migration `000_canonical_schema.sql`) has no `info`
+   column. `asyncpg.UndefinedColumnError` raised AFTER Safina had
+   already accepted the tx, leaving it orphaned in Safina state with
+   no local cache row. **This bug had been live for months without
+   detection** — typical regression test path doesn't trigger live
+   send. Removed `info` from the INSERT; Safina-side `tx.info` is
+   preserved and surfaces back via `sync_transactions` polling.
+
+### Open question to Safina (not fixed)
+
+`POST /tx_sign/:tx_unid` returns 200 OK with body `{"ok":true,...}`,
+but Safina **does not register the signature in its multi-sig state
+machine**:
+- `wait: [{"email":"marisejd@gmail.com"}]` remains unchanged
+- `signed: null`, `signed_count: 0`, `progress: "0/0"`
+- `tx_hash: null` (no on-chain broadcast through 7+ minutes)
+
+Re-sign returns our local `409 duplicate_signature` (proves we did
+send the request from EC `0xA285990a1Ce696d770d578Cf4473d80e0228DF95`).
+
+Two equally-plausible causes:
+- **Canonical-payload mismatch** — our signature doesn't validate on
+  Safina side (the Wave 22 unknown). 6 candidate variants in registry
+  ready; discovery script `safina_discover_canonical.py --self-test`
+  passes, waiting for a Safina-issued sample signed-tx.
+- **EC ≠ registered signer for email account** — `marisejd@gmail.com`
+  may be a different Safina-side signer account from our EC keypair.
+  Wiki contains no documentation on EC ↔ account/email association.
+
+Wiki at `pm.kaz.one/projects/safina-api/wiki`:
+- POST /tx_sign — "Ответ {}"; no body spec, no valid-vs-invalid
+  differentiation
+- "wait" doc says EC-addresses; actual response gives `email`
+  (docs stale)
+- No documentation on signer registration
+
+**Must be raised on the 2026-05-12 Safina call** before any live
+end-to-end multi-sig flow with real money.
+
+### Infrastructure: VM OOM mitigation
+
+`coolify-orion` is a Proxmox VM #200 on host `orion` (65.21.205.230)
+with 8 GB RAM and **0 swap**. Concurrent Next.js + backend build
+during 2026-05-11 ~16:35 KG-time deploy triggered global OOM-killer:
+```
+[Mon May 11 10:35:31 UTC 2026] Out of memory: Killed process … task=beam.smp
+[Mon May 11 10:35:37 UTC 2026] Out of memory: Killed process … task=systemd
+[Mon May 11 10:35:38 UTC 2026] Out of memory: Killed process … task=next-server
+```
+Mitigation: 4 GB swapfile on VM, `swappiness=10`, persistent through
+`/etc/fstab`. Peak swap utilisation under subsequent build: 870 MB
+(otherwise would have been OOM-killed again). Other tenants on the VM
+unaffected.
+
+Not yet done (planned, requires VM stop/start window): bump VM memory
+from 8 GB → 16 GB in Proxmox config. Until then, swap is the safety
+net.
+
+### Tooling added
+
+- `scripts/safina-key-switch.sh {status|switch <key>|rollback}` —
+  atomic switch of `SAFINA_EC_PRIVATE_KEY` on running prod (edits
+  the materialised `.env` in VM `/data/coolify/applications/<uuid>/`
+  + `docker restart` backend). Backs up the previous `.env` to
+  `/root/orgon-key-history/.env.<ts>` for one-line rollback. After
+  switch, smoke-probes `/api/health` then `/api/health/safina` —
+  exits non-zero if `safina_reachable: false` so operator notices
+  immediately. NOT persistent across Coolify full redeploys; for
+  durable change also update Coolify UI Environment Variables.
+
+- `docs/safina-pilot-readiness-checklist.md` — single-page pilot
+  setup checklist (what to request from Safina, what client/infra
+  needs, current state, pre-flight checklist, recommended
+  6-stage smoke sequence).
+
+- `docs/SESSION_2026-05-11_FIRE_TEST_FINDINGS.md` — full report of
+  this session.
+
+### Files changed
+
+```
+M  backend/database/db_postgres.py              (jsonb codec, _jsonb_encode passthrough)
+M  backend/api/middleware_b2b.py                (+JwtAuditMiddleware ~140 lines)
+M  backend/main.py                              (import JwtAuditMiddleware + add_middleware + 031 lifespan apply)
+M  backend/api/routes_wallets.py                (by-unid uses get_wallet_by_unid)
+M  backend/services/wallet_service.py           (+get_wallet_by_unid, _ensure_addr_singular, sync addrs detail)
+M  backend/api/routes_transactions.py           (SafinaError 4xx → 400 with hint)
+M  backend/services/transaction_service.py      (drop info column from cache INSERT)
+M  backend/safina/client.py                     (SafinaError carries status_code)
+M  backend/safina/errors.py                     (status_code field)
+A  backend/migrations/031_demo_admin_org_link.sql (self-seed org + link demo users)
+A  scripts/safina-key-switch.sh                 (atomic key swap + auto-rollback)
+A  docs/safina-pilot-readiness-checklist.md
+A  docs/SESSION_2026-05-11_FIRE_TEST_FINDINGS.md
+M  docs/prod-readiness.md                       (section 0: 99% → 85%, sign open question)
+M  README.md                                    (multi-signature row honest assessment)
+M  CHANGELOG.md                                 (this entry)
+```
+
+### Test status
+
+Compile-clean (`python -m compileall backend/` exit 0). Existing 239
+unit-tests pass — no new tests added (every fix has a live-traffic
+test surface, harder to mock the half-broken Safina state).
+
+---
+
 ## Wave 26 — Release-from-hold UX polish (2026-05-02)
 
 Wave 23 set transactions to `status='on_hold'` when a rule with

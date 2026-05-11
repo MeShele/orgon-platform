@@ -2,13 +2,13 @@
 
 > **Назначение:** при подключении первого institutional-клиента (или нового pilot-окружения) этот документ — единственный источник истины для setup'а. Прошёл по чек-листу → клиент получает рабочий tenant с подставленными prod-кредами.
 
-> **Last updated:** 2026-05-02 (после DB-split + Safina-multi-network проверки)
+> **Last updated:** 2026-05-11 (после fire-test сессии — нашли 7 фиксов + 1 open question к Safina; см. `docs/SESSION_2026-05-11_FIRE_TEST_FINDINGS.md`)
 
 ---
 
 ## 0. Текущее состояние одной строкой
 
-ORGON работает в режиме **shared-test environment** с публичной test-инсталляцией на `https://orgon.asystem.ai`, демо-аккаунт `demo-admin@orgon.io / demo2026`. Все 7 поддерживаемых Safina-сетей (BTC, ETH, ETH-Sepolia, TRX, TRX-Nile, ORGON, ORGON-test) **верифицированы вживую** — кошельки реально создаются и попадают на блокчейн. Database вынесена из docker-compose в Coolify-managed standalone-postgresql с daily-backup'ами. **Готовность к pilot-launch: ~99%** — все 5 institutional-блокеров закрыты code-side: ❶ KMS (Wave 18) · ❷ Safina canonical-payload (Wave 22, pluggable variants + shadow-mode) · ❸ AML triage (Wave 19+21) · ❹ KYC (Wave 19) · ❺ KYB (Wave 20). Осталось только bring-up coordination с pilot-клиентом (env-creds + variant confirmation).
+ORGON работает в режиме **shared-test environment** с публичной test-инсталляцией на `https://orgon.asystem.ai`, демо-аккаунт `demo-admin@orgon.io / demo2026`. Все 7 поддерживаемых Safina-сетей (BTC, ETH, ETH-Sepolia, TRX, TRX-Nile, ORGON, ORGON-test) видны через Safina API, **wallet create + send_transaction до приёма в Safina pending state — verified live**. Database вынесена в Coolify-managed standalone-postgresql с daily-backup'ами. VM защищена 4 GB swapfile от OOM-инцидентов на пиках билда. **Готовность к pilot-launch: ~85%.** 5 institutional-блокеров: ❶ KMS (Wave 18, code-ready, не прогонялось на реальном AWS) · ❷ Safina canonical-payload (Wave 22, 6 variants, **runtime mode = `off` до получения sample signed-tx от Safina**) · ❸ AML triage (Wave 19+21, fire-tested) · ❹ KYC (Wave 19, pre-launch до подачи Sumsub creds) · ❺ KYB (Wave 20, pre-launch). **Open question к Safina (2026-05-11):** `POST /tx_sign` возвращает 200 OK, но Safina молча не учитывает подпись (`wait[]` не очищается, tx не broadcast'ится). Causa неясна без их docs / sample-tx. До разрешения **multi-sig end-to-end не подтверждён live**.
 
 ---
 

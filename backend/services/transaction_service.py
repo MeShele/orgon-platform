@@ -451,14 +451,17 @@ class TransactionService:
         local_status = "on_hold" if verdict["verdict"] == "hold" else "pending"
 
         # Cache locally — Postgres ON CONFLICT (unid was SQLite "INSERT OR IGNORE").
+        # Note: `transactions` schema has no `info` column (canonical schema
+        # 000 — tx description lives in Safina-side `tx.info` field). Don't
+        # try to mirror it locally; that 500'd live send for months.
         now = datetime.now(timezone.utc)
         await self._db.execute(
             """INSERT INTO transactions
-               (token, to_addr, value, unid, status, info, wallet_name, network, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+               (token, to_addr, value, unid, status, wallet_name, network, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                ON CONFLICT (unid) DO NOTHING""",
             (request.token, request.to_address, safina_value, tx_unid,
-             local_status, request.info, wallet_name, network, now, now),
+             local_status, wallet_name, network, now, now),
         )
 
         logger.info(

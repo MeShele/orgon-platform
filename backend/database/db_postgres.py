@@ -1,11 +1,47 @@
 """PostgreSQL async connection manager for ORGON."""
 
 import asyncpg
+import json
 import logging
 from contextlib import asynccontextmanager
 from typing import Any, Optional
 
 logger = logging.getLogger("orgon.database")
+
+
+def _jsonb_encode(value: Any) -> str:
+    """Safe jsonb encoder for asyncpg pool.
+
+    Some existing INSERT call-sites already pass `json.dumps(...)`
+    as a str and rely on the SQL-level `::jsonb` cast to parse it.
+    Re-serialising a str here would produce a JSON-encoded string
+    (e.g. `'"{}"'`) instead of an object — breaking those INSERTs.
+    Pass str/bytes through unchanged; only serialise real objects.
+    """
+    if isinstance(value, (str, bytes)):
+        return value if isinstance(value, str) else value.decode("utf-8")
+    return json.dumps(value)
+
+
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Register codecs for every new pool connection.
+
+    asyncpg returns `jsonb` / `json` columns as raw text by default.
+    Pydantic models that declare these fields as `dict` then fail with
+    `dict_type` validation errors on `RETURNING *` paths. Registering
+    a codec makes every read return a dict transparently.
+
+    Encoder uses `_jsonb_encode` (passes pre-serialised str through)
+    so legacy `json.dumps(x)::jsonb` INSERTs keep working.
+    """
+    await conn.set_type_codec(
+        "jsonb", encoder=_jsonb_encode, decoder=json.loads,
+        schema="pg_catalog", format="text",
+    )
+    await conn.set_type_codec(
+        "json", encoder=_jsonb_encode, decoder=json.loads,
+        schema="pg_catalog", format="text",
+    )
 
 
 class AsyncDatabase:
@@ -45,6 +81,7 @@ class AsyncDatabase:
                 max_size=self._max_size,
                 command_timeout=60,
                 timeout=30,  # Connection timeout (for Neon.tech serverless)
+                init=_init_connection,
             )
             logger.info("PostgreSQL connection pool created")
 

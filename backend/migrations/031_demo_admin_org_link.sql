@@ -25,11 +25,23 @@ DECLARE
     signer_user_id integer;
     viewer_user_id integer;
 BEGIN
-    -- No-op if the seed org isn't present.
-    IF NOT EXISTS (SELECT 1 FROM organizations WHERE id = safina_org_id) THEN
-        RAISE NOTICE 'Safina Exchange KG seed org missing, skipping demo-admin org link';
-        RETURN;
-    END IF;
+    -- entrypoint.sh's seed_test_organizations.sql is gated by a
+    -- "demo-admin user exists?" check that mis-fires when users were
+    -- seeded from main.py before the org seed got a chance to run.
+    -- Result: in some installs `organizations` ends up empty even
+    -- though demo users exist. Create the seed org here too so the
+    -- migration is self-sufficient regardless of seed ordering.
+    INSERT INTO organizations (id, name, slug, license_type, status, email, country)
+    VALUES (
+        safina_org_id,
+        'Safina Exchange KG',
+        'safina-kg',
+        'enterprise',
+        'active',
+        'admin@safina.kg',
+        'Kyrgyzstan'
+    )
+    ON CONFLICT (id) DO NOTHING;
 
     SELECT id INTO admin_user_id FROM users WHERE email = 'demo-admin@orgon.io';
     SELECT id INTO signer_user_id FROM users WHERE email = 'demo-signer@orgon.io';

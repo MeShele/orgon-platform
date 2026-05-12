@@ -19,7 +19,7 @@ def get_analytics_service(request: Request) -> AnalyticsService:
 @router.get("/balance-history")
 async def get_balance_history(
     days: int = Query(30, ge=1, le=365),
-    user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor")), service: AnalyticsService = Depends(get_analytics_service)
+    user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor", "company_operator")), service: AnalyticsService = Depends(get_analytics_service)
 ):
     """
     Get balance history over time.
@@ -37,7 +37,7 @@ async def get_balance_history(
 @router.get("/transaction-volume")
 async def get_transaction_volume(
     network: Optional[str] = None,
-    user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor")), service: AnalyticsService = Depends(get_analytics_service)
+    user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor", "company_operator")), service: AnalyticsService = Depends(get_analytics_service)
 ):
     """
     Get transaction volume grouped by network.
@@ -53,7 +53,7 @@ async def get_transaction_volume(
 
 
 @router.get("/token-distribution")
-async def get_token_distribution(user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor")), service: AnalyticsService = Depends(get_analytics_service)):
+async def get_token_distribution(user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor", "company_operator")), service: AnalyticsService = Depends(get_analytics_service)):
     """Get token distribution (pie chart data)."""
     try:
         data = await service.get_token_distribution()
@@ -81,7 +81,7 @@ async def get_signature_stats(user: dict = Depends(require_roles("platform_admin
 async def get_daily_trends(
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor")), service: AnalyticsService = Depends(get_analytics_service)
+    user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor", "company_operator")), service: AnalyticsService = Depends(get_analytics_service)
 ):
     """
     Get daily transaction trends.
@@ -105,7 +105,7 @@ async def get_daily_trends(
 
 
 @router.get("/network-activity")
-async def get_network_activity(user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor")), service: AnalyticsService = Depends(get_analytics_service)):
+async def get_network_activity(user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor", "company_operator")), service: AnalyticsService = Depends(get_analytics_service)):
     """Get network activity summary."""
     try:
         data = await service.get_network_activity()

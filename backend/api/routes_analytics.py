@@ -63,8 +63,13 @@ async def get_token_distribution(user: dict = Depends(require_roles("platform_ad
 
 
 @router.get("/signature-stats")
-async def get_signature_stats(user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor")), service: AnalyticsService = Depends(get_analytics_service)):
-    """Get signature completion statistics."""
+async def get_signature_stats(user: dict = Depends(require_roles("platform_admin", "company_admin", "company_auditor", "company_operator")), service: AnalyticsService = Depends(get_analytics_service)):
+    """Get signature completion statistics.
+
+    `company_operator` (legacy: signer) included — these are their own
+    signing performance numbers, treating them as private to the role
+    would hide the signer's most relevant view from them.
+    """
     try:
         data = await service.get_signature_stats()
         return data

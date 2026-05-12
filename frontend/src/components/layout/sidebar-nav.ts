@@ -76,7 +76,7 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
   {
     label: "roadmap",
     items: [
-      { href: "/compliance", label: "compliance", icon: "solar:shield-check-linear",        activeIcon: "solar:shield-check-bold",        roles: ["admin"],          roadmap: true },
+      { href: "/compliance", label: "compliance", icon: "solar:shield-check-linear",        activeIcon: "solar:shield-check-bold",        roles: ["admin", "viewer"], roadmap: true },
       { href: "/users",      label: "users",      icon: "solar:users-group-rounded-linear", activeIcon: "solar:users-group-rounded-bold", roles: ["admin"],          roadmap: true },
       { href: "/documents",  label: "documents",  icon: "solar:document-linear",            activeIcon: "solar:document-bold",            roles: ["all"],            roadmap: true },
       { href: "/settings",   label: "settings",   icon: "solar:settings-linear",            activeIcon: "solar:settings-bold",            roles: ["all"],            roadmap: true },

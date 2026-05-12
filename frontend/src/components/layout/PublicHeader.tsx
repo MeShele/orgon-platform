@@ -79,9 +79,9 @@ export function PublicHeader() {
               >
                 Войти
               </Link>
-              <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request">
+              <Link href="/demo/architecture">
                 <Button variant="primary" size="sm">Демо</Button>
-              </a>
+              </Link>
             </>
           )}
         </div>
@@ -120,9 +120,9 @@ export function PublicHeader() {
                 <Link href="/login" onClick={() => setOpen(false)}>
                   <Button variant="secondary" size="sm" fullWidth>Войти</Button>
                 </Link>
-                <a href="mailto:sales@orgon.asystem.kg?subject=ORGON%20demo%20request" onClick={() => setOpen(false)}>
+                <Link href="/demo/architecture" onClick={() => setOpen(false)}>
                   <Button variant="primary" size="sm" fullWidth>Демо</Button>
-                </a>
+                </Link>
               </>
             )}
             <div className="pt-2 flex justify-center">

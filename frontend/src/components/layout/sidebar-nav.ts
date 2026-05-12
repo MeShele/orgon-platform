@@ -32,15 +32,12 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
       { href: "/signatures",   label: "signatures",   icon: "solar:pen-linear",                     activeIcon: "solar:pen-bold",                     roles: ["admin", "signer"] },
       { href: "/scheduled",    label: "scheduled",    icon: "solar:calendar-linear",                activeIcon: "solar:calendar-bold",                roles: ["admin", "signer"] },
       { href: "/contacts",     label: "contacts",     icon: "solar:user-linear",                    activeIcon: "solar:user-bold",                    roles: ["admin", "signer"] },
-      { href: "/fiat",         label: "fiat",         icon: "solar:banknote-linear",                activeIcon: "solar:banknote-bold",                roles: ["admin", "signer"] },
     ],
   },
   {
     label: "organization",
     items: [
       { href: "/organizations", label: "organizations", icon: "solar:buildings-linear",     activeIcon: "solar:buildings-bold",     roles: ["all"] },
-      { href: "/partner",       label: "partner",       icon: "solar:hand-shake-linear",    activeIcon: "solar:hand-shake-bold",    roles: ["admin"] },
-      { href: "/billing",       label: "billing",       icon: "solar:card-linear",          activeIcon: "solar:card-bold",          roles: ["admin"] },
     ],
   },
   {
@@ -77,6 +74,9 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
     label: "roadmap",
     items: [
       { href: "/compliance", label: "compliance", icon: "solar:shield-check-linear",        activeIcon: "solar:shield-check-bold",        roles: ["admin", "viewer"], roadmap: true },
+      { href: "/fiat",       label: "fiat",       icon: "solar:banknote-linear",            activeIcon: "solar:banknote-bold",            roles: ["admin", "signer"], roadmap: true },
+      { href: "/billing",    label: "billing",    icon: "solar:card-linear",                activeIcon: "solar:card-bold",                roles: ["admin"],          roadmap: true },
+      { href: "/partner",    label: "partner",    icon: "solar:hand-shake-linear",          activeIcon: "solar:hand-shake-bold",          roles: ["admin"],          roadmap: true },
       { href: "/users",      label: "users",      icon: "solar:users-group-rounded-linear", activeIcon: "solar:users-group-rounded-bold", roles: ["admin"],          roadmap: true },
       { href: "/documents",  label: "documents",  icon: "solar:document-linear",            activeIcon: "solar:document-bold",            roles: ["all"],            roadmap: true },
       { href: "/settings",   label: "settings",   icon: "solar:settings-linear",            activeIcon: "solar:settings-bold",            roles: ["all"],            roadmap: true },

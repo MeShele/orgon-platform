@@ -1,0 +1,10 @@
+{
+  "_comment_": "Fill this with one real Safina-signed transaction from their side. Then run: docker exec orgon-backend python backend/scripts/safina_discover_canonical.py --sample /path/to/this.json — the script probes all 6 canonical-payload variants and tells which one matches. After that: set SAFINA_CANONICAL_VARIANT=<matched> and ORGON_SAFINA_VERIFY_MODE=shadow in Coolify env, redeploy, soak 24h, then switch to enforce.",
+
+  "tx_unid": "<paste tx.unid hex string here, e.g. 46AF88DC5DDB1F9D45258DF4003BE62A>",
+  "network": 0,
+  "value": "<paste tx.value as decimal string, e.g. \"100000000000000000\">",
+  "to_address": "<paste tx.to_addr here>",
+  "signature_hex": "<paste signed[i].ecsign — concat of r:32 + s:32 + v:1 as 0x-prefixed hex>",
+  "expected_signer": "<paste signed[i].ecaddress — the 0x... address that should recover from the signature>"
+}

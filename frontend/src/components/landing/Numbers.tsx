@@ -7,11 +7,11 @@ import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
 import { Reveal, RevealItem } from "./Reveal";
 
 const KPIS = [
-  { label: "Сетей",     value: "7+",      caption: "EVM + TRON" },
-  { label: "Политика",  value: "7-of-15", caption: "макс. подписантов" },
-  { label: "Регионы",   value: "3",       caption: "KG · KZ · UZ" },
-  { label: "Подписи",   value: "<5м",     caption: "среднее время" },
-  { label: "Broadcast", value: "<2с",     caption: "latency p95" },
+  { label: "Сетей",        value: "7",       caption: "BTC · ETH · TRX · ORGON + testnet" },
+  { label: "Политика",     value: "7-of-15", caption: "макс. подписантов" },
+  { label: "Юрисдикции",   value: "КР · КЗ", caption: "под Финнадзор, AFSA" },
+  { label: "Audit log",    value: "100%",    caption: "append-only DB-trigger" },
+  { label: "API",          value: "183",     caption: "операций в Swagger" },
 ];
 
 export function Numbers() {

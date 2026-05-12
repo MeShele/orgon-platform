@@ -85,12 +85,12 @@ const FEATURES: Feature[] = [
     icon: "solar:global-bold",
     title: "Поддержка сетей",
     description:
-      "Tron, BNB Chain, Ethereum, Polygon, BTC. Кросс-чейн совместимость через Safina Pay интеграцию.",
+      "Bitcoin, Ethereum, Tron, ORGON. Все сети — через одну интеграцию с Safina Pay. Mainnet и testnet.",
     details: [
-      "Tron (TRC-20, USDT)",
-      "EVM-сети: ETH, BSC, Polygon",
-      "Bitcoin (BIP-32 кошельки)",
-      "Автоматическая комиссия",
+      "Bitcoin mainnet",
+      "Ethereum mainnet + Sepolia testnet",
+      "Tron mainnet + Nile testnet (TRX, USDT, USDC)",
+      "ORGON mainnet + testnet",
     ],
   },
 ];

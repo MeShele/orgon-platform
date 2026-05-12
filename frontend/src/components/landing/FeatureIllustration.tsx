@@ -323,12 +323,12 @@ function AuditIllustration() {
 
 function NetworksIllustration() {
   const nets = [
-    { name: "Tron",        sym: "TRX",  color: "bg-rose-500/10 text-rose-600 border-rose-300/40 dark:text-rose-300 dark:border-rose-500/30",       active: true  },
-    { name: "Ethereum",    sym: "ETH",  color: "bg-indigo-500/10 text-indigo-600 border-indigo-300/40 dark:text-indigo-300 dark:border-indigo-500/30", active: true  },
-    { name: "BNB Chain",   sym: "BNB",  color: "bg-amber-500/10 text-amber-700 border-amber-300/40 dark:text-amber-300 dark:border-amber-500/30",     active: true  },
-    { name: "Polygon",     sym: "POL",  color: "bg-violet-500/10 text-violet-600 border-violet-300/40 dark:text-violet-300 dark:border-violet-500/30", active: true  },
-    { name: "Bitcoin",     sym: "BTC",  color: "bg-orange-500/10 text-orange-600 border-orange-300/40 dark:text-orange-300 dark:border-orange-500/30",  active: true  },
-    { name: "Solana",      sym: "SOL",  color: "bg-emerald-500/10 text-emerald-600 border-emerald-300/40 dark:text-emerald-300 dark:border-emerald-500/30", active: false },
+    { name: "Bitcoin",       sym: "BTC",  color: "bg-orange-500/10 text-orange-600 border-orange-300/40 dark:text-orange-300 dark:border-orange-500/30",   active: true },
+    { name: "Ethereum",      sym: "ETH",  color: "bg-indigo-500/10 text-indigo-600 border-indigo-300/40 dark:text-indigo-300 dark:border-indigo-500/30",   active: true },
+    { name: "ETH Sepolia",   sym: "SEP",  color: "bg-indigo-500/5 text-indigo-500 border-indigo-300/30 dark:text-indigo-300 dark:border-indigo-500/20",    active: true },
+    { name: "Tron",          sym: "TRX",  color: "bg-rose-500/10 text-rose-600 border-rose-300/40 dark:text-rose-300 dark:border-rose-500/30",             active: true },
+    { name: "Tron Nile",     sym: "NILE", color: "bg-rose-500/5 text-rose-500 border-rose-300/30 dark:text-rose-300 dark:border-rose-500/20",              active: true },
+    { name: "ORGON",         sym: "ORG",  color: "bg-emerald-500/10 text-emerald-600 border-emerald-300/40 dark:text-emerald-300 dark:border-emerald-500/30", active: true },
   ];
   return (
     <div className={containerCls}>

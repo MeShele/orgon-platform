@@ -41,8 +41,8 @@ export function Pillars() {
 
             <p className="mt-5 text-[14px] leading-[1.6] text-muted-foreground max-w-md">
               Политики M-of-N до 7-of-15, разделение admin / signer /
-              viewer ролей, HSM-ready ключи. Поддержка TRON, Ethereum,
-              Polygon, BSC, Arbitrum, Optimism, Base.
+              viewer ролей, HSM-ready ключи. Поддержка Bitcoin,
+              Ethereum, Tron, ORGON — mainnet и testnet каждой сети.
             </p>
 
             <div className="mt-10 flex-1 flex items-center justify-center">

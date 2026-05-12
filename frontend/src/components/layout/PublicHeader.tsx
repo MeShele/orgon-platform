@@ -30,7 +30,6 @@ function useSignedInState(): { signedIn: boolean; ready: boolean } {
 
 const NAV = [
   { href: "/features",          label: "Возможности" },
-  { href: "/pricing",           label: "Тарифы" },
   { href: "/demo/architecture", label: "Архитектура" },
   { href: "/docs",              label: "Документация" },
   { href: "/about",             label: "О компании" },

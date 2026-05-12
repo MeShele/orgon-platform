@@ -35,7 +35,6 @@ from backend.services.analytics_service import AnalyticsService
 from backend.services.audit_service import AuditService
 from backend.services.user_service import UserService
 from backend.services.auth_service import AuthService
-from backend.services.partner_service import PartnerService
 from backend.services.organization_service import OrganizationService
 from backend.integrations.telegram_notifier import TelegramNotifier
 from backend.integrations.asagent_bridge import ASAGENTBridge
@@ -45,12 +44,7 @@ from backend.events.manager import init_event_manager, get_event_manager
 from backend.websocket_manager import ws_manager
 from backend.services.email_service import email_service
 from backend.services.notification_service import init_notification_service, get_notification_service
-from backend.api.middleware_b2b import (
-    APIKeyAuthMiddleware,
-    RateLimitMiddleware as PartnerRateLimitMiddleware,
-    AuditLoggingMiddleware,
-    JwtAuditMiddleware,
-)
+from backend.api.middleware_audit_jwt import JwtAuditMiddleware
 from backend.middleware.security import LoginRateLimitMiddleware
 
 # Configure logging — plain by default, JSON when ORGON_JSON_LOGS=1.
@@ -84,11 +78,6 @@ _scheduled_transaction_service: ScheduledTransactionService | None = None
 _telegram_notifier: TelegramNotifier | None = None
 _asagent_bridge: ASAGENTBridge | None = None
 _organization_service: OrganizationService | None = None
-
-# B2B Platform services
-_partner_service: PartnerService | None = None
-_audit_service_b2b: AuditService | None = None  # B2B audit service (separate from internal audit)
-_webhook_service = None  # WebhookService (imported conditionally)
 
 # WebSocket connections
 _ws_connections: Set[WebSocket] = set()
@@ -147,14 +136,8 @@ def get_user_service() -> UserService:
 def get_auth_service() -> AuthService:
     return _auth_service
 
-def get_partner_service() -> PartnerService:
-    return _partner_service
-
 def get_organization_service() -> OrganizationService:
     return _organization_service
-
-def get_audit_service_b2b() -> AuditService:
-    return _audit_service_b2b
 
 
 async def broadcast_ws(event_type: str, data: dict):
@@ -174,7 +157,6 @@ async def lifespan(app: FastAPI):
     """Application lifecycle manager (PostgreSQL-enabled)."""
     global _async_db, _signer, _safina_client
     global _wallet_service, _transaction_service, _sync_service, _balance_service, _network_service, _signature_service, _dashboard_service, _scheduled_transaction_service, _address_book_service, _analytics_service, _audit_service, _user_service, _auth_service, _telegram_notifier, _asagent_bridge, _organization_service
-    global _partner_service, _audit_service_b2b, _webhook_service
 
     config = get_config()
     logger.info("Starting ORGON backend...")
@@ -385,22 +367,10 @@ async def lifespan(app: FastAPI):
             print(f"[DEBUG] ❌ Auth service NOT initialized! _async_db={_async_db}, _pool={_async_db._pool if _async_db else 'N/A'}", file=sys.stderr, flush=True)
             raise RuntimeError("Auth service requires PostgreSQL pool")
         
-        # Initialize B2B Platform Services (requires PostgreSQL)
+        # Wire core services into app.state for dependency injection.
         if _async_db and _async_db._pool:
-            from backend.services.webhook_service import WebhookService
-            
-            _partner_service = PartnerService(db_pool=_async_db._pool)
-            _audit_service_b2b = AuditService(db_pool=_async_db._pool)
-            _webhook_service = WebhookService(db_pool=_async_db._pool)
-            
             logger.info("Setting app.state services...")
-            # Store services in app state for dependency injection
             app.state.db_pool = _async_db._pool
-            app.state.partner_service = _partner_service
-            app.state.audit_service_b2b = _audit_service_b2b
-            app.state.webhook_service = _webhook_service
-            
-            # Store core services for Partner API
             app.state.wallet_service = _wallet_service
             app.state.transaction_service = _transaction_service
             app.state.signature_service = _signature_service
@@ -412,10 +382,7 @@ async def lifespan(app: FastAPI):
             app.state.auth_service = _auth_service
             app.state.user_service = _user_service
             app.state.organization_service = _organization_service
-            
             logger.info("✅ app.state services set successfully")
-            logger.info(f"   auth_service: {hasattr(app.state, 'auth_service')}")
-            logger.info("B2B Platform services initialized (PartnerService, AuditService, WebhookService)")
 
 
             # Initialize Notification Service
@@ -465,12 +432,11 @@ async def lifespan(app: FastAPI):
         # Start scheduler
         scheduler = setup_scheduler(
             _sync_service, 
-            _balance_service, 
-            _transaction_service, 
-            _network_service, 
-            _signature_service, 
+            _balance_service,
+            _transaction_service,
+            _network_service,
+            _signature_service,
             _scheduled_transaction_service,
-            _webhook_service
         )
         scheduler.start()
         logger.info("Scheduler started")
@@ -489,9 +455,6 @@ async def lifespan(app: FastAPI):
         scheduler.shutdown(wait=False)
     if _safina_client:
         await _safina_client.close()
-    if _webhook_service:
-        await _webhook_service.close()
-        logger.info("WebhookService HTTP client closed")
     
     # Close price feed service
     from backend.services.price_feed_service import close_price_feed_service
@@ -511,7 +474,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title="ORGON API",
-    description="Multi-tenant cryptocurrency exchange platform with billing, compliance, and wallet management",
+    description="Operational layer over Safina Pay custody: multi-sig, compliance, audit, multi-tenancy.",
     version="2.0.0",
     lifespan=lifespan,
     docs_url="/api/docs",
@@ -529,7 +492,6 @@ from backend.api.routes_transactions import router as transactions_router
 from backend.api.routes_networks import router as networks_router
 from backend.api.routes_signatures import router as signatures_router
 from backend.api.routes_dashboard import router as dashboard_router
-from backend.api.routes_webhooks import router as webhooks_router
 from backend.api.routes_export import router as export_router
 from backend.api.routes_scheduled import router as scheduled_router
 from backend.api.routes_contacts import router as contacts_router
@@ -541,30 +503,15 @@ from backend.api.routes_twofa import router as twofa_router
 from backend.api.test_events import router as test_events_router
 from backend.api.routes_debug import router as debug_router
 from backend.api.routes_organizations import router as organizations_router  # Multi-tenancy
-from backend.api.routes_billing import router as billing_router
 from backend.api.routes_compliance import router as compliance_router
 from backend.api.routes_whitelabel import router as whitelabel_router
 from backend.api.routes_kyc_kyb import router as kyc_kyb_router
-from backend.api.routes_fiat import router as fiat_router
 from backend.api.routes_monitoring import router as monitoring_router
 from backend.api.routes_documents import router as documents_router
 from backend.api.routes_reports import router as reports_router
 from backend.api.routes_support import router as support_router
-# compat routers removed in sprint 2 — they served hardcoded mock data
-
-# B2B Platform routes
-from backend.api.routes_partner import router as partner_router
-from backend.api.routes_webhooks import router as partner_webhooks_router
-from backend.api.routes_partner_analytics import router as partner_analytics_router
 from backend.api.routes_safina_integration import router as safina_integration_router
-from backend.api.routes_partner_scheduled import router as partner_scheduled_router
-from backend.api.routes_admin_partners import router as admin_partners_router
 from backend.api.routes_webhooks_sumsub import router as webhooks_sumsub_router
-# routes_partner_addresses is broken-on-arrival: it calls
-# AddressBookService.list_addresses / create_address / etc., which don't
-# exist (the service only has get_contacts/create_contact). Disabled until
-# the address_book_b2b model is properly wired. See CHANGELOG.md backlog.
-# from backend.api.routes_partner_addresses import router as partner_addresses_router
 
 app.include_router(health_router)
 app.include_router(wallets_router)
@@ -572,7 +519,6 @@ app.include_router(transactions_router)
 app.include_router(networks_router)
 app.include_router(signatures_router)
 app.include_router(dashboard_router)
-app.include_router(webhooks_router)
 app.include_router(export_router)
 app.include_router(scheduled_router)
 app.include_router(contacts_router)
@@ -582,39 +528,25 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(twofa_router)
 app.include_router(organizations_router)  # Multi-tenancy
-app.include_router(billing_router)  # Billing & Subscriptions
 app.include_router(compliance_router)  # Compliance & Regulatory
 app.include_router(whitelabel_router)  # White Label
 app.include_router(kyc_kyb_router)  # KYC/KYB Verification Flow
-app.include_router(fiat_router)  # Fiat On-ramp/Off-ramp
-# app.include_router(test_events_router)  # Development only — disabled in prod (anonymous WS event injection)
-# app.include_router(debug_router)  # Debug endpoints — disabled in prod (dumps app.state)
 app.include_router(monitoring_router)  # Monitoring & Prometheus metrics
 app.include_router(documents_router)  # OnlyOffice document tokens
 app.include_router(reports_router)  # Reports
 app.include_router(support_router)  # Support tickets
-
-# B2B Platform routes
-app.include_router(partner_router)
-app.include_router(partner_webhooks_router)
-app.include_router(partner_analytics_router)
-app.include_router(partner_scheduled_router)
-app.include_router(admin_partners_router)  # Admin REST: provision / rotate / revoke partners
-# app.include_router(partner_addresses_router)  # disabled — see import comment
 app.include_router(safina_integration_router)  # Safina API gap closure
 app.include_router(webhooks_sumsub_router)     # Sumsub KYC webhook (Wave 19, story 2.4)
-
-# B2B Partner-API middleware stack (tier-based rate limit + API-key auth)
-app.add_middleware(AuditLoggingMiddleware)
-app.add_middleware(PartnerRateLimitMiddleware)
-app.add_middleware(APIKeyAuthMiddleware)
 
 # JWT-side audit: log UI mutations into the same `audit_log_b2b` table that
 # /api/audit/logs reads from. Closes the dashboard-actions audit gap.
 app.add_middleware(JwtAuditMiddleware)
 
-# General-API rate limit (login brute-force, 100 req/min/IP). Last-added so
-# Starlette runs it outermost — bouncers hit before partner-tier check.
+# JWT-side audit: log UI mutations into audit_log_b2b (the table
+# /api/audit/logs reads from). Best-effort, never blocks the response.
+app.add_middleware(JwtAuditMiddleware)
+
+# General-API rate limit (login brute-force, 100 req/min/IP).
 app.add_middleware(LoginRateLimitMiddleware)
 
 

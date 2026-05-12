@@ -54,14 +54,6 @@ const SECTIONS: Section[] = [
       "Multi-tenancy с RLS на уровне БД, append-only audit log, AML rule engine, KYC/KYB через Sumsub, SAR submission в Финнадзор, HMAC replay protection.",
     icon: "solar:shield-check-bold",
   },
-  {
-    id: "pricing",
-    audience: "Финансовый / Коммерция",
-    title: "Тарифы и условия",
-    desc:
-      "4 тарифа: Starter, Basic, Pro, Enterprise. Месячный и годовой биллинг с дисконтом 20%. Институциональным клиентам — индивидуальные условия и SLA.",
-    icon: "solar:card-bold",
-  },
 ];
 
 const ONBOARDING_STEPS = [
@@ -129,28 +121,28 @@ const ONBOARDING_STEPS = [
 
 const DEV_QUICK_START = [
   {
-    title: "1. Получите ключи",
-    body: "После подключения tenant вы получаете API Key + Secret через защищённый канал. Хранить в собственном secret manager — мы не восстановим ключ.",
+    title: "1. Учётные записи",
+    body: "После подключения tenant первый admin создаётся вручную через psql. Дальше admin создаёт остальные роли (signer, viewer) через UI в /users.",
   },
   {
-    title: "2. Подпишите запрос",
-    body: "Каждый запрос подписывается HMAC-SHA256. Заголовки: X-API-Key, X-Signature, X-Nonce, X-Timestamp. Окно ±5 мин, дедуп по nonce.",
+    title: "2. JWT-авторизация",
+    body: "POST /api/auth/login с email/password возвращает access_token. Передавайте его в Authorization: Bearer для каждого запроса.",
   },
   {
-    title: "3. Первый вызов",
-    body: "GET /api/v1/partner/wallets — список ваших кошельков. Если 200 OK с массивом — интеграция работает.",
+    title: "3. Кошельки",
+    body: "POST /api/wallets с {network, info} создаёт wallet через Safina. Возвращает myUNID. Список — GET /api/wallets.",
   },
   {
-    title: "4. Создание транзакции",
-    body: "POST /api/v1/partner/transactions с token/to_address/value. Возвращает tx_unid. Multi-sig подписывают signer-роли через UI или API.",
+    title: "4. Транзакции",
+    body: "POST /api/transactions с {token, to_address, value, info}. token-format: 'network:::SYMBOL###wallet_name'. Возвращает tx_unid в Safina-state pending.",
   },
   {
-    title: "5. Webhooks",
-    body: "Регистрируйте URL в /settings/webhooks. Получаете события tx.created / tx.signed / tx.confirmed. Подпись событий проверяется через X-Signature.",
+    title: "5. Подписи",
+    body: "GET /api/signatures/pending — что ждёт подписи. POST /api/signatures/{unid}/sign — подписать. Replay-guard защищает от двойной подписи.",
   },
   {
     title: "6. Swagger UI",
-    body: "Полная live-документация: orgon.asystem.ai/api/docs. 183 операции, Try it out, реальные ответы.",
+    body: "Полная live-документация: /api/docs. Все эндпоинты, Try it out, реальные ответы. JWT-токен можно вставить в Authorize кнопкой.",
   },
 ];
 
@@ -160,7 +152,7 @@ const SECURITY_POINTS = [
   { icon: "solar:key-square-2-bold", title: "KMS-backed signer", desc: "Приватные ключи в AWS KMS (FIPS 140-2 L3). Никогда не покидают HSM." },
   { icon: "solar:shield-warning-bold", title: "AML rule engine", desc: "Threshold / velocity / blacklist. Действия: alert / hold / block. Полный audit-trail." },
   { icon: "solar:document-text-bold", title: "KYC / KYB через Sumsub", desc: "FedRAMP-compliant. Документы не хранятся у нас — только статус через webhook." },
-  { icon: "solar:bug-bold", title: "HMAC replay protection", desc: "Каждый partner-запрос с nonce + timestamp. Replay невозможен." },
+  { icon: "solar:bug-bold", title: "Изолированный tenant", desc: "Каждый клиент получает отдельный Postgres + отдельный EC-ключ Safina. Никакого shared-state." },
 ];
 
 export default function DocsPage() {
@@ -347,26 +339,6 @@ export default function DocsPage() {
                 <p className="mt-2 text-[13px] leading-[1.6] text-muted-foreground">{p.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 6 — pricing */}
-      <section id="pricing" className="border-b border-border scroll-mt-24 bg-muted/10">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-20">
-          <Eyebrow dash tone="primary">06 — Тарифы</Eyebrow>
-          <h2 className="mt-6 text-[36px] sm:text-[44px] font-medium tracking-[-0.02em] leading-[1.1] text-foreground">
-            Стоимость подключения
-          </h2>
-          <div className="mt-8 max-w-3xl text-[15px] leading-[1.7] text-muted-foreground">
-            <p>4 тарифа от Starter до Enterprise. Месячный и годовой биллинг (–20% за год). Institutional клиентам — индивидуальные условия и SLA.</p>
-          </div>
-          <div className="mt-10">
-            <Link href="/pricing">
-              <Button variant="primary" size="md">
-                Открыть страницу тарифов <Icon icon="solar:arrow-right-linear" className="text-[15px]" />
-              </Button>
-            </Link>
           </div>
         </div>
       </section>

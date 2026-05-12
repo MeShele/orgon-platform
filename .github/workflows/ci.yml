@@ -90,10 +90,7 @@ jobs:
             backend/tests/test_network_service.py \
             backend/tests/test_telegram_notifier.py \
             backend/tests/test_email_service.py \
-            backend/tests/test_stripe_service.py \
-            backend/tests/test_billing_stripe_webhook.py \
             backend/tests/test_observability.py \
-            backend/tests/test_admin_partners.py \
             backend/tests/test_signer_backends.py \
             backend/tests/test_kms_signer_backend.py \
             backend/tests/test_signature_verifier.py \

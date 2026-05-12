@@ -13,8 +13,25 @@
 -- bug found in Wave 27. Adding the column matches code intent.
 -- Idempotent via IF NOT EXISTS.
 
-ALTER TABLE public.webhook_events
-    ADD COLUMN IF NOT EXISTS delivered_at timestamp with time zone;
+-- Idempotent: webhook_events was dropped in migration 033 (Wave 28
+-- removed the partner-webhook subsystem). On fresh installs the
+-- entrypoint replays every migration in order — 032 runs after the
+-- canonical schema (which still mentions webhook_events) but BEFORE
+-- 033 drops it. Without the existence check, 032 would re-add the
+-- column on a table that 033 is about to drop anyway. Harmless in
+-- prod where the column is already added; the guard just keeps the
+-- migration safe to replay even after the table is gone.
 
-COMMENT ON COLUMN public.webhook_events.delivered_at IS
-    'Timestamp of remote-confirmed (2xx) delivery. NULL until partner ack received. Distinct from sent_at (HTTP fired).';
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name = 'webhook_events'
+    ) THEN
+        ALTER TABLE public.webhook_events
+            ADD COLUMN IF NOT EXISTS delivered_at timestamp with time zone;
+        COMMENT ON COLUMN public.webhook_events.delivered_at IS
+            'Timestamp of remote-confirmed (2xx) delivery. NULL until partner ack received. Distinct from sent_at (HTTP fired).';
+    END IF;
+END$$;

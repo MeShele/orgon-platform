@@ -216,33 +216,27 @@ class WalletService:
         return [t.model_dump() for t in tokens]
 
     async def create_wallet(
-        self, 
+        self,
         name: str | None = None,
         network_id: int | None = None,
         wallet_type: int = 1,
         label: str | None = None,
-        request: CreateWalletRequest | None = None
+        request: CreateWalletRequest | None = None,
+        organization_id: str | None = None,
     ) -> dict:
         """
         Create a new wallet via Safina API.
-        
+
         Supports two call patterns:
         1. Partner API: create_wallet(name, network_id, wallet_type, label)
-        2. Internal: create_wallet(request=CreateWalletRequest)
-        
-        Args:
-            name: Wallet name (Partner API)
-            network_id: Network ID (Partner API)
-            wallet_type: Wallet type, default 1=multisig (Partner API)
-            label: Optional label (Partner API)
-            request: CreateWalletRequest object (Internal API)
-            
-        Returns:
-            Wallet dictionary with created wallet details
+        2. Internal: create_wallet(request=CreateWalletRequest, organization_id=...)
+
+        `organization_id` (UUID as str) attaches the new wallet to a
+        tenant so /api/wallets list filtering finds it. Without it the
+        new row lands at NULL and disappears from every tenant view.
         """
-        # Handle internal API call (with CreateWalletRequest)
         if request is not None:
-            return await self._create_wallet_internal(request)
+            return await self._create_wallet_internal(request, organization_id=organization_id)
         
         # Handle Partner API call (with individual params)
         if name is None or network_id is None:
@@ -297,8 +291,17 @@ class WalletService:
             "synced_at": now.isoformat()
         }
     
-    async def _create_wallet_internal(self, request: CreateWalletRequest) -> str:
-        """Create a new wallet via Safina API (internal format)."""
+    async def _create_wallet_internal(
+        self,
+        request: CreateWalletRequest,
+        organization_id: str | None = None,
+    ) -> str:
+        """Create a new wallet via Safina API (internal format).
+
+        organization_id (UUID as str) scopes the wallet to a tenant.
+        If None, the row lands with NULL organization_id and is only
+        visible to platform-level roles.
+        """
         if self._client is None:
             raise RuntimeError("Safina client is not configured")
         unid = await self._client.create_wallet(
@@ -307,12 +310,14 @@ class WalletService:
             slist=request.slist,
         )
 
-        # Cache locally
+        # Cache locally — include organization_id so tenant filter finds it.
+        from uuid import UUID
+        org_uuid = UUID(organization_id) if organization_id else None
         await self._db.execute(
-            """INSERT INTO wallets (name, network, info, my_unid, created_at)
-               VALUES ($1, $2, $3, $4, $5)
+            """INSERT INTO wallets (name, network, info, my_unid, organization_id, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6)
                ON CONFLICT (name) DO NOTHING""",
-            (unid, int(request.network), request.info, unid,
+            (unid, int(request.network), request.info, unid, org_uuid,
              datetime.now(timezone.utc)),
         )
 

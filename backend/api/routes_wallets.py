@@ -72,11 +72,22 @@ async def get_wallet_tokens(name: str, user: dict = Depends(require_roles("compa
 
 
 @router.post("", status_code=201)
-async def create_wallet(request: CreateWalletRequest, user: dict = Depends(require_roles("company_admin"))):
-    """Create a new wallet (standard or multi-sig)."""
+async def create_wallet(
+    request: CreateWalletRequest,
+    user: dict = Depends(require_roles("company_admin")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    """Create a new wallet (standard or multi-sig).
+
+    The new wallet is attached to the caller's first organization so
+    multi-tenant filtering shows it under their tenant only. Without
+    this scoping wallets created via the UI fell into NULL-org limbo
+    and were invisible everywhere the org-filter was applied.
+    """
     service = _get_service()
+    org_id = org_ids[0] if org_ids else None
     try:
-        unid = await service.create_wallet(request=request)
+        unid = await service.create_wallet(request=request, organization_id=org_id)
         return {"myUNID": unid}
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))

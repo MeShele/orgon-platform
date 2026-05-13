@@ -436,14 +436,18 @@ class TransactionService:
             json_info=request.json_info,
         )
 
-        # Extract wallet_name and network from token string
+        # Extract wallet_name and network from token string.
+        # transactions.network column is `integer`; the token-string field
+        # arrives as decimal text — cast or asyncpg raises DataError.
         wallet_name = None
-        network = None
+        network: Optional[int] = None
         if "###" in request.token:
             parts = request.token.split("###")
             wallet_name = parts[1] if len(parts) > 1 else None
             network_token = parts[0]
-            network = network_token.split(":::")[0] if ":::" in network_token else None
+            net_str = network_token.split(":::")[0] if ":::" in network_token else None
+            if net_str and net_str.isdigit():
+                network = int(net_str)
 
         # If a `hold` rule fired, persist the tx with `on_hold` status
         # so signers see the gate immediately. Otherwise the usual

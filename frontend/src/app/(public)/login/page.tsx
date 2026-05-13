@@ -12,10 +12,26 @@ import { Eyebrow, Mono } from "@/components/ui/primitives";
 import { api } from "@/lib/api";
 import { Icon } from "@/lib/icons";
 
-const DEMO_ACCOUNTS = [
-  { email: "demo-admin@orgon.io",  role: "Admin",  blurb: "полный доступ",        icon: "solar:shield-user-bold" },
-  { email: "demo-signer@orgon.io", role: "Signer", blurb: "подписание транзакций", icon: "solar:pen-new-square-bold" },
-  { email: "demo-viewer@orgon.io", role: "Viewer", blurb: "только просмотр",       icon: "solar:eye-bold" },
+// Demo accounts grouped by organization so visitors can see how
+// multi-tenancy works — logging in under different orgs surfaces a
+// fully isolated view (own wallets, own transactions, own audit).
+const DEMO_ORGS: { name: string; accounts: { email: string; role: string; blurb: string; icon: string }[] }[] = [
+  {
+    name: "Safina Exchange KG",
+    accounts: [
+      { email: "demo-admin@orgon.io",  role: "Admin",  blurb: "полный доступ",         icon: "solar:shield-user-bold" },
+      { email: "demo-signer@orgon.io", role: "Signer", blurb: "подписание транзакций", icon: "solar:pen-new-square-bold" },
+      { email: "demo-viewer@orgon.io", role: "Viewer", blurb: "только просмотр",       icon: "solar:eye-bold" },
+    ],
+  },
+  {
+    name: "Asystem Change",
+    accounts: [
+      { email: "asystem-admin@orgon.io",  role: "Admin",  blurb: "полный доступ",         icon: "solar:shield-user-bold" },
+      { email: "asystem-signer@orgon.io", role: "Signer", blurb: "подписание транзакций", icon: "solar:pen-new-square-bold" },
+      { email: "asystem-viewer@orgon.io", role: "Viewer", blurb: "только просмотр",       icon: "solar:eye-bold" },
+    ],
+  },
 ];
 
 const DEMO_PASSWORD = "demo2026";
@@ -209,32 +225,44 @@ export default function LoginPage() {
               </Link>
             </div>
 
-            {/* Demo accounts */}
+            {/* Demo accounts — grouped by organization */}
             <div className="mt-10 pt-8 border-t border-border">
               <Eyebrow>{t("quickLoginTitle")}</Eyebrow>
-              <ul className="mt-4 space-y-2">
-                {DEMO_ACCOUNTS.map((d) => (
-                  <li key={d.email}>
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => handleQuickLogin(d.email)}
-                      className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-card border border-border text-left hover:border-strong transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Icon icon={d.icon} className="text-[18px] text-primary shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-medium text-foreground truncate">
-                            {d.role} · {d.blurb}
-                          </div>
-                          <Mono size="xs" className="text-muted-foreground truncate block">{d.email}</Mono>
-                        </div>
-                      </div>
-                      <Icon icon="solar:arrow-right-linear" className="text-[14px] text-faint shrink-0" />
-                    </button>
-                  </li>
+              <div className="mt-4 space-y-6">
+                {DEMO_ORGS.map((org) => (
+                  <div key={org.name}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <Icon icon="solar:buildings-bold" className="text-[14px] text-muted-foreground" />
+                      <span className="text-[12px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                        {org.name}
+                      </span>
+                    </div>
+                    <ul className="space-y-2">
+                      {org.accounts.map((d) => (
+                        <li key={d.email}>
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={() => handleQuickLogin(d.email)}
+                            className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-card border border-border text-left hover:border-strong transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <Icon icon={d.icon} className="text-[18px] text-primary shrink-0" />
+                              <div className="min-w-0">
+                                <div className="text-[13px] font-medium text-foreground truncate">
+                                  {d.role} · {d.blurb}
+                                </div>
+                                <Mono size="xs" className="text-muted-foreground truncate block">{d.email}</Mono>
+                              </div>
+                            </div>
+                            <Icon icon="solar:arrow-right-linear" className="text-[14px] text-faint shrink-0" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
         )}

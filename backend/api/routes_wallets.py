@@ -74,23 +74,44 @@ async def get_wallet_tokens(name: str, user: dict = Depends(require_roles("compa
 @router.post("", status_code=201)
 async def create_wallet(
     request: CreateWalletRequest,
+    http_request: Request,
     user: dict = Depends(require_roles("company_admin")),
     org_ids: list = Depends(get_user_org_ids),
 ):
-    """Create a new wallet (standard or multi-sig).
+    """Create a new wallet using the caller's tenant-scoped Safina EC key.
 
-    The new wallet is attached to the caller's first organization so
-    multi-tenant filtering shows it under their tenant only. Without
-    this scoping wallets created via the UI fell into NULL-org limbo
-    and were invisible everywhere the org-filter was applied.
+    Mutations must NOT use the global signer — that would collapse
+    every ORGON tenant into the same Safina customer. We build a
+    per-request SafinaPayClient signed with the EC key stored on the
+    caller's organization (column safina_ec_private_key), then ask
+    that client to create the wallet.
+
+    The new wallet row is also attached to the caller's organization
+    so list-filtering shows it under their tenant.
     """
-    service = _get_service()
+    from backend.safina.factory import get_safina_client_for_org
+
     org_id = org_ids[0] if org_ids else None
+    if not org_id:
+        raise HTTPException(
+            status_code=400,
+            detail="User is not attached to any organization — cannot create wallet",
+        )
+
+    pool = get_db_pool(http_request)
+    tenant_client = await get_safina_client_for_org(pool, org_id)
     try:
-        unid = await service.create_wallet(request=request, organization_id=org_id)
+        # Bypass the singleton service: drive the tenant-signed client directly.
+        from backend.services.wallet_service import WalletService
+        tenant_service = WalletService(tenant_client, _get_service()._db)
+        unid = await tenant_service.create_wallet(
+            request=request, organization_id=str(org_id),
+        )
         return {"myUNID": unid}
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))
+    finally:
+        await tenant_client.close()
 
 
 @router.patch("/{name}/label")

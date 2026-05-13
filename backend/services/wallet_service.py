@@ -324,18 +324,16 @@ class WalletService:
             slist=slist,
         )
 
-        # Cache locally — include organization_id so tenant filter finds it.
-        from uuid import UUID
-        org_uuid = UUID(organization_id) if organization_id else None
-        await self._db.execute(
-            """INSERT INTO wallets (name, network, info, my_unid, organization_id, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               ON CONFLICT (name) DO NOTHING""",
-            (unid, int(request.network), request.info, unid, org_uuid,
-             datetime.now(timezone.utc)),
+        # No local INSERT here: Safina returns the UNID immediately but
+        # the on-chain `addr` only materialises 5–10 minutes later (and
+        # never, if `slist` was wrong). Inserting now would surface a
+        # broken "no address" row in the UI. The scheduler sync writes
+        # the row once Safina publishes an addr — wallets without addr
+        # never enter the local table.
+        logger.info(
+            "Wallet creation requested: UNID=%s, network=%s, org=%s — awaiting Safina activation",
+            unid, request.network, organization_id or "<global>",
         )
-
-        logger.info("Wallet creation requested: UNID=%s, network=%s", unid, request.network)
         
         # Emit wallet created event
         event_manager = get_event_manager()
@@ -388,6 +386,25 @@ class WalletService:
                             addr = d_addrs.split(",")[0].strip()
                 except Exception as e:
                     logger.debug("addr-detail fetch failed for %s: %s", w.name, e)
+
+            # Pre-activation ghosts: Safina returns the wallet in the
+            # list endpoint immediately after /newWallet, but `addr` is
+            # only filled once activation completes (5–10 min if `slist`
+            # was correct; never if it wasn't). We skip writing the row
+            # until then, otherwise the UI shows broken "no address"
+            # entries. If the row is already in the DB (e.g. it was
+            # activated once and Safina now omits addr for some odd
+            # reason), we still flow through to UPDATE.
+            if not addr:
+                row = await self._db.fetchrow(
+                    "SELECT 1 FROM wallets WHERE name = $1", (w.name,)
+                )
+                if not row:
+                    logger.debug(
+                        "Skipping pre-activation wallet %s (no addr, not yet in DB)",
+                        w.name,
+                    )
+                    continue
 
             await self._db.execute(
                 """INSERT INTO wallets

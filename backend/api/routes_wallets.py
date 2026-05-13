@@ -107,7 +107,18 @@ async def create_wallet(
         unid = await tenant_service.create_wallet(
             request=request, organization_id=str(org_id),
         )
-        return {"myUNID": unid}
+        # Activation is async on Safina's side (5–10 min). We return
+        # status=pending so the UI can render a "creating…" notice and
+        # not redirect into a half-baked wallet detail. The scheduler
+        # sync writes the row to DB only after Safina publishes an addr.
+        return {
+            "myUNID": unid,
+            "status": "pending",
+            "message": (
+                "Кошелёк создан в Сафине. Активация занимает 5–10 минут — "
+                "появится в списке автоматически после получения адреса."
+            ),
+        }
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))
     finally:

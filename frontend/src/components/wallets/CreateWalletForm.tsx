@@ -23,6 +23,7 @@ export function CreateWalletForm() {
   const [signers, setSigners] = useState([{ type: "all", ecaddress: "" }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [pendingMessage, setPendingMessage] = useState("");
 
   const addSigner = () => {
     setSigners([...signers, { type: "all", ecaddress: "" }]);
@@ -53,7 +54,15 @@ export function CreateWalletForm() {
         data.slist = slist;
       }
       const result = await api.createWallet(data as Parameters<typeof api.createWallet>[0]);
-      router.push(`/wallets/${result.myUNID}`);
+      // Wallet is created on Safina's side but on-chain activation
+      // takes 5-10 min. The detail page would 404 until the scheduler
+      // sync writes the row, so we show a pending notice on the list
+      // page instead of routing into limbo.
+      const msg =
+        (result as { message?: string }).message ||
+        "Кошелёк создан. Активация занимает 5–10 минут — появится в списке автоматически.";
+      setPendingMessage(msg);
+      setTimeout(() => router.push("/wallets"), 4000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create wallet");
     } finally {
@@ -210,12 +219,19 @@ export function CreateWalletForm() {
           <p className="text-xs text-destructive">{error}</p>
         )}
 
+        {pendingMessage && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
+            <span className="font-medium">Создаётся в Safina:</span>{" "}
+            {pendingMessage}
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !!pendingMessage}
           className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          {loading ? "Создание…" : "Создать кошелёк"}
+          {loading ? "Создание…" : pendingMessage ? "Ожидание активации…" : "Создать кошелёк"}
         </button>
       </form>
     </Card>

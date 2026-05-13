@@ -1,12 +1,12 @@
 """Transaction endpoints."""
 
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response, Request
 
 from backend.safina.models import SendTransactionRequest, RejectTransactionRequest
 from fastapi import Depends
 from backend.rbac import require_roles, require_any_auth
-from backend.dependencies import get_user_org_ids
+from backend.dependencies import get_user_org_ids, get_db_pool
 from backend.safina.errors import SafinaError
 from backend.services.transaction_service import (
     TransactionBlockedError,
@@ -123,25 +123,40 @@ async def validate_transaction(request: SendTransactionRequest, user: dict = Dep
 
 
 @router.post("", status_code=201)
-async def send_transaction(request: SendTransactionRequest, validate: bool = True, user: dict = Depends(require_roles("company_admin", "company_operator", "end_user"))):
-    """
-    Send a new transaction.
+async def send_transaction(
+    request: SendTransactionRequest,
+    http_request: Request,
+    validate: bool = True,
+    user: dict = Depends(require_roles("company_admin", "company_operator", "end_user")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    """Send a new transaction signed with the caller's tenant EC key.
 
-    Query parameters:
-    - validate: Enable pre-send validation (default: true)
-
-    Validation checks (when enabled):
-    - Token format validity
-    - Address format
-    - Amount > 0
-    - Balance sufficiency
-    - Decimal separator conversion
+    Must NOT route through the singleton service: that one is bound
+    to the global SAFINA_EC_PRIVATE_KEY env var and would sign as the
+    platform root tenant rather than the user's organization. We build
+    a request-scoped client signed with the org's safina_ec_private_key
+    column and call send through it.
     """
-    service = _get_service()
-    org_id = user.get("organization_id")
+    from backend.safina.factory import get_safina_client_for_org
+    from backend.services.transaction_service import TransactionService
+
+    org_id = org_ids[0] if org_ids else None
+    if not org_id:
+        raise HTTPException(
+            status_code=400,
+            detail="User is not attached to any organization — cannot send transaction",
+        )
+
+    pool = get_db_pool(http_request)
+    tenant_client = await get_safina_client_for_org(pool, org_id)
     try:
-        tx_unid = await service.send_transaction(
-            request, validate=validate, org_id=org_id,
+        base_svc = _get_service()
+        tenant_service = TransactionService(
+            tenant_client, base_svc._db, compliance=base_svc._compliance,
+        )
+        tx_unid = await tenant_service.send_transaction(
+            request, validate=validate, org_id=str(org_id),
         )
         return {"tx_unid": tx_unid, "status": "pending"}
     except TransactionValidationError as e:
@@ -179,6 +194,8 @@ async def send_transaction(request: SendTransactionRequest, validate: bool = Tru
                 },
             )
         raise HTTPException(status_code=502, detail=str(e))
+    finally:
+        await tenant_client.close()
 
 
 # NOTE: /api/transactions/{unid}/sign and /api/transactions/{unid}/reject

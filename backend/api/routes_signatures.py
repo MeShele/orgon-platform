@@ -1,12 +1,13 @@
 """Signature management endpoints."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi import Depends
 from pydantic import BaseModel
 
 from backend.safina.errors import SafinaError
 
 from backend.rbac import require_roles
+from backend.dependencies import get_user_org_ids, get_db_pool
 
 router = APIRouter(prefix="/api/signatures", tags=["signatures"])
 
@@ -128,25 +129,43 @@ async def get_transaction_details(tx_unid: str, user: dict = Depends(require_rol
 
 
 @router.post("/{tx_unid}/sign")
-async def sign_transaction(tx_unid: str, user_address: str | None = None, user: dict = Depends(require_roles("company_admin", "company_operator"))):
-    """
-    Sign (approve) a transaction.
+async def sign_transaction(
+    tx_unid: str,
+    http_request: Request,
+    user_address: str | None = None,
+    user: dict = Depends(require_roles("company_admin", "company_operator")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    """Sign a transaction using the caller's tenant EC key.
 
-    Args:
-        tx_unid: Transaction unique ID
-        user_address: Optional signer address (for logging)
-
-    Returns:
-        Success confirmation
+    Per-tenant signer matters here even more than at create-wallet:
+    Safina rejects /tx_sign with an EC that didn't create the wallet,
+    so the signature MUST come from the tenant's own key. The legacy
+    singleton service is bound to the global env signer and would
+    sign as the platform root tenant.
     """
-    from backend.services.signature_service import DuplicateSignatureError
-    service = _get_signature_service()
+    from backend.safina.factory import get_safina_client_for_org
+    from backend.services.signature_service import SignatureService, DuplicateSignatureError
+
+    org_id = org_ids[0] if org_ids else None
+    if not org_id:
+        raise HTTPException(
+            status_code=400,
+            detail="User is not attached to any organization — cannot sign",
+        )
+
+    pool = get_db_pool(http_request)
+    tenant_client = await get_safina_client_for_org(pool, org_id)
     try:
-        result = await service.sign_transaction(tx_unid, user_address)
+        base_svc = _get_signature_service()
+        tenant_service = SignatureService(
+            tenant_client, base_svc._db, telegram_notifier=base_svc._telegram,
+        )
+        result = await tenant_service.sign_transaction(tx_unid, user_address)
         return {
             "ok": True,
             "message": f"Transaction {tx_unid} signed successfully",
-            "result": result
+            "result": result,
         }
     except DuplicateSignatureError as e:
         raise HTTPException(status_code=409, detail={"error": "duplicate_signature", "message": str(e)})
@@ -155,8 +174,10 @@ async def sign_transaction(tx_unid: str, user_address: str | None = None, user: 
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to sign transaction: {e}"
+            detail=f"Failed to sign transaction: {e}",
         )
+    finally:
+        await tenant_client.close()
 
 
 @router.post("/{tx_unid}/reject")

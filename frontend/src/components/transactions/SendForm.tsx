@@ -8,6 +8,7 @@ import { Icon } from "@/lib/icons";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
 import useSWR from "swr";
+import { networkName } from "@/lib/walletDisplay";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground dark:border-border dark:bg-card/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30 dark:focus:ring-slate-600 transition-colors";
@@ -31,10 +32,15 @@ interface Wallet {
 }
 
 interface Token {
+  // Safina /tokens returns the token symbol as `token` (e.g. "TRX",
+  // "USDT"). The other fields are historical aliases from older API
+  // versions and a few internal endpoints — kept for compatibility.
+  token?: string;
   token_short_name?: string;
   short_name?: string;
   name?: string;
   balance?: string;
+  value?: string | number;
   wallet_name?: string;
 }
 
@@ -72,13 +78,28 @@ export function SendForm() {
     [walletList, selectedWallet]
   );
 
-  // Tokens for selected wallet
+  // Tokens for selected wallet.
+  //
+  // Safina /tokens response does NOT carry `wallet_name`. It carries
+  // numeric `wallet_id` (Safina-side primary key) and `network`. We
+  // match against the wallet's own `wallet_id` if Safina populated it
+  // on /wallets too; otherwise fall back to network match (less strict
+  // but better than empty dropdown).
   const tokenList: Token[] = useMemo(() => {
     if (!allTokens) return [];
     const tokens = Array.isArray(allTokens) ? allTokens : [];
-    if (!selectedWallet) return tokens;
-    return tokens.filter((t: Token) => t.wallet_name === selectedWallet);
-  }, [allTokens, selectedWallet]);
+    if (!selectedWallet || !selectedWalletObj) return tokens;
+    const wid = (selectedWalletObj as { wallet_id?: number | string }).wallet_id;
+    const wnet = String(selectedWalletObj.network ?? "");
+    return tokens.filter((t: Token & { wallet_id?: number | string; network?: number | string }) => {
+      // Prefer wallet_id exact match. Fallback to network match.
+      if (wid !== undefined && wid !== null && t.wallet_id !== undefined) {
+        return String(t.wallet_id) === String(wid);
+      }
+      if (t.wallet_name) return t.wallet_name === selectedWallet;
+      return wnet === String(t.network ?? "");
+    });
+  }, [allTokens, selectedWallet, selectedWalletObj]);
 
   // Build the token string: network:::TOKEN###wallet_name
   const tokenString = useMemo(() => {
@@ -192,7 +213,7 @@ export function SendForm() {
             <option value="">Выберите кошелёк…</option>
             {walletList.map((w) => (
               <option key={w.name} value={w.name}>
-                {w.info || w.name} — сеть {w.network_name || w.network}
+                {w.info || w.name} — {w.network_name || networkName(w.network)}
               </option>
             ))}
           </select>
@@ -212,10 +233,13 @@ export function SendForm() {
             >
               <option value="">Выберите токен…</option>
               {tokenList.map((t, i) => {
-                const shortName = t.token_short_name || t.short_name || t.name || "—";
+                // Safina returns the symbol in `t.token`. Older API shapes
+                // used `token_short_name`/`short_name`/`name` — fall through.
+                const shortName = t.token || t.token_short_name || t.short_name || t.name || "—";
+                const bal = t.balance ?? t.value;
                 return (
                   <option key={`${shortName}-${i}`} value={shortName}>
-                    {shortName} {t.balance ? `(баланс: ${t.balance})` : ""}
+                    {shortName}{bal !== undefined && bal !== null && bal !== "" ? ` (баланс: ${bal})` : ""}
                   </option>
                 );
               })}

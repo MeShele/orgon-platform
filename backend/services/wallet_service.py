@@ -337,16 +337,24 @@ class WalletService:
             slist=slist,
         )
 
-        # NO local insert here. Safina returns `myUNID` at create time
-        # but later renames the wallet to a different internal `name`
-        # in /wallets after activation. If we INSERT now using the
-        # initial UNID, scheduler sync re-INSERTs the wallet under the
-        # final name and we end up with two rows for the same wallet.
-        # Letting sync do the only write keeps the table clean — the
-        # wallet appears in the UI within the next tick (≤60s) with
-        # the correct final name and pending-activation badge.
+        # Local INSERT with name = my_unid = newly-issued UNID so the
+        # wallet appears in the UI list immediately. Safina later
+        # renames the wallet's internal `name` after activation — the
+        # sync path matches existing rows by `my_unid`, so it updates
+        # this row in-place (changing `name` to the final one) instead
+        # of inserting a duplicate.
+        from uuid import UUID
+        org_uuid = UUID(organization_id) if organization_id else None
+        await self._db.execute(
+            """INSERT INTO wallets (name, network, info, my_unid, organization_id, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               ON CONFLICT (name) DO NOTHING""",
+            (unid, int(request.network), request.info, unid, org_uuid,
+             datetime.now(timezone.utc)),
+        )
+
         logger.info(
-            "Wallet creation requested: UNID=%s, network=%s, org=%s — pending Safina activation (sync will pick up final name)",
+            "Wallet creation requested: UNID=%s, network=%s, org=%s — pending Safina activation",
             unid, request.network, organization_id or "<global>",
         )
         
@@ -402,45 +410,54 @@ class WalletService:
                 except Exception as e:
                     logger.debug("addr-detail fetch failed for %s: %s", w.name, e)
 
-            # Look up existing row once for two checks: tombstone
-            # (is_hidden) and pre-activation skip.
+            # Look up existing row by my_unid — that's the stable
+            # identity of a wallet across Safina's post-activation
+            # rename. `name` is not stable: Safina returns one value
+            # at /newWallet time and a different one in /wallets after
+            # activation, so matching on `name` would create duplicates.
             existing = await self._db.fetchrow(
-                "SELECT is_hidden FROM wallets WHERE name = $1", (w.name,)
+                "SELECT name, is_hidden FROM wallets WHERE my_unid = $1",
+                (w.myUNID,),
             )
 
             # Tombstone: a hidden wallet must not be resurrected by sync.
-            # Safina still returns it from /wallets but we deliberately
-            # dropped it from the UI (e.g. unsupported slist shape).
             if existing and existing.get("is_hidden"):
-                logger.debug("Skipping hidden wallet %s (tombstoned)", w.name)
+                logger.debug("Skipping hidden wallet %s (tombstoned)", w.myUNID)
                 continue
 
-            # Pre-activation ghosts: Safina returns the wallet in the
-            # list endpoint immediately after /newWallet, but `addr` is
-            # only filled once activation completes (5–10 min if `slist`
-            # was correct; never if it wasn't). We skip writing the row
-            # until then, otherwise the UI shows broken "no address"
-            # entries. If the row is already in the DB, we still flow
-            # through to UPDATE so addr gets filled when ready.
-            if not addr and not existing:
-                logger.debug(
-                    "Skipping pre-activation wallet %s (no addr, not yet in DB)",
-                    w.name,
+            if existing:
+                # In-place UPDATE: keep the row's id but refresh every
+                # mutable field, including `name` if Safina renamed
+                # it. organization_id stays as-is to avoid stomping a
+                # tenant attachment with a global sync.
+                await self._db.execute(
+                    """UPDATE wallets SET
+                        wallet_id = $1,
+                        name = $2,
+                        network = $3,
+                        wallet_type = $4,
+                        info = $5,
+                        addr = $6,
+                        addr_info = $7,
+                        token_short_names = $8,
+                        organization_id = COALESCE($9, organization_id),
+                        synced_at = $10,
+                        updated_at = $10
+                       WHERE my_unid = $11""",
+                    (w.wallet_id, w.name, w.network, w.wallet_type, w.info,
+                     addr, w.addr_info, w.tokenShortNames, org_uuid, now,
+                     w.myUNID),
                 )
-                continue
-
-            await self._db.execute(
-                """INSERT INTO wallets
-                   (wallet_id, name, network, wallet_type, info, addr, addr_info,
-                    my_unid, token_short_names, organization_id, synced_at, updated_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-
-               ON CONFLICT (name) DO UPDATE SET
-                   wallet_id = EXCLUDED.wallet_id, network = EXCLUDED.network, wallet_type = EXCLUDED.wallet_type, info = EXCLUDED.info, addr = EXCLUDED.addr, addr_info = EXCLUDED.addr_info, my_unid = EXCLUDED.my_unid, token_short_names = EXCLUDED.token_short_names, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at,
-                   organization_id = COALESCE(EXCLUDED.organization_id, wallets.organization_id)""",
-                (w.wallet_id, w.name, w.network, w.wallet_type, w.info,
-                 addr, w.addr_info, w.myUNID, w.tokenShortNames, org_uuid, now, now),
-            )
+            else:
+                await self._db.execute(
+                    """INSERT INTO wallets
+                       (wallet_id, name, network, wallet_type, info, addr, addr_info,
+                        my_unid, token_short_names, organization_id, synced_at, updated_at)
+                       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+                       ON CONFLICT (name) DO NOTHING""",
+                    (w.wallet_id, w.name, w.network, w.wallet_type, w.info,
+                     addr, w.addr_info, w.myUNID, w.tokenShortNames, org_uuid, now),
+                )
 
         await self._db.execute(
             """INSERT INTO sync_state (key, value, updated_at) VALUES ($1, $2, $3)

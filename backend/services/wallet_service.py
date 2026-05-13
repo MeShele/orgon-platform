@@ -397,7 +397,7 @@ class WalletService:
 
                ON CONFLICT (name) DO UPDATE SET
                    wallet_id = EXCLUDED.wallet_id, network = EXCLUDED.network, wallet_type = EXCLUDED.wallet_type, info = EXCLUDED.info, addr = EXCLUDED.addr, addr_info = EXCLUDED.addr_info, my_unid = EXCLUDED.my_unid, token_short_names = EXCLUDED.token_short_names, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at,
-                   organization_id = COALESCE(wallets.organization_id, EXCLUDED.organization_id)""",
+                   organization_id = COALESCE(EXCLUDED.organization_id, wallets.organization_id)""",
                 (w.wallet_id, w.name, w.network, w.wallet_type, w.info,
                  addr, w.addr_info, w.myUNID, w.tokenShortNames, org_uuid, now, now),
             )

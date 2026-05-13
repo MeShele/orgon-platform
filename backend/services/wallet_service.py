@@ -37,15 +37,17 @@ class WalletService:
         """
         # If no Safina client, only return cached data (no auto-sync)
         # Build query with optional filters
-        conditions = []
+        # Tombstoned rows (is_hidden=TRUE) are always excluded — see
+        # migration 039 for the rationale.
+        conditions = ["COALESCE(is_hidden, FALSE) = FALSE"]
         params = []
         idx = 1
-        
+
         if network_id is not None:
             conditions.append(f"network_id = ${idx}")
             params.append(network_id)
             idx += 1
-        
+
         if org_ids is not None:  # None = no filter (super_admin)
             if not org_ids:
                 return []  # User has no orgs - empty result
@@ -53,7 +55,7 @@ class WalletService:
             conditions.append(f"organization_id IN ({placeholders})")
             params.extend(org_ids)
             idx += len(org_ids)
-        
+
         where = " WHERE " + " AND ".join(conditions) if conditions else ""
         query = f"SELECT * FROM wallets{where} ORDER BY created_at DESC LIMIT ${idx} OFFSET ${idx + 1}"
         params.extend([limit, offset])
@@ -80,7 +82,9 @@ class WalletService:
         if org_ids is not None and not org_ids:
             return 0
 
-        conditions: list[str] = []
+        # Tombstoned rows are excluded from counts too — keeps list and
+        # count in sync, see migration 039.
+        conditions: list[str] = ["COALESCE(is_hidden, FALSE) = FALSE"]
         params: list = []
         idx = 1
 
@@ -313,10 +317,19 @@ class WalletService:
         slist = request.slist
         if not slist:
             ec = self._client._signer.address.lower()
-            slist = {"0": {"type": "all", "ecaddress": ec}}
+            # `min_signs: "1"` is required for Safina to register the
+            # wallet with its on-chain balance monitor — without it the
+            # wallet stays activated (has an addr) but Safina never
+            # picks up incoming deposits (value stays 0 forever). This
+            # was the corner that ate hours: addr OK, signature OK,
+            # broadcast OK, but their ledger balance never moved.
+            slist = {
+                "0": {"type": "all", "ecaddress": ec},
+                "min_signs": "1",
+            }
             logger.info(
-                "Auto-injecting slist with creator EC %s to bypass "
-                "Safina pending-activation limbo", ec,
+                "Auto-injecting slist with creator EC %s + min_signs=1 to "
+                "enable Safina balance monitor", ec,
             )
         unid = await self._client.create_wallet(
             network=request.network,
@@ -399,24 +412,32 @@ class WalletService:
                 except Exception as e:
                     logger.debug("addr-detail fetch failed for %s: %s", w.name, e)
 
+            # Look up existing row once for two checks: tombstone
+            # (is_hidden) and pre-activation skip.
+            existing = await self._db.fetchrow(
+                "SELECT is_hidden FROM wallets WHERE name = $1", (w.name,)
+            )
+
+            # Tombstone: a hidden wallet must not be resurrected by sync.
+            # Safina still returns it from /wallets but we deliberately
+            # dropped it from the UI (e.g. unsupported slist shape).
+            if existing and existing.get("is_hidden"):
+                logger.debug("Skipping hidden wallet %s (tombstoned)", w.name)
+                continue
+
             # Pre-activation ghosts: Safina returns the wallet in the
             # list endpoint immediately after /newWallet, but `addr` is
             # only filled once activation completes (5–10 min if `slist`
             # was correct; never if it wasn't). We skip writing the row
             # until then, otherwise the UI shows broken "no address"
-            # entries. If the row is already in the DB (e.g. it was
-            # activated once and Safina now omits addr for some odd
-            # reason), we still flow through to UPDATE.
-            if not addr:
-                row = await self._db.fetchrow(
-                    "SELECT 1 FROM wallets WHERE name = $1", (w.name,)
+            # entries. If the row is already in the DB, we still flow
+            # through to UPDATE so addr gets filled when ready.
+            if not addr and not existing:
+                logger.debug(
+                    "Skipping pre-activation wallet %s (no addr, not yet in DB)",
+                    w.name,
                 )
-                if not row:
-                    logger.debug(
-                        "Skipping pre-activation wallet %s (no addr, not yet in DB)",
-                        w.name,
-                    )
-                    continue
+                continue
 
             await self._db.execute(
                 """INSERT INTO wallets

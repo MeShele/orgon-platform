@@ -324,14 +324,26 @@ class WalletService:
             slist=slist,
         )
 
-        # No local INSERT here: Safina returns the UNID immediately but
-        # the on-chain `addr` only materialises 5–10 minutes later (and
-        # never, if `slist` was wrong). Inserting now would surface a
-        # broken "no address" row in the UI. The scheduler sync writes
-        # the row once Safina publishes an addr — wallets without addr
-        # never enter the local table.
+        # Insert the row right away with an empty addr so the wallet
+        # appears in the list under a "pending Safina confirmation"
+        # state. The scheduler sync will fill in addr (and other
+        # detail) once Safina activates the wallet 5–10 minutes later
+        # (ON CONFLICT (name) DO UPDATE in sync_wallets handles the
+        # update path). Pre-activation wallets that come back from
+        # Safina's list endpoint are still filtered in sync_wallets to
+        # avoid resurrecting deleted ghosts.
+        from uuid import UUID
+        org_uuid = UUID(organization_id) if organization_id else None
+        await self._db.execute(
+            """INSERT INTO wallets (name, network, info, my_unid, organization_id, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6)
+               ON CONFLICT (name) DO NOTHING""",
+            (unid, int(request.network), request.info, unid, org_uuid,
+             datetime.now(timezone.utc)),
+        )
+
         logger.info(
-            "Wallet creation requested: UNID=%s, network=%s, org=%s — awaiting Safina activation",
+            "Wallet creation requested: UNID=%s, network=%s, org=%s — pending Safina activation",
             unid, request.network, organization_id or "<global>",
         )
         

@@ -23,7 +23,6 @@ export function CreateWalletForm() {
   const [signers, setSigners] = useState([{ type: "all", ecaddress: "" }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [pendingMessage, setPendingMessage] = useState("");
 
   const addSigner = () => {
     setSigners([...signers, { type: "all", ecaddress: "" }]);
@@ -53,16 +52,13 @@ export function CreateWalletForm() {
         });
         data.slist = slist;
       }
-      const result = await api.createWallet(data as Parameters<typeof api.createWallet>[0]);
-      // Wallet is created on Safina's side but on-chain activation
-      // takes 5-10 min. The detail page would 404 until the scheduler
-      // sync writes the row, so we show a pending notice on the list
-      // page instead of routing into limbo.
-      const msg =
-        (result as { message?: string }).message ||
-        "Кошелёк создан. Активация занимает 5–10 минут — появится в списке автоматически.";
-      setPendingMessage(msg);
-      setTimeout(() => router.push("/wallets"), 4000);
+      await api.createWallet(data as Parameters<typeof api.createWallet>[0]);
+      // Wallet is in the DB right away with empty addr; the list
+      // renders it under "Ожидание активации" until the scheduler
+      // sync fills in the on-chain addr (5–10 min). Routing into the
+      // detail page would be hostile while there's nothing to act on
+      // there, so we land back on the list.
+      router.push("/wallets");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create wallet");
     } finally {
@@ -219,19 +215,12 @@ export function CreateWalletForm() {
           <p className="text-xs text-destructive">{error}</p>
         )}
 
-        {pendingMessage && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">
-            <span className="font-medium">Создаётся в Safina:</span>{" "}
-            {pendingMessage}
-          </div>
-        )}
-
         <button
           type="submit"
-          disabled={loading || !!pendingMessage}
+          disabled={loading}
           className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          {loading ? "Создание…" : pendingMessage ? "Ожидание активации…" : "Создать кошелёк"}
+          {loading ? "Создание…" : "Создать кошелёк"}
         </button>
       </form>
     </Card>

@@ -562,7 +562,7 @@
       "network": "Network",
       "tokens": "Tokens",
       "info": "Info",
-      "pending": "Pending...",
+      "pending": "Awaiting activation",
       "noWallets": "No wallets found. Create one to get started."
     }
   },

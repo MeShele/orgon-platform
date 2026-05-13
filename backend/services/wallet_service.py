@@ -337,26 +337,16 @@ class WalletService:
             slist=slist,
         )
 
-        # Insert the row right away with an empty addr so the wallet
-        # appears in the list under a "pending Safina confirmation"
-        # state. The scheduler sync will fill in addr (and other
-        # detail) once Safina activates the wallet 5–10 minutes later
-        # (ON CONFLICT (name) DO UPDATE in sync_wallets handles the
-        # update path). Pre-activation wallets that come back from
-        # Safina's list endpoint are still filtered in sync_wallets to
-        # avoid resurrecting deleted ghosts.
-        from uuid import UUID
-        org_uuid = UUID(organization_id) if organization_id else None
-        await self._db.execute(
-            """INSERT INTO wallets (name, network, info, my_unid, organization_id, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6)
-               ON CONFLICT (name) DO NOTHING""",
-            (unid, int(request.network), request.info, unid, org_uuid,
-             datetime.now(timezone.utc)),
-        )
-
+        # NO local insert here. Safina returns `myUNID` at create time
+        # but later renames the wallet to a different internal `name`
+        # in /wallets after activation. If we INSERT now using the
+        # initial UNID, scheduler sync re-INSERTs the wallet under the
+        # final name and we end up with two rows for the same wallet.
+        # Letting sync do the only write keeps the table clean — the
+        # wallet appears in the UI within the next tick (≤60s) with
+        # the correct final name and pending-activation badge.
         logger.info(
-            "Wallet creation requested: UNID=%s, network=%s, org=%s — pending Safina activation",
+            "Wallet creation requested: UNID=%s, network=%s, org=%s — pending Safina activation (sync will pick up final name)",
             unid, request.network, organization_id or "<global>",
         )
         

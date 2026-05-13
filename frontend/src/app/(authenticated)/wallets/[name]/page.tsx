@@ -78,22 +78,27 @@ export default function WalletDetailPage() {
                 <CopyButton text={String(wallet.wallet_name || name)} />
               </div>
             </div>
-            {wallet.addrs ? (
-              <div>
-                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-                  Адреса
-                  <HelpTooltip text={helpContent.walletDetail.addresses.text} />
-                </p>
-                <div className="space-y-1.5">
-                  {String(wallet.addrs).split(",").map((addr, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <p className="font-mono text-xs text-foreground">{addr}</p>
-                      <CopyButton text={addr} />
-                    </div>
-                  ))}
+            {(() => {
+              const raw = (wallet.addrs as string | null) ?? (wallet.addr as string | null);
+              const list = (raw ? String(raw).split(",").map((a) => a.trim()).filter(Boolean) : []);
+              if (!list.length) return null;
+              return (
+                <div>
+                  <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
+                    {list.length > 1 ? "Адреса" : "Адрес"}
+                    <HelpTooltip text={helpContent.walletDetail.addresses.text} />
+                  </p>
+                  <div className="space-y-1.5">
+                    {list.map((addr, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <p className="font-mono text-xs text-foreground">{addr}</p>
+                        <CopyButton text={addr} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : null}
+              );
+            })()}
             {wallet.unid ? (
               <div>
                 <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">

@@ -164,13 +164,23 @@ async def get_user_org_ids(
 ):
     """
     Get organization IDs the user belongs to.
-    Returns None for super_admin/admin (no filtering).
-    Returns list of UUIDs for regular users.
+
+    Returns None ONLY for true platform-level roles (super_admin /
+    platform_admin) — those bypass tenant filtering by design.
+
+    Returns a list of UUIDs (the orgs the user is a member of) for
+    every other role, including legacy `admin`. Earlier this lumped
+    `admin` together with `super_admin` and made every demo-admin a
+    cross-tenant viewer, which broke multi-tenant isolation: two
+    org-level admins from different organizations saw each other's
+    wallets and transactions. `admin` is the legacy alias for
+    `company_admin` — it scopes to the user's own organization(s),
+    not to the platform.
     """
     role = current_user.get("role", "")
-    if role in ("super_admin", "admin", "platform_admin"):
-        return None  # No filtering - access all
-    
+    if role in ("super_admin", "platform_admin"):
+        return None  # global access — platform owners only
+
     pool = get_db_pool(request)
     async with pool.acquire() as conn:
         rows = await conn.fetch(

@@ -37,31 +37,37 @@ def setup_scheduler(
     signature_check_interval = config["sync"].get("signature_check_interval_seconds", 300)  # 5 min
 
     async def sync_balances_job():
+        # Each sub-step isolated: one failure must not block the others.
+        # Global sync (legacy path)
         try:
-            # Global sync (legacy path) — pulls data visible to the env key.
             await sync_service.sync_balances()
             await balance_service.record_balance_snapshot()
-            # Per-tenant sync — pulls data visible to each org's own key.
-            # Critical for multi-tenant: balances of wallets created under
-            # tenant EC never show up under the global EC.
+        except Exception as e:
+            logger.error("Global balance sync failed: %s", e)
+        # Per-tenant sync — critical for multi-tenant: data of wallets
+        # created under a tenant EC is invisible to the global EC.
+        try:
             from backend.tasks.multi_tenant_sync import sync_balances_all_tenants
             await sync_balances_all_tenants(sync_service._db)
         except Exception as e:
-            logger.error("Balance sync job failed: %s", e)
+            logger.error("Per-tenant balance sync failed: %s", e)
 
     async def check_pending_tx_job():
         try:
             await transaction_service.sync_transactions()
+        except Exception as e:
+            logger.error("Global tx sync failed: %s", e)
+        try:
             from backend.tasks.multi_tenant_sync import (
                 sync_transactions_all_tenants,
                 sync_wallets_all_tenants,
             )
-            # Sync wallets too in this tick — fast lookup to refresh addr
-            # for any wallet that Safina just activated under a tenant EC.
+            # Sync wallets in this tick too — refresh addr for any
+            # tenant-side wallet Safina just activated.
             await sync_wallets_all_tenants(transaction_service._db)
             await sync_transactions_all_tenants(transaction_service._db)
         except Exception as e:
-            logger.error("Pending TX check job failed: %s", e)
+            logger.error("Per-tenant sync failed: %s", e)
 
     async def sync_full_job():
         try:

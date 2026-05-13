@@ -301,13 +301,27 @@ class WalletService:
         organization_id (UUID as str) scopes the wallet to a tenant.
         If None, the row lands with NULL organization_id and is only
         visible to platform-level roles.
+
+        Safina-side activation requires an `slist` containing the
+        creator EC — without it, a "standard" wallet stays in pending
+        state indefinitely despite the wiki claiming standard wallets
+        activate automatically. We auto-inject a single-signer slist
+        with our own EC unless the caller supplied one (multi-sig).
         """
         if self._client is None:
             raise RuntimeError("Safina client is not configured")
+        slist = request.slist
+        if not slist:
+            ec = self._client._signer.address.lower()
+            slist = {"0": {"type": "all", "ecaddress": ec}}
+            logger.info(
+                "Auto-injecting slist with creator EC %s to bypass "
+                "Safina pending-activation limbo", ec,
+            )
         unid = await self._client.create_wallet(
             network=request.network,
             info=request.info,
-            slist=request.slist,
+            slist=slist,
         )
 
         # Cache locally — include organization_id so tenant filter finds it.
@@ -333,8 +347,16 @@ class WalletService:
         
         return unid
 
-    async def sync_wallets(self):
-        """Sync wallets from Safina API to local DB."""
+    async def sync_wallets(self, organization_id: str | None = None):
+        """Sync wallets from Safina API to local DB.
+
+        `organization_id` (UUID as str) — when set, new wallet rows
+        get this tenant assigned so multi-tenant filtering finds them.
+        On ON CONFLICT the existing organization_id is preserved (we
+        deliberately don't touch it via EXCLUDED), so a row that was
+        once attached to a tenant stays attached even if the global
+        sync runs later.
+        """
         if self._client is None:
             logger.debug("Skipping wallet sync: Safina client not configured")
             return
@@ -344,6 +366,8 @@ class WalletService:
         if getattr(self._client, "is_stub", False):
             logger.debug("Skipping wallet sync: stub Safina client active")
             return
+        from uuid import UUID
+        org_uuid = UUID(organization_id) if organization_id else None
         wallets = await self._client.get_wallets()
         now = datetime.now(timezone.utc)
 
@@ -368,13 +392,14 @@ class WalletService:
             await self._db.execute(
                 """INSERT INTO wallets
                    (wallet_id, name, network, wallet_type, info, addr, addr_info,
-                    my_unid, token_short_names, synced_at, updated_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    my_unid, token_short_names, organization_id, synced_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 
                ON CONFLICT (name) DO UPDATE SET
-                   wallet_id = EXCLUDED.wallet_id, network = EXCLUDED.network, wallet_type = EXCLUDED.wallet_type, info = EXCLUDED.info, addr = EXCLUDED.addr, addr_info = EXCLUDED.addr_info, my_unid = EXCLUDED.my_unid, token_short_names = EXCLUDED.token_short_names, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at""",
+                   wallet_id = EXCLUDED.wallet_id, network = EXCLUDED.network, wallet_type = EXCLUDED.wallet_type, info = EXCLUDED.info, addr = EXCLUDED.addr, addr_info = EXCLUDED.addr_info, my_unid = EXCLUDED.my_unid, token_short_names = EXCLUDED.token_short_names, synced_at = EXCLUDED.synced_at, updated_at = EXCLUDED.updated_at,
+                   organization_id = COALESCE(wallets.organization_id, EXCLUDED.organization_id)""",
                 (w.wallet_id, w.name, w.network, w.wallet_type, w.info,
-                 addr, w.addr_info, w.myUNID, w.tokenShortNames, now, now),
+                 addr, w.addr_info, w.myUNID, w.tokenShortNames, org_uuid, now, now),
             )
 
         await self._db.execute(

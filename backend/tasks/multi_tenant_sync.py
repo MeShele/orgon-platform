@@ -43,7 +43,8 @@ async def _list_tenants_with_keys(db: AsyncDatabase) -> list[UUID]:
 
 
 async def sync_wallets_all_tenants(db: AsyncDatabase) -> int:
-    """Run sync_wallets under each tenant's EC. Returns # of orgs processed."""
+    """Run sync_wallets under each tenant's EC, scoping new rows to the
+    tenant via organization_id. Returns # of orgs processed."""
     org_ids = await _list_tenants_with_keys(db)
     count = 0
     for org_id in org_ids:
@@ -51,7 +52,7 @@ async def sync_wallets_all_tenants(db: AsyncDatabase) -> int:
             client = await get_safina_client_for_org(db.pool, org_id)
             try:
                 ws = WalletService(client, db)
-                await ws.sync_wallets()
+                await ws.sync_wallets(organization_id=str(org_id))
                 count += 1
                 logger.debug("tenant wallet sync ok for org=%s", org_id)
             finally:

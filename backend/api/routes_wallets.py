@@ -93,11 +93,39 @@ async def get_wallet(
 
 
 @router.get("/{name}/tokens")
-async def get_wallet_tokens(name: str, user: dict = Depends(require_roles("company_admin", "company_operator", "company_auditor", "end_user", "platform_admin"))):
-    """Get tokens for a wallet."""
-    service = _get_service()
+async def get_wallet_tokens(
+    name: str,
+    http_request: Request,
+    user: dict = Depends(require_roles("company_admin", "company_operator", "company_auditor", "end_user", "platform_admin")),
+):
+    """Tenant-aware token list for a wallet.
+
+    The singleton service signs Safina calls with the global env EC,
+    which Safina rejects (or returns empty for) for tenant-owned
+    wallets. Resolve the wallet's tenant from local DB and call
+    /ece/wallet_tokens/{name} under that tenant's EC so the balances
+    actually come back populated.
+    """
+    base = _get_service()
+    local = await base._db.fetchrow(
+        "SELECT organization_id FROM wallets WHERE name = $1 OR my_unid = $1",
+        params=(name,),
+    )
+    org_id = local.get("organization_id") if local else None
     try:
-        return await service.get_wallet_tokens(name)
+        if org_id:
+            from backend.safina.factory import get_safina_client_for_org
+            pool = get_db_pool(http_request)
+            tc = await get_safina_client_for_org(pool, str(org_id))
+            try:
+                raw = await tc._request("GET", f"wallet_tokens/{name}")
+                # Endpoint returns a list of token dicts already in the
+                # shape the frontend expects.
+                return raw if isinstance(raw, list) else []
+            finally:
+                await tc.close()
+        # Fallback: no tenant attached → singleton (e.g. platform_admin).
+        return await base.get_wallet_tokens(name)
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:

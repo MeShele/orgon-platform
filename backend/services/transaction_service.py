@@ -458,14 +458,25 @@ class TransactionService:
         # Note: `transactions` schema has no `info` column (canonical schema
         # 000 — tx description lives in Safina-side `tx.info` field). Don't
         # try to mirror it locally; that 500'd live send for months.
+        #
+        # We pass organization_id from the caller (routes_transactions
+        # resolves it from JWT). Without this the row lands with
+        # organization_id=NULL, and the scheduler's sync — which iterates
+        # tenants and tags rows on ON CONFLICT DO UPDATE — would later
+        # overwrite it to whichever tenant's global poller saw the tx
+        # first. That's how Asystem-initiated sends ended up tagged
+        # Safina-KG: the global Safina-KG sync ran first.
+        from uuid import UUID as _UUID
+        org_uuid = _UUID(org_id) if org_id else None
         now = datetime.now(timezone.utc)
         await self._db.execute(
             """INSERT INTO transactions
-               (token, to_addr, value, unid, status, wallet_name, network, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+               (token, to_addr, value, unid, status, wallet_name, network,
+                organization_id, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                ON CONFLICT (unid) DO NOTHING""",
             (request.token, request.to_address, safina_value, tx_unid,
-             local_status, wallet_name, network, now, now),
+             local_status, wallet_name, network, org_uuid, now, now),
         )
 
         logger.info(

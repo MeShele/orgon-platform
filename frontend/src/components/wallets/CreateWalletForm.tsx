@@ -52,8 +52,42 @@ export function CreateWalletForm() {
   const placeholderFor = (m: SignerMethod) =>
     m === "ecaddress" ? "0x… EC-адрес" : m === "email" ? "user@example.com" : "+77770000000";
 
+  // Per-row validation. Returns an error string or null. Empty value
+  // is the most common mistake — name it explicitly. The format
+  // checks are loose on purpose (Safina rejects malformed values on
+  // its side too), we just catch obvious typos client-side.
+  const validateSigner = (s: Signer): string | null => {
+    const v = s.value.trim();
+    if (!v) return "Заполните идентификатор";
+    if (s.method === "ecaddress") {
+      if (!/^0x[a-fA-F0-9]{40}$/.test(v)) return "Ожидается 0x + 40 hex-символов";
+    } else if (s.method === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Не похоже на email";
+    } else if (s.method === "sms") {
+      if (!/^\+\d{10,15}$/.test(v)) return "Формат: +<10–15 цифр>";
+    }
+    return null;
+  };
+
+  const signerErrors = signers.map(validateSigner);
+  const minSignsNum = Number(minSigns);
+  const minSignsErr =
+    !isMultiSig
+      ? null
+      : !Number.isFinite(minSignsNum) || minSignsNum < 1
+      ? "Минимум 1 подпись"
+      : minSignsNum > signers.length
+      ? `Не больше, чем подписантов (${signers.length})`
+      : null;
+
+  const formInvalid = isMultiSig && (signerErrors.some(Boolean) || !!minSignsErr);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formInvalid) {
+      setError("Проверьте поля подписантов и минимальное число подписей");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -62,7 +96,7 @@ export function CreateWalletForm() {
       if (isMultiSig && signers.length > 0) {
         const slist: Record<string, unknown> = { min_signs: minSigns };
         signers.forEach((s, i) => {
-          slist[String(i)] = { type: s.type, [s.method]: s.value };
+          slist[String(i)] = { type: s.type, [s.method]: s.value.trim() };
         });
         data.slist = slist;
       }
@@ -185,8 +219,11 @@ export function CreateWalletForm() {
                 value={minSigns}
                 onChange={(e) => setMinSigns(e.target.value)}
                 min="1"
-                className={`${inputClass} w-32`}
+                className={`${inputClass} w-32 ${minSignsErr ? "border-destructive/60 focus:ring-destructive/30" : ""}`}
               />
+              {minSignsErr ? (
+                <p className="text-[10px] text-destructive mt-1">{minSignsErr}</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -212,48 +249,56 @@ export function CreateWalletForm() {
                 <span />
               </div>
 
-              {signers.map((s, i) => (
-                <div key={i} className="grid grid-cols-[7rem_8rem_1fr_auto] gap-2 items-center">
-                  <select
-                    value={s.type}
-                    onChange={(e) => updateSigner(i, "type", e.target.value as Signer["type"])}
-                    className={selectClass}
-                  >
-                    <option value="all">Все методы</option>
-                    <option value="any">Любой метод</option>
-                  </select>
-                  <select
-                    value={s.method}
-                    onChange={(e) =>
-                      updateSigner(i, "method", e.target.value as SignerMethod)
-                    }
-                    className={selectClass}
-                  >
-                    <option value="ecaddress">EC-адрес</option>
-                    <option value="email">Email</option>
-                    <option value="sms">SMS</option>
-                  </select>
-                  <input
-                    type={s.method === "email" ? "email" : "text"}
-                    value={s.value}
-                    onChange={(e) => updateSigner(i, "value", e.target.value)}
-                    placeholder={placeholderFor(s.method)}
-                    className={`${inputClass} font-mono`}
-                  />
-                  {signers.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => removeSigner(i)}
-                      className="text-destructive hover:text-destructive dark:hover:text-red-300 transition-colors"
-                      aria-label="Удалить подписанта"
+              {signers.map((s, i) => {
+                const err = signerErrors[i];
+                return (
+                <div key={i} className="space-y-1">
+                  <div className="grid grid-cols-[7rem_8rem_1fr_auto] gap-2 items-center">
+                    <select
+                      value={s.type}
+                      onChange={(e) => updateSigner(i, "type", e.target.value as Signer["type"])}
+                      className={selectClass}
                     >
-                      <Icon icon="solar:trash-bin-minimalistic-linear" className="text-base" />
-                    </button>
-                  ) : (
-                    <span />
-                  )}
+                      <option value="all">Все методы</option>
+                      <option value="any">Любой метод</option>
+                    </select>
+                    <select
+                      value={s.method}
+                      onChange={(e) =>
+                        updateSigner(i, "method", e.target.value as SignerMethod)
+                      }
+                      className={selectClass}
+                    >
+                      <option value="ecaddress">EC-адрес</option>
+                      <option value="email">Email</option>
+                      <option value="sms">SMS</option>
+                    </select>
+                    <input
+                      type={s.method === "email" ? "email" : "text"}
+                      value={s.value}
+                      onChange={(e) => updateSigner(i, "value", e.target.value)}
+                      placeholder={placeholderFor(s.method)}
+                      className={`${inputClass} font-mono ${err ? "border-destructive/60 focus:ring-destructive/30" : ""}`}
+                    />
+                    {signers.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => removeSigner(i)}
+                        className="text-destructive hover:text-destructive dark:hover:text-red-300 transition-colors"
+                        aria-label="Удалить подписанта"
+                      >
+                        <Icon icon="solar:trash-bin-minimalistic-linear" className="text-base" />
+                      </button>
+                    ) : (
+                      <span />
+                    )}
+                  </div>
+                  {err ? (
+                    <p className="pl-[15.5rem] text-[10px] text-destructive">{err}</p>
+                  ) : null}
                 </div>
-              ))}
+                );
+              })}
 
               {signers.some((s) => s.method === "email") ? (
                 <p className="text-[11px] text-muted-foreground/80 leading-snug pt-1">
@@ -279,7 +324,7 @@ export function CreateWalletForm() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || formInvalid}
           className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {loading ? "Создание…" : "Создать кошелёк"}

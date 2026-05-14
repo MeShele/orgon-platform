@@ -108,17 +108,59 @@ export default function WalletDetailPage() {
                 <p className="font-mono text-xs text-muted-foreground">{String(wallet.unid)}</p>
               </div>
             ) : null}
-            {wallet.slist ? (
+            {wallet.wallet_type !== undefined && wallet.wallet_type !== null ? (
               <div>
-                <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-                  Подписанты (мульти-подпись)
-                  <HelpTooltip text={helpContent.walletDetail.signers.text} diagram={helpContent.walletDetail.signers.diagram} />
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Тип кошелька</p>
+                <p className="font-mono text-xs text-foreground">
+                  {Number(wallet.wallet_type) === 1 ? "MULTI-SIG (горячий)" : `STANDARD (тип ${String(wallet.wallet_type)})`}
                 </p>
-                <pre className="mt-1 rounded-lg border border-border bg-muted p-3 text-[10px] font-mono text-muted-foreground dark:border-border dark:bg-card/50 dark:text-muted-foreground">
-                  {JSON.stringify(wallet.slist, null, 2)}
-                </pre>
               </div>
             ) : null}
+            {wallet.safina_signer ? (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">EC, подписывающий запросы</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-mono text-xs text-foreground">{String(wallet.safina_signer)}</p>
+                  <CopyButton text={String(wallet.safina_signer)} />
+                </div>
+              </div>
+            ) : null}
+            {wallet.slist ? (() => {
+              const slist = wallet.slist as Record<string, unknown>;
+              const minSigns = slist.min_signs ? String(slist.min_signs) : null;
+              const signers = Object.entries(slist).filter(([k]) => k !== "min_signs");
+              return (
+                <div>
+                  <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
+                    Подписанты {minSigns ? `(требуется ${minSigns})` : ""}
+                    <HelpTooltip text={helpContent.walletDetail.signers.text} diagram={helpContent.walletDetail.signers.diagram} />
+                  </p>
+                  <div className="space-y-2">
+                    {signers.map(([idx, raw]) => {
+                      const s = raw as Record<string, unknown>;
+                      return (
+                        <div key={idx} className="rounded-lg border border-border bg-muted/40 p-3 text-xs space-y-1 dark:bg-card/40">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span className="font-medium">#{idx}</span>
+                            <span>тип:</span>
+                            <span className="font-mono">{String(s.type ?? "—")}</span>
+                          </div>
+                          {s.ecaddress ? (
+                            <div className="flex items-center gap-2"><span className="text-muted-foreground w-16">EC:</span><span className="font-mono text-foreground">{String(s.ecaddress)}</span><CopyButton text={String(s.ecaddress)} /></div>
+                          ) : null}
+                          {s.email ? (
+                            <div className="flex items-center gap-2"><span className="text-muted-foreground w-16">Email:</span><span className="font-mono text-foreground">{String(s.email)}</span></div>
+                          ) : null}
+                          {s.sms ? (
+                            <div className="flex items-center gap-2"><span className="text-muted-foreground w-16">SMS:</span><span className="font-mono text-foreground">{String(s.sms)}</span></div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })() : null}
           </div>
         </Card>
 

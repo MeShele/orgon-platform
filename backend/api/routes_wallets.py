@@ -43,13 +43,46 @@ async def get_wallet_by_unid(unid: str, user: dict = Depends(require_roles("comp
 
 
 @router.get("/{name}")
-async def get_wallet(name: str, user: dict = Depends(require_roles("company_admin", "company_operator", "company_auditor", "end_user", "platform_admin"))):
-    """Get wallet details."""
+async def get_wallet(
+    name: str,
+    http_request: Request,
+    user: dict = Depends(require_roles("company_admin", "company_operator", "company_auditor", "end_user", "platform_admin")),
+):
+    """Get wallet details, enriched with Safina-side fields.
+
+    The singleton wallet service signs Safina calls with the global
+    env key, which is invisible to tenant-owned wallets — Safina
+    returns `{}` and the response falls back to the local DB row,
+    which has no `slist`/`unid`. We resolve the wallet's tenant from
+    the local row and call Safina under that tenant's EC, so the
+    response carries the live `slist`, `unid`, `addrs`, `wallet_type`
+    fields useful for debugging the wallet's signer setup.
+    """
     service = _get_service()
     try:
         wallet = await service.get_wallet(name)
         if not wallet:
             raise HTTPException(status_code=404, detail="Wallet not found")
+
+        # Enrich with tenant-scoped Safina detail if we know the org.
+        org_id = wallet.get("organization_id")
+        if org_id:
+            from backend.safina.factory import get_safina_client_for_org
+            try:
+                pool = get_db_pool(http_request)
+                tc = await get_safina_client_for_org(pool, str(org_id))
+                try:
+                    target = wallet.get("name") or name
+                    detail = await tc._request("GET", f"wallet/{target}")
+                    for k in ("slist", "unid", "addrs", "wallet_type", "myFlags"):
+                        if detail.get(k) is not None:
+                            wallet[k] = detail[k]
+                    wallet["safina_signer"] = tc._signer.address
+                finally:
+                    await tc.close()
+            except Exception as e:
+                # Enrichment is best-effort; the local fields still ship.
+                wallet["safina_detail_error"] = str(e)
         return wallet
     except HTTPException:
         raise

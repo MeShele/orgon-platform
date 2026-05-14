@@ -149,30 +149,9 @@ def setup_scheduler(
         )
         logger.info("Scheduled transactions processing job added (every 1 min)")
 
-    # Prune `partner_request_nonces` rows older than the replay window.
-    # Without this the table grows unbounded — every B2B request adds a
-    # row and the only filter is age. Runs hourly, deletes anything past
-    # the window we actually enforce in the middleware (5 min drift +
-    # safety margin → keep 1 hour).
-    async def prune_partner_nonces_job():
-        from backend.main import get_database
-        db = get_database()
-        if db is None:
-            return
-        try:
-            await db.execute(
-                "DELETE FROM partner_request_nonces WHERE seen_at < NOW() - interval '1 hour'"
-            )
-        except Exception as e:
-            logger.error("Partner nonce prune job failed: %s", e)
-
-    scheduler.add_job(
-        prune_partner_nonces_job,
-        IntervalTrigger(minutes=15),
-        id="prune_partner_nonces",
-        name="Prune partner replay-protection nonces",
-    )
-    logger.info("Partner nonce prune job added (every 15 min)")
+    # The partner_request_nonces table was removed in migration 033
+    # (B2B partner module was scoped out of the Safina-only build).
+    # The prune job is gone with it — nothing to clean up.
 
     # Process pending webhook events (every 30 seconds)
     if webhook_service:

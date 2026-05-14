@@ -21,10 +21,15 @@ export function CreateWalletForm() {
   const router = useRouter();
   const [network, setNetwork] = useState("5010");
   const [info, setInfo] = useState("");
-  const [isMultiSig, setIsMultiSig] = useState(false);
-  const [minSigns, setMinSigns] = useState("2");
+  // Default to multi-sig open with an email signer: that's the shape
+  // Safina actually requires to enable balance-monitor for the wallet
+  // (verified experimentally — wallets without an email-anchor never
+  // get their value populated). Users who want a bare wallet uncheck
+  // the box and submit.
+  const [isMultiSig, setIsMultiSig] = useState(true);
+  const [minSigns, setMinSigns] = useState("1");
   const [signers, setSigners] = useState<Signer[]>([
-    { type: "all", method: "ecaddress", value: "" },
+    { type: "all", method: "email", value: "" },
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

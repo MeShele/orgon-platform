@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
 import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
@@ -30,6 +31,7 @@ interface Wallet {
 export default function WalletsPage() {
   const t = useTranslations("wallets");
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -156,7 +158,7 @@ export default function WalletsPage() {
                   </td>
                 </tr>
               ) : (
-                wallets.map((w) => {
+                wallets.map((w, idx) => {
                   const displayName = formatWalletDisplayName(w);
                   const href = `/wallets/${encodeURIComponent(w.name ?? "")}`;
                   // Row click → navigation. Cmd/Ctrl/middle-click still
@@ -170,9 +172,17 @@ export default function WalletsPage() {
                     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
                     router.push(href);
                   };
+                  // Quiet fade-up reveal, ~90ms stagger, easing tuned
+                  // for the institutional feel called out in
+                  // CLAUDE.md (no bouncy springs on data tables).
+                  // Cap the stagger so a long list doesn't drag forever.
+                  const delay = reduceMotion ? 0 : Math.min(idx * 0.09, 1.2);
                   return (
-                    <tr
+                    <motion.tr
                       key={w.id ?? w.my_unid}
+                      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1], delay }}
                       onClick={handleRowClick}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
@@ -228,7 +238,7 @@ export default function WalletsPage() {
                       <td className="px-5 py-3.5 text-right">
                         <Mono truncate>{w.my_unid ?? "—"}</Mono>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })
               )}

@@ -1,10 +1,18 @@
 // API base URL: use NEXT_PUBLIC_API_URL if set, otherwise relative URLs
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 
+// Single-flight refresh: backend rotates the refresh_token, so two
+// parallel /refresh calls with the same input would invalidate each
+// other's session and bounce the user to /login. Coalesce all in-
+// flight refreshes through one promise.
+let pendingRefresh: Promise<string | null> | null = null;
+
 async function refreshAccessToken(): Promise<string | null> {
+  if (pendingRefresh) return pendingRefresh;
+  pendingRefresh = (async (): Promise<string | null> => {
   const refreshToken = typeof window !== "undefined" ? localStorage.getItem("orgon_refresh_token") : null;
   if (!refreshToken) return null;
-  
+
   try {
     const res = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: "POST",
@@ -15,12 +23,27 @@ async function refreshAccessToken(): Promise<string | null> {
     const data = await res.json();
     if (data.access_token) {
       localStorage.setItem("orgon_access_token", data.access_token);
-      if (data.refresh_token) localStorage.setItem("orgon_refresh_token", data.refresh_token);
+      // Cookie too — Next.js middleware reads it on every navigation
+      // to decide whether to bounce to /login. localStorage-only
+      // refresh leaves the cookie pinned to the *old* JWT, which is
+      // fine for middleware (it only checks presence) but breaks any
+      // SSR path that decodes it.
+      document.cookie = `orgon_access_token=${data.access_token}; path=/; max-age=${60 * 60 * 24 * 7}`;
+      if (data.refresh_token) {
+        localStorage.setItem("orgon_refresh_token", data.refresh_token);
+        document.cookie = `orgon_refresh_token=${data.refresh_token}; path=/; max-age=${60 * 60 * 24 * 30}`;
+      }
       return data.access_token;
     }
     return null;
   } catch {
     return null;
+  }
+  })();
+  try {
+    return await pendingRefresh;
+  } finally {
+    pendingRefresh = null;
   }
 }
 

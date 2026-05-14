@@ -13,7 +13,7 @@ from backend.config import settings
 # JWT Configuration
 JWT_SECRET = settings.SECRET_KEY
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8h — covers a full workday without refresh churn
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 PASSWORD_RESET_EXPIRE_HOURS = 1
 

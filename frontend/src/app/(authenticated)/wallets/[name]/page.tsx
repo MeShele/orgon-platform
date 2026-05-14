@@ -104,17 +104,37 @@ function PendingStatusBanner({ emails }: { emails: string[] }) {
   );
 }
 
+type TxRow = {
+  unid?: string;
+  tx_hash?: string | null;
+  to_address?: string;
+  value?: string | number;
+  token_name?: string;
+  status?: string;
+  created_at?: string;
+  init_ts?: number;
+};
+
 export default function WalletDetailPage() {
   const params = useParams();
   const router = useRouter();
   const name = params.name as string;
   const [wallet, setWallet] = useState<Record<string, unknown> | null>(null);
   const [tokens, setTokens] = useState<Record<string, unknown>[]>([]);
+  const [txs, setTxs] = useState<TxRow[]>([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api.getWallet(name).then(setWallet).catch((e) => setError(e.message));
     api.getWalletTokens(name).then(setTokens).catch(() => {});
+    api
+      .getTransactionsFiltered({ wallet: name, limit: 20 })
+      .then((res: unknown) => {
+        const list = (res as { transactions?: TxRow[] })?.transactions
+          ?? (Array.isArray(res) ? (res as TxRow[]) : []);
+        setTxs(list);
+      })
+      .catch(() => setTxs([]));
   }, [name]);
 
   if (error) {
@@ -302,6 +322,75 @@ export default function WalletDetailPage() {
                   );
                 })}
               </div>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Транзакции"
+            subtitle="Исходящие операции с этого кошелька (через Safina)"
+          />
+          <div className="p-4">
+            {txs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Транзакций пока нет. Создайте первую через кнопку «Отправить» вверху.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border">
+                {txs.map((tx, i) => {
+                  const hash = tx.tx_hash || "";
+                  const broadcast =
+                    hash &&
+                    !hash.toLowerCase().includes("canceled") &&
+                    !hash.toLowerCase().includes("limit");
+                  const explorerUrl = (() => {
+                    const n = Number(wallet.network);
+                    if (!broadcast) return null;
+                    if (n === 5010) return `https://nile.tronscan.org/#/transaction/${hash}`;
+                    if (n === 5000) return `https://tronscan.org/#/transaction/${hash}`;
+                    return null;
+                  })();
+                  return (
+                    <li key={tx.unid ?? i} className="py-3 grid grid-cols-[auto_1fr_auto] gap-3 items-start text-xs">
+                      <span
+                        className={
+                          broadcast
+                            ? "rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px] font-medium"
+                            : hash && !broadcast
+                            ? "rounded-full bg-destructive/15 text-destructive px-2 py-0.5 text-[10px] font-medium"
+                            : "rounded-full bg-warning/15 text-warning px-2 py-0.5 text-[10px] font-medium"
+                        }
+                      >
+                        {broadcast ? "В сети" : hash ? "Отменена" : "Ожидание"}
+                      </span>
+                      <div className="space-y-0.5 min-w-0">
+                        <p className="text-foreground">
+                          <span className="text-muted-foreground">На: </span>
+                          <span className="font-mono break-all">{String(tx.to_address || "—")}</span>
+                        </p>
+                        {explorerUrl ? (
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] text-primary hover:underline font-mono break-all"
+                          >
+                            {hash}
+                          </a>
+                        ) : hash ? (
+                          <p className="text-[10px] text-muted-foreground break-all">{hash}</p>
+                        ) : tx.unid ? (
+                          <p className="text-[10px] text-muted-foreground">UNID: {tx.unid}</p>
+                        ) : null}
+                      </div>
+                      <p className="text-foreground font-mono whitespace-nowrap">
+                        {formatValue(String(tx.value ?? "0"))} {tx.token_name || ""}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
         </Card>

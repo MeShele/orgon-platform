@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader } from "@/components/common/Card";
 import { CopyButton } from "@/components/common/CopyButton";
@@ -13,6 +14,94 @@ import { Icon } from "@/lib/icons";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
 import { formatWalletDisplayName, networkName } from "@/lib/walletDisplay";
+
+// Pull email signers out of slist so the pending banner can name the
+// exact mailbox the user must check.
+function emailSignersOf(slist: unknown): string[] {
+  if (!slist || typeof slist !== "object") return [];
+  return Object.entries(slist as Record<string, unknown>)
+    .filter(([k]) => k !== "min_signs")
+    .map(([, v]) => (v as Record<string, unknown>)?.email)
+    .filter((e): e is string => typeof e === "string" && e.length > 0);
+}
+
+function PendingStatusBanner({ emails }: { emails: string[] }) {
+  // Steps reflect Safina's wallet lifecycle: request created → all
+  // slist signers confirm → addr issued on-chain. We highlight step 2
+  // because that's where the user has to take action.
+  const steps = [
+    { label: "Заявка создана", state: "done" as const, icon: "solar:check-circle-bold" },
+    { label: "Подтверждение подписантов", state: "active" as const, icon: "solar:letter-bold" },
+    { label: "Выдача on-chain адреса", state: "pending" as const, icon: "solar:wallet-money-bold" },
+    { label: "Готов к работе", state: "pending" as const, icon: "solar:shield-check-bold" },
+  ];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      className="rounded-xl border border-warning/30 bg-warning/5 p-4"
+    >
+      <div className="flex items-start gap-3">
+        <span className="relative mt-0.5 flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-warning" />
+        </span>
+        <div className="space-y-1 flex-1">
+          <p className="text-sm font-medium text-foreground">Кошелёк создаётся в Safina</p>
+          {emails.length > 0 ? (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              На&nbsp;
+              <span className="font-mono text-foreground">{emails[0]}</span>
+              {emails.length > 1 ? <> и&nbsp;ещё {emails.length - 1}</> : null}
+              &nbsp;отправлено письмо с&nbsp;подтверждением. Проверьте папку <strong>Spam</strong> и&nbsp;нажмите ссылку — после этого Safina выдаст on-chain адрес. Обычно занимает <strong>5–10&nbsp;минут</strong>.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Safina формирует кошелёк и&nbsp;выдаёт on-chain адрес. Обычно занимает <strong>5–10&nbsp;минут</strong>. Адрес появится на&nbsp;этой странице автоматически.
+            </p>
+          )}
+        </div>
+      </div>
+      <ol className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {steps.map((s, i) => (
+          <li
+            key={i}
+            className={
+              s.state === "done"
+                ? "rounded-lg border border-success/30 bg-success/5 px-3 py-2"
+                : s.state === "active"
+                ? "rounded-lg border border-warning/40 bg-warning/10 px-3 py-2"
+                : "rounded-lg border border-border bg-muted/40 px-3 py-2"
+            }
+          >
+            <div className="flex items-center gap-2 text-[11px] font-medium">
+              <Icon
+                icon={s.icon}
+                className={
+                  s.state === "done"
+                    ? "text-success text-base"
+                    : s.state === "active"
+                    ? "text-warning text-base"
+                    : "text-muted-foreground text-base"
+                }
+              />
+              <span
+                className={
+                  s.state === "pending"
+                    ? "text-muted-foreground"
+                    : "text-foreground"
+                }
+              >
+                {s.label}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </motion.div>
+  );
+}
 
 export default function WalletDetailPage() {
   const params = useParams();
@@ -48,10 +137,18 @@ export default function WalletDetailPage() {
     );
   }
 
+  const primaryAddr =
+    (wallet.addrs as string | null)?.split(",")[0]?.trim() ||
+    (wallet.addr as string | null) ||
+    "";
+  const isPending = !primaryAddr;
+  const emails = emailSignersOf(wallet.slist);
+
   return (
     <>
       <Header title="Кошелёк" />
       <div className="space-y-4 p-2 sm:p-4 md:p-6 lg:p-8 max-w-3xl">
+        {isPending ? <PendingStatusBanner emails={emails} /> : null}
         <Card>
           <CardHeader
             title={
@@ -66,6 +163,13 @@ export default function WalletDetailPage() {
               })
             }
             subtitle={`Сеть: ${networkName((wallet.network as number | string | null) ?? null)}`}
+            action={
+              primaryAddr ? (
+                <div className="flex items-center gap-2">
+                  <CopyButton text={primaryAddr} />
+                </div>
+              ) : undefined
+            }
           />
           <div className="space-y-4 p-4">
             <div>

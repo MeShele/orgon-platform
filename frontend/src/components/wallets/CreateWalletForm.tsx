@@ -14,21 +14,26 @@ const inputClass =
 const selectClass =
   "rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground dark:border-border dark:bg-card/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30 dark:focus:ring-slate-600 transition-colors";
 
+type SignerMethod = "ecaddress" | "email" | "sms";
+type Signer = { type: "all" | "any"; method: SignerMethod; value: string };
+
 export function CreateWalletForm() {
   const router = useRouter();
   const [network, setNetwork] = useState("5010");
   const [info, setInfo] = useState("");
   const [isMultiSig, setIsMultiSig] = useState(false);
   const [minSigns, setMinSigns] = useState("2");
-  const [signers, setSigners] = useState([{ type: "all", ecaddress: "" }]);
+  const [signers, setSigners] = useState<Signer[]>([
+    { type: "all", method: "ecaddress", value: "" },
+  ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const addSigner = () => {
-    setSigners([...signers, { type: "all", ecaddress: "" }]);
+    setSigners([...signers, { type: "all", method: "ecaddress", value: "" }]);
   };
 
-  const updateSigner = (idx: number, field: string, value: string) => {
+  const updateSigner = <K extends keyof Signer>(idx: number, field: K, value: Signer[K]) => {
     const updated = [...signers];
     updated[idx] = { ...updated[idx], [field]: value };
     setSigners(updated);
@@ -37,6 +42,9 @@ export function CreateWalletForm() {
   const removeSigner = (idx: number) => {
     setSigners(signers.filter((_, i) => i !== idx));
   };
+
+  const placeholderFor = (m: SignerMethod) =>
+    m === "ecaddress" ? "0x… EC-адрес" : m === "email" ? "user@example.com" : "+77770000000";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +56,7 @@ export function CreateWalletForm() {
       if (isMultiSig && signers.length > 0) {
         const slist: Record<string, unknown> = { min_signs: minSigns };
         signers.forEach((s, i) => {
-          slist[String(i)] = { type: s.type, ecaddress: s.ecaddress };
+          slist[String(i)] = { type: s.type, [s.method]: s.value };
         });
         data.slist = slist;
       }
@@ -151,17 +159,18 @@ export function CreateWalletForm() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                <span className="w-32">
-                  Тип подписанта
+              <div className="grid grid-cols-[7rem_8rem_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
+                <span>
+                  Подтверждение
                   <HelpTooltip
                     text={helpContent.createWallet.signerType.text}
                     example={helpContent.createWallet.signerType.example}
                     tips={helpContent.createWallet.signerType.tips}
                   />
                 </span>
-                <span className="flex-1">
-                  EC-адрес
+                <span>Способ</span>
+                <span>
+                  Идентификатор
                   <HelpTooltip
                     text={helpContent.createWallet.ecAddress.text}
                     example={helpContent.createWallet.ecAddress.example}
@@ -169,36 +178,58 @@ export function CreateWalletForm() {
                     diagram={helpContent.createWallet.ecAddress.diagram}
                   />
                 </span>
+                <span />
               </div>
-              
+
               {signers.map((s, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className="grid grid-cols-[7rem_8rem_1fr_auto] gap-2 items-center">
                   <select
                     value={s.type}
-                    onChange={(e) => updateSigner(i, "type", e.target.value)}
-                    className={`${selectClass} w-32`}
+                    onChange={(e) => updateSigner(i, "type", e.target.value as Signer["type"])}
+                    className={selectClass}
                   >
                     <option value="all">Все методы</option>
                     <option value="any">Любой метод</option>
                   </select>
+                  <select
+                    value={s.method}
+                    onChange={(e) =>
+                      updateSigner(i, "method", e.target.value as SignerMethod)
+                    }
+                    className={selectClass}
+                  >
+                    <option value="ecaddress">EC-адрес</option>
+                    <option value="email">Email</option>
+                    <option value="sms">SMS</option>
+                  </select>
                   <input
-                    type="text"
-                    value={s.ecaddress}
-                    onChange={(e) => updateSigner(i, "ecaddress", e.target.value)}
-                    placeholder="0x… EC-адрес"
-                    className={`${inputClass} flex-1 font-mono`}
+                    type={s.method === "email" ? "email" : "text"}
+                    value={s.value}
+                    onChange={(e) => updateSigner(i, "value", e.target.value)}
+                    placeholder={placeholderFor(s.method)}
+                    className={`${inputClass} font-mono`}
                   />
-                  {signers.length > 1 && (
+                  {signers.length > 1 ? (
                     <button
                       type="button"
                       onClick={() => removeSigner(i)}
                       className="text-destructive hover:text-destructive dark:hover:text-red-300 transition-colors"
+                      aria-label="Удалить подписанта"
                     >
                       <Icon icon="solar:trash-bin-minimalistic-linear" className="text-base" />
                     </button>
+                  ) : (
+                    <span />
                   )}
                 </div>
               ))}
+
+              {signers.some((s) => s.method === "email") ? (
+                <p className="text-[11px] text-muted-foreground/80 leading-snug pt-1">
+                  Email-подписант получит письмо с ссылкой подтверждения от Safina.
+                  Без клика по ссылке кошелёк не активируется (адрес не выдаётся).
+                </p>
+              ) : null}
             </div>
             <button
               type="button"

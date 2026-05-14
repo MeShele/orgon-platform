@@ -340,12 +340,17 @@ function ProgressList({ stage }: { stage: Stage }) {
     { key: "broadcasting", label: "Отправка в сеть", sublabel: "Safina передаёт транзакцию в блокчейн" },
     { key: "done", label: "Подтверждение", sublabel: "Транзакция принята сетью" },
   ];
+  // Cursor positions:
+  //   signing       (1) → step #1 active
+  //   broadcasting  (2) → step #1 done, #2 active
+  //   done          (4) → all three done (cursor past the last step)
+  //   error         → caller renders the error card instead, list hidden
   const order: Record<Stage, number> = {
     input: 0,
     preview: 0,
     signing: 1,
     broadcasting: 2,
-    done: 3,
+    done: 4,
     error: -1,
   };
   const cur = order[stage];

@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader } from "@/components/common/Card";
 import { CopyButton } from "@/components/common/CopyButton";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { LastUpdated } from "@/components/common/LastUpdated";
 import { CryptoIcon } from "@/components/common/CryptoIcon";
 import { Button } from "@/components/ui/Button";
 import { formatValue } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { Icon } from "@/lib/icons";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
@@ -123,19 +125,44 @@ export default function WalletDetailPage() {
   const [tokens, setTokens] = useState<Record<string, unknown>[]>([]);
   const [txs, setTxs] = useState<TxRow[]>([]);
   const [error, setError] = useState("");
+  const [lastSync, setLastSync] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Tokens + txs poll our own backend (which has a Safina-side
+  // sync running every minute under each tenant EC). Polling here
+  // is cheap: it's two SELECTs against our DB. Wallet meta is
+  // pulled once on mount — it doesn't change after activation.
+  const refresh = useCallback(
+    async (opts: { silent?: boolean; includeWallet?: boolean } = {}) => {
+      if (opts.silent) setRefreshing(true);
+      try {
+        const [tokensRes, txsRes] = await Promise.all([
+          api.getWalletTokens(name).catch(() => [] as Record<string, unknown>[]),
+          api
+            .getTransactionsFiltered({ wallet: name, limit: 20 })
+            .catch(() => [] as TxRow[]),
+          opts.includeWallet ? api.getWallet(name).then(setWallet).catch(() => null) : null,
+        ]);
+        setTokens(Array.isArray(tokensRes) ? (tokensRes as Record<string, unknown>[]) : []);
+        const txList =
+          (txsRes as { transactions?: TxRow[] })?.transactions
+          ?? (Array.isArray(txsRes) ? (txsRes as TxRow[]) : []);
+        setTxs(txList);
+        setLastSync(Date.now());
+      } finally {
+        if (opts.silent) setRefreshing(false);
+      }
+    },
+    [name],
+  );
 
   useEffect(() => {
     api.getWallet(name).then(setWallet).catch((e) => setError(e.message));
-    api.getWalletTokens(name).then(setTokens).catch(() => {});
-    api
-      .getTransactionsFiltered({ wallet: name, limit: 20 })
-      .then((res: unknown) => {
-        const list = (res as { transactions?: TxRow[] })?.transactions
-          ?? (Array.isArray(res) ? (res as TxRow[]) : []);
-        setTxs(list);
-      })
-      .catch(() => setTxs([]));
-  }, [name]);
+    void refresh();
+  }, [name, refresh]);
+
+  // 30s quiet polling; pauses when tab is hidden.
+  useAutoRefresh(() => refresh({ silent: true }), 30_000);
 
   if (error) {
     return (
@@ -299,7 +326,17 @@ export default function WalletDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Токены" subtitle="Балансы токенов в этом кошельке" />
+          <CardHeader
+            title="Токены"
+            subtitle="Балансы токенов в этом кошельке"
+            action={
+              <LastUpdated
+                at={lastSync}
+                refreshing={refreshing}
+                onRefresh={() => refresh({ silent: true })}
+              />
+            }
+          />
           <div className="p-4">
             {tokens.length === 0 ? (
               <p className="text-xs text-muted-foreground">Нет токенов на балансе</p>
@@ -330,6 +367,13 @@ export default function WalletDetailPage() {
           <CardHeader
             title="Транзакции"
             subtitle="Исходящие операции с этого кошелька (через Safina)"
+            action={
+              <LastUpdated
+                at={lastSync}
+                refreshing={refreshing}
+                onRefresh={() => refresh({ silent: true })}
+              />
+            }
           />
           <div className="p-4">
             {txs.length === 0 ? (

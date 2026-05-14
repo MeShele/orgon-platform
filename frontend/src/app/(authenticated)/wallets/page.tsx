@@ -10,8 +10,10 @@ import { Eyebrow, BigNum, Mono } from "@/components/ui/primitives";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
+import { LastUpdated } from "@/components/common/LastUpdated";
 import { Icon } from "@/lib/icons";
 import { api, API_BASE } from "@/lib/api";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { formatWalletDisplayName, networkName } from "@/lib/walletDisplay";
 
 interface Wallet {
@@ -36,14 +38,39 @@ export default function WalletsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
+  // Auto-refresh state: silent refetches every 60s populate `lastSync`
+  // so the user can see the data is alive. `refreshing` flashes the
+  // indicator while a fetch is in flight; we don't toggle the page
+  // `loading` state to avoid the list flickering with skeletons.
+  const [lastSync, setLastSync] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchWallets = async (opts: { silent?: boolean } = {}) => {
+    if (opts.silent) setRefreshing(true);
+    try {
+      const data = await api.getWallets();
+      setWallets(Array.isArray(data) ? data : []);
+      setError("");
+      setLastSync(Date.now());
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Не удалось загрузить кошельки";
+      // Only surface errors on the initial load — silent refresh
+      // failures shouldn't replace the data with an error message.
+      if (!opts.silent) setError(msg);
+    } finally {
+      if (!opts.silent) setLoading(false);
+      if (opts.silent) setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    api
-      .getWallets()
-      .then((data) => setWallets(Array.isArray(data) ? data : []))
-      .catch((err) => setError(err.message ?? "Не удалось загрузить кошельки"))
-      .finally(() => setLoading(false));
+    fetchWallets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Quiet 60s polling — only re-reads our own backend cache, no extra
+  // load on Safina. Pauses when the tab is hidden.
+  useAutoRefresh(() => fetchWallets({ silent: true }), 60_000);
 
   function handleExport() {
     setExporting(true);
@@ -84,6 +111,13 @@ export default function WalletsPage() {
                 </span>
               )}
             </h2>
+            <div className="mt-1.5">
+              <LastUpdated
+                at={lastSync}
+                refreshing={refreshing}
+                onRefresh={() => fetchWallets({ silent: true })}
+              />
+            </div>
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" size="md" onClick={handleExport} disabled={exporting || loading || totalCount === 0} loading={exporting}>

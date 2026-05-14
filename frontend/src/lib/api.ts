@@ -137,8 +137,15 @@ export const api = {
     to_address: string;
     value: string;
     info?: string;
-  }) =>
-    fetchAPI("/api/transactions", { method: "POST", body: JSON.stringify(data) }),
+  }, opts?: { validate?: boolean }) => {
+    // Safina's wallet_tokens.value lags behind on-chain reality (their
+    // poller is on a long interval). For the UI we trust on-chain
+    // balance and skip local balance validation by default — Safina
+    // itself rejects underfunded transactions before broadcast anyway.
+    const validate = opts?.validate ?? false;
+    const qs = validate ? "" : "?validate=false";
+    return fetchAPI(`/api/transactions${qs}`, { method: "POST", body: JSON.stringify(data) });
+  },
   signTransaction: (unid: string) =>
     fetchAPI(`/api/transactions/${unid}/sign`, { method: "POST" }),
   rejectTransaction: (unid: string, reason = "") =>

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader } from "@/components/common/Card";
 import { CopyButton } from "@/components/common/CopyButton";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { CryptoIcon } from "@/components/common/CryptoIcon";
+import { Button } from "@/components/ui/Button";
 import { formatValue } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { Icon } from "@/lib/icons";
@@ -105,6 +106,7 @@ function PendingStatusBanner({ emails }: { emails: string[] }) {
 
 export default function WalletDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const name = params.name as string;
   const [wallet, setWallet] = useState<Record<string, unknown> | null>(null);
   const [tokens, setTokens] = useState<Record<string, unknown>[]>([]);
@@ -164,11 +166,19 @@ export default function WalletDetailPage() {
             }
             subtitle={`Сеть: ${networkName((wallet.network as number | string | null) ?? null)}`}
             action={
-              primaryAddr ? (
-                <div className="flex items-center gap-2">
-                  <CopyButton text={primaryAddr} />
-                </div>
-              ) : undefined
+              <div className="flex items-center gap-2">
+                {primaryAddr ? <CopyButton text={primaryAddr} /> : null}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={!primaryAddr}
+                  onClick={() => router.push(`/wallets/${name}/send`)}
+                  title={primaryAddr ? "Отправить из этого кошелька" : "Доступно после активации"}
+                >
+                  <Icon icon="solar:plain-linear" className="text-base" />
+                  Отправить
+                </Button>
+              </div>
             }
           />
           <div className="space-y-4 p-4">

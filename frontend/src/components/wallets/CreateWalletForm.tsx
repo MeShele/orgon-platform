@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
 import { api } from "@/lib/api";
 import { Card, CardHeader } from "@/components/common/Card";
 import { Icon } from "@/lib/icons";
@@ -66,11 +67,36 @@ export function CreateWalletForm() {
         data.slist = slist;
       }
       await api.createWallet(data as Parameters<typeof api.createWallet>[0]);
-      // Wallet is in the DB right away with empty addr; the list
-      // renders it under "Ожидание активации" until the scheduler
-      // sync fills in the on-chain addr (5–10 min). Routing into the
-      // detail page would be hostile while there's nothing to act on
-      // there, so we land back on the list.
+
+      // Highlight the action user must take: if there's at least one
+      // email signer, they have to click the confirm-link from Safina
+      // (which often lands in Spam) — without that the wallet never
+      // gets an on-chain addr. Show a distinct multi-line toast so it
+      // doesn't get lost in the redirect.
+      const emailSigners = isMultiSig
+        ? signers.filter((s) => s.method === "email" && s.value.trim()).map((s) => s.value.trim())
+        : [];
+      if (emailSigners.length > 0) {
+        toast.custom(
+          (t) => (
+            <div
+              className={`max-w-sm rounded-lg border border-primary/30 bg-card px-4 py-3 text-xs text-foreground shadow-md ${t.visible ? "animate-in fade-in slide-in-from-top-2" : "animate-out fade-out"}`}
+            >
+              <p className="font-medium text-foreground mb-1">Кошелёк создаётся</p>
+              <p className="text-muted-foreground leading-relaxed">
+                Письмо с подтверждением отправлено на{" "}
+                <span className="font-mono text-foreground">{emailSigners[0]}</span>
+                {emailSigners.length > 1 ? ` (+${emailSigners.length - 1})` : ""}.
+                Проверьте папку <strong>Spam</strong> и нажмите ссылку — после этого Safina выдаст адрес (≈ 5–10 минут).
+              </p>
+            </div>
+          ),
+          { duration: 8000 },
+        );
+      } else {
+        toast.success("Кошелёк создан. Адрес появится в течение 5–10 минут.", { duration: 6000 });
+      }
+
       router.push("/wallets");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create wallet");

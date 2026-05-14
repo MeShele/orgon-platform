@@ -207,7 +207,20 @@ export default function WalletsPage() {
                         </Mono>
                       </td>
                       <td className="px-3 py-3.5">
-                        <Mono truncate>{w.addr ?? "—"}</Mono>
+                        {w.addr ? (
+                          <Mono truncate>{w.addr}</Mono>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/5 px-2 py-0.5 text-[10px] font-medium text-warning"
+                            title="Кошелёк создан в Safina, ждём подтверждение подписантов (email confirm-link, проверьте Spam) и выдачу адреса. Обычно 5–10 мин."
+                          >
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-75" />
+                              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-warning" />
+                            </span>
+                            Ожидание активации
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3.5 text-muted-foreground">
                         <Mono size="xs" truncate startChars={20} endChars={0}>{w.token_short_names ?? "—"}</Mono>

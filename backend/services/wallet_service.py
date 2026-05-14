@@ -425,6 +425,21 @@ class WalletService:
                 logger.debug("Skipping hidden wallet %s (tombstoned)", w.myUNID)
                 continue
 
+            # Pre-activation safety: Safina keeps returning legacy
+            # ghost wallets (no addr, never activated because they
+            # were created before min_signs auto-inject existed). If
+            # the row is unknown locally AND has no addr, do NOT
+            # insert it — that's how those ghosts keep resurrecting
+            # after a cleanup. Wallets we created locally exist in
+            # `wallets` with my_unid set → `existing` is truthy → we
+            # flow through to UPDATE so activation fills in addr.
+            if not addr and not existing:
+                logger.debug(
+                    "Skipping pre-activation wallet %s (no addr, untracked)",
+                    w.myUNID,
+                )
+                continue
+
             if existing:
                 # In-place UPDATE: keep the row's id but refresh every
                 # mutable field, including `name` if Safina renamed

@@ -27,7 +27,7 @@ export default function DevelopersPage() {
           выпустить депозит-адреса своим клиентам, отслеживать поступления через
           webhooks, отправлять транзакции по подписи.
         </p>
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           <Link href="/api/docs" target="_blank">
             <Button variant="primary" size="md">
               <Icon icon="solar:document-text-bold" className="text-base" />
@@ -40,6 +40,24 @@ export default function DevelopersPage() {
               Выпустить ключ
             </Button>
           </Link>
+          <Link
+            href="https://github.com/MeShele/orgon-platform/tree/main/sdks/typescript"
+            target="_blank"
+          >
+            <Button variant="secondary" size="md">
+              <Icon icon="solar:code-square-bold" className="text-base" />
+              TypeScript SDK
+            </Button>
+          </Link>
+        </div>
+
+        <div className="mt-6 rounded-xl border border-border bg-card p-4 text-xs">
+          <p className="text-foreground font-medium mb-1.5">Не пишите HMAC сами — используйте SDK</p>
+          <pre className="font-mono text-[11px] leading-relaxed text-muted-foreground overflow-x-auto">{`npm i @orgon/sdk
+
+import { OrgonClient } from "@orgon/sdk";
+const orgon = new OrgonClient({ apiKey: process.env.ORGON_KEY!, secret: process.env.ORGON_SECRET! });
+await orgon.users.create({ external_id: "u123", email: "a@b.com" });`}</pre>
         </div>
       </motion.header>
 

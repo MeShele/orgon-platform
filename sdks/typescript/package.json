@@ -1,0 +1,29 @@
+{
+  "name": "@orgon/sdk",
+  "version": "0.1.0",
+  "description": "Official ORGON B2B API SDK — custodial wallets for exchangers, banks, and exchanges",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["orgon", "custodial", "wallets", "crypto", "tron", "bitcoin", "ethereum", "safina"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MeShele/orgon-platform.git",
+    "directory": "sdks/typescript"
+  },
+  "homepage": "https://orgon.asystem.ai/developers",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0"
+  }
+}

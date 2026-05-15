@@ -149,9 +149,29 @@ def setup_scheduler(
         )
         logger.info("Scheduled transactions processing job added (every 1 min)")
 
-    # The partner_request_nonces table was removed in migration 033
-    # (B2B partner module was scoped out of the Safina-only build).
-    # The prune job is gone with it — nothing to clean up.
+    # Prune merchant HMAC replay nonces older than the drift window
+    # plus safety. The middleware enforces ±60s; we keep 1h. Without
+    # this the table grows by every signed /v1/* request forever.
+    async def prune_merchant_nonces_job():
+        from backend.main import get_database
+        db = get_database()
+        if db is None:
+            return
+        try:
+            await db.execute(
+                "DELETE FROM merchant_request_nonces WHERE seen_at < NOW() - interval '1 hour'"
+            )
+        except Exception as e:
+            # merchant_request_nonces may not exist yet on a fresh DB
+            # before migration 041 applies; demote to debug.
+            logger.debug("merchant nonce prune skipped: %s", e)
+
+    scheduler.add_job(
+        prune_merchant_nonces_job,
+        IntervalTrigger(minutes=15),
+        id="prune_merchant_nonces",
+        name="Prune merchant HMAC replay nonces",
+    )
 
     # Process pending webhook events (every 30 seconds)
     if webhook_service:

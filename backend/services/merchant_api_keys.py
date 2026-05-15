@@ -18,6 +18,7 @@ fast at lookup time before any signature math even runs.
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 from dataclasses import dataclass
 from typing import Optional
@@ -29,6 +30,22 @@ logger = logging.getLogger("orgon.merchant_api_keys")
 
 _PUB_BYTES = 16     # 32 hex chars after the prefix
 _SECRET_BYTES = 32  # 64 hex chars after the prefix
+
+
+def _master_key() -> str:
+    """Symmetric key used by pgcrypto to wrap merchant secrets at rest.
+
+    Must be set in production. We deliberately raise rather than fall
+    back to a default — silent-default keys are how production winds
+    up with `secret = "password"` for years.
+    """
+    k = os.environ.get("MERCHANT_KEY_MASTER", "")
+    if not k:
+        raise RuntimeError(
+            "MERCHANT_KEY_MASTER env var must be set to encrypt merchant API key secrets. "
+            "Generate one with `openssl rand -hex 32` and store in Coolify env."
+        )
+    return k
 
 
 @dataclass
@@ -85,17 +102,25 @@ async def issue_key(
     key_pub = _make_pub(sandbox)
     secret_plain = _make_secret(sandbox)
     secret_hash = hash_secret(secret_plain)
+    master = _master_key()
 
     async with pool.acquire() as conn:
+        # secret_encrypted lets the HMAC middleware recompute signatures
+        # on inbound requests. bcrypt hash stays alongside as a
+        # tamper-evidence audit value — `secret_encrypted` and
+        # `secret_hash` must reference the same plaintext.
         row = await conn.fetchrow(
             """
-            INSERT INTO merchant_api_keys (merchant_id, key_pub, secret_hash, label, scopes, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            INSERT INTO merchant_api_keys
+                (merchant_id, key_pub, secret_hash, secret_encrypted, label, scopes, created_by)
+            VALUES ($1, $2, $3, pgp_sym_encrypt($4, $5), $6, $7, $8)
             RETURNING id::text, scopes
             """,
             UUID(str(merchant_id)),
             key_pub,
             secret_hash,
+            secret_plain,
+            master,
             label,
             scopes,
             created_by,
@@ -141,7 +166,15 @@ async def revoke_key(pool, *, merchant_id: UUID | str, key_id: UUID | str) -> bo
 
 
 async def lookup_active_by_pub(pool, key_pub: str) -> Optional[dict]:
-    """Active = not revoked and not expired. Used by HMAC middleware."""
+    """Active = not revoked and not expired. Used by HMAC middleware.
+
+    Returns the *plaintext* secret in memory alongside the metadata.
+    Callers must avoid logging it. Decryption happens via pgp_sym_decrypt
+    inside the query so the plaintext only lives in the Python process
+    after the round-trip — never travels across the wire encrypted
+    plus separately.
+    """
+    master = _master_key()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
@@ -149,13 +182,16 @@ async def lookup_active_by_pub(pool, key_pub: str) -> Optional[dict]:
                    merchant_id::text AS merchant_id,
                    key_pub,
                    secret_hash,
+                   pgp_sym_decrypt(secret_encrypted, $2) AS secret_plain,
                    scopes
               FROM merchant_api_keys
              WHERE key_pub = $1
                AND revoked_at IS NULL
                AND (expires_at IS NULL OR expires_at > now())
+               AND secret_encrypted IS NOT NULL
             """,
             key_pub,
+            master,
         )
     return dict(row) if row else None
 

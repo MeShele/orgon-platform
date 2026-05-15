@@ -496,6 +496,27 @@ export const api = {
       method: "DELETE",
     }),
 
+  // Merchant API keys (B2B platform)
+  /** List API keys issued for a merchant. Hash never returned. */
+  listMerchantApiKeys: (merchantId: string) =>
+    fetchAPI(`/api/admin/merchants/${merchantId}/api-keys`),
+
+  /** Issue a new (key_pub, secret) pair. Secret returned exactly ONCE. */
+  issueMerchantApiKey: (
+    merchantId: string,
+    body: { label?: string; scopes?: string[]; sandbox?: boolean }
+  ) =>
+    fetchAPI(`/api/admin/merchants/${merchantId}/api-keys`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  /** Soft-revoke a key. Cannot be undone — issue a new one to rotate. */
+  revokeMerchantApiKey: (merchantId: string, keyId: string) =>
+    fetchAPI(`/api/admin/merchants/${merchantId}/api-keys/${keyId}/revoke`, {
+      method: "POST",
+    }),
+
   // Organizations (Multi-Tenancy)
   /** List organizations for current user */
   getOrganizations: (params?: { status?: string; limit?: number; offset?: number }) => {

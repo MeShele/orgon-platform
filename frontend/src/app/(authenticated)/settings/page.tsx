@@ -10,6 +10,7 @@ import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
 import { api } from "@/lib/api";
 import { Icon } from "@/lib/icons";
+import { ApiKeysSection } from "./ApiKeysSection";
 import clsx from "clsx";
 
 type SettingsSection = 
@@ -28,6 +29,17 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [safinaHealth, setSafinaHealth] = useState<Record<string, unknown> | null>(null);
+  // Current user's primary merchant. /api/organizations is already
+  // user-scoped on the backend (returns only orgs the caller belongs
+  // to), so first item is "their" merchant for B2B-API purposes.
+  const [merchantId, setMerchantId] = useState<string | null>(null);
+  useEffect(() => {
+    api.getOrganizations({ limit: 1 }).then((res: unknown) => {
+      const list = Array.isArray(res) ? res : (res as { organizations?: unknown[] })?.organizations || [];
+      const first = list[0] as { id?: string } | undefined;
+      setMerchantId(first?.id ?? null);
+    }).catch(() => setMerchantId(null));
+  }, []);
 
   // Profile state
   const [profile, setProfile] = useState({
@@ -341,42 +353,7 @@ export default function SettingsPage() {
 
           {/* API Keys Section */}
           {activeSection === "api-keys" && (
-            <Card>
-              <CardHeader
-                title={t('apiKeys.title')}
-                helpText={helpContent.settings.apiKeys.text}
-                helpTips={helpContent.settings.apiKeys.tips}
-              />
-              <div className="p-4 space-y-4">
-                <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3 text-[12px] text-foreground">
-                  <Icon icon="solar:info-circle-bold" className="text-primary mt-0.5 shrink-0" />
-                  <div className="space-y-2">
-                    <div>
-                      Партнёрские API-ключи — действие администратора организации.
-                      Выпуск, ротация и отзыв доступны через{" "}
-                      <code className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono">/api/v1/admin/partners</code>{" "}
-                      (роли <span className="font-mono">super_admin</span> /{" "}
-                      <span className="font-mono">company_admin</span>).
-                    </div>
-                    <div className="text-muted-foreground">
-                      Если у вас нет админ-роли — напишите на{" "}
-                      <a className="text-primary underline-offset-4 hover:underline" href="mailto:support@orgon.asystem.kg">
-                        support@orgon.asystem.kg
-                      </a>{" "}
-                      или владельцу организации, чтобы выпустить ключ для интеграции.
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border bg-muted/30 p-3 text-[12px] text-muted-foreground">
-                  <div className="font-medium text-foreground">Что хранит ключ</div>
-                  <ul className="mt-1 list-disc pl-5 space-y-0.5">
-                    <li><span className="font-mono">api_key</span> — публичный идентификатор партнёра (виден в логах)</li>
-                    <li><span className="font-mono">api_secret</span> — HMAC-секрет, отдаётся ОДИН РАЗ при выпуске/ротации</li>
-                    <li>Все запросы партнёра подписываются HMAC + защищены X-Nonce от replay-атак</li>
-                  </ul>
-                </div>
-              </div>
-            </Card>
+            <ApiKeysSection merchantId={merchantId} />
           )}
 
           {/* Notifications Section */}

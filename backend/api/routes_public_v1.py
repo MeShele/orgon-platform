@@ -23,7 +23,14 @@ from backend.services import end_user_service as users
 from backend.services import merchant_wallet_service as wallets
 from backend.services import merchant_tx_service as txs
 
-router = APIRouter(prefix="/v1", tags=["public-v1"])
+router = APIRouter(
+    prefix="/v1",
+    tags=["B2B Merchant API"],
+    responses={
+        401: {"description": "HMAC signature missing, invalid, or replay detected"},
+        429: {"description": "Daily plan quota exceeded or per-IP rate limit hit"},
+    },
+)
 
 
 # ---------------------------------------------------------------------
@@ -34,6 +41,59 @@ router = APIRouter(prefix="/v1", tags=["public-v1"])
 async def public_health() -> dict:
     """Liveness probe. Unauthenticated by middleware exempt list."""
     return {"status": "ok", "service": "orgon-public-v1"}
+
+
+@router.get("/health/extended")
+async def public_health_extended(request: Request) -> dict:
+    """Operator-grade health: are our internal queues caught up?
+
+    Unauthenticated (in the exempt list) so a status page can scrape
+    it without an API key. Numbers come from a single DB query and
+    are safe to expose: no merchant-specific data leaks here.
+    """
+    pool = get_db_pool(request)
+    async with pool.acquire() as conn:
+        webhook = await conn.fetchrow(
+            """
+            SELECT
+              COUNT(*) FILTER (WHERE delivered_at IS NULL AND attempts < 6) AS pending,
+              EXTRACT(EPOCH FROM (now() - MIN(created_at) FILTER (
+                WHERE delivered_at IS NULL AND attempts < 6
+              )))::int AS oldest_pending_age_seconds
+              FROM webhook_deliveries
+            """
+        )
+        deposit = await conn.fetchrow(
+            """
+            SELECT
+              EXTRACT(EPOCH FROM (now() - MAX(last_polled_at)))::int AS lag_seconds,
+              COUNT(*) FILTER (WHERE error_streak >= 3) AS errored_wallets
+              FROM deposit_watch_cursors
+            """
+        )
+    # Best-effort metric mirror so /metrics shows the same numbers.
+    try:
+        from backend.services.metrics_service import (
+            b2b_webhook_pending,
+            b2b_deposit_watcher_lag_seconds,
+        )
+        b2b_webhook_pending.set(int(webhook["pending"] or 0))
+        b2b_deposit_watcher_lag_seconds.set(int(deposit["lag_seconds"] or 0))
+    except Exception:
+        pass
+
+    return {
+        "status": "ok",
+        "service": "orgon-public-v1",
+        "webhook_queue": {
+            "pending": int(webhook["pending"] or 0),
+            "oldest_pending_age_seconds": int(webhook["oldest_pending_age_seconds"] or 0),
+        },
+        "deposit_watcher": {
+            "lag_seconds": int(deposit["lag_seconds"] or 0),
+            "errored_wallets": int(deposit["errored_wallets"] or 0),
+        },
+    }
 
 
 @router.get("/ping")

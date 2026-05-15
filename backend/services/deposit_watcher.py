@@ -141,6 +141,11 @@ async def _persist_deposit(pool, *, w, ev: DepositEvent) -> bool:
         w["merchant_id"], w["id"], w["network"], ev.asset, ev.amount, ev.tx_hash,
     )
     try:
+        from backend.services.metrics_service import b2b_deposits_recorded_total
+        b2b_deposits_recorded_total.labels(network=str(w["network"]), asset=ev.asset).inc()
+    except Exception:
+        pass
+    try:
         from backend.services.webhook_publisher import (
             publish_event,
             EV_WALLET_DEPOSIT,

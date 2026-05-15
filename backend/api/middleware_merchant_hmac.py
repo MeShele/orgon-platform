@@ -43,6 +43,7 @@ PUBLIC_API_PREFIX = "/v1/"
 # Paths exempt from HMAC — purely informational, no merchant state.
 PUBLIC_EXEMPT_PATHS = {
     "/v1/health",
+    "/v1/health/extended",
     "/v1/networks",
 }
 

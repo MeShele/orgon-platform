@@ -28,6 +28,55 @@ http_request_duration_seconds = Histogram(
 )
 
 # ============================================================================
+# B2B MERCHANT API METRICS
+# ============================================================================
+# Separate from generic HTTP metrics so we can chart per-merchant
+# traffic and error rates without polluting the global counters.
+
+b2b_requests_total = Counter(
+    'orgon_b2b_requests_total',
+    'Total merchant API (/v1/*) requests',
+    ['merchant_id', 'endpoint', 'status'],
+)
+
+b2b_request_duration_seconds = Histogram(
+    'orgon_b2b_request_duration_seconds',
+    'Merchant API request duration',
+    ['endpoint'],
+    buckets=(0.005, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+)
+
+# Counters that feed the SLO dashboards.
+b2b_deposits_recorded_total = Counter(
+    'orgon_b2b_deposits_recorded_total',
+    'Inbound deposits persisted by the watcher',
+    ['network', 'asset'],
+)
+
+b2b_transactions_sent_total = Counter(
+    'orgon_b2b_transactions_sent_total',
+    'Outbound transactions accepted by Safina (post-broadcast or pending)',
+    ['network', 'asset'],
+)
+
+b2b_signature_failures_total = Counter(
+    'orgon_b2b_signature_failures_total',
+    'HMAC signature verification failures',
+    ['reason'],
+)
+
+# Queue depth gauges — for "is the watcher / delivery falling behind?" alerts.
+b2b_webhook_pending = Gauge(
+    'orgon_b2b_webhook_pending',
+    'Webhook deliveries waiting for next retry',
+)
+b2b_deposit_watcher_lag_seconds = Gauge(
+    'orgon_b2b_deposit_watcher_lag_seconds',
+    'Seconds since the deposit watcher last successfully polled any wallet',
+)
+
+
+# ============================================================================
 # DATABASE METRICS
 # ============================================================================
 

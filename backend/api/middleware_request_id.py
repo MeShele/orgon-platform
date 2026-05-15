@@ -76,17 +76,41 @@ class RequestIdAndErrorMiddleware(BaseHTTPMiddleware):
         ):
             response = await _rewrap_error(response, request_id)
 
-        # Structured log line for every /v1/* hit. Goes through the
-        # standard Python logger so it's picked up by whatever stack
-        # the runtime ships logs to (currently stdout → Coolify).
+        # Structured log line + Prometheus metrics for every /v1/* hit.
         if request.url.path.startswith(PUBLIC_PREFIX):
             logger.info(
                 "public_api method=%s path=%s status=%s ms=%s req_id=%s",
                 request.method, request.url.path, response.status_code,
                 elapsed_ms, request_id,
             )
+            try:
+                from backend.services.metrics_service import (
+                    b2b_requests_total,
+                    b2b_request_duration_seconds,
+                )
+                # Use route template, not actual path with ids, so
+                # cardinality stays bounded. Fall back to method+prefix
+                # when no route matched (e.g. 404).
+                tmpl = _route_template(request) or request.url.path
+                merchant_label = getattr(request.state, "merchant_id", None) or "unauthenticated"
+                b2b_requests_total.labels(
+                    merchant_id=merchant_label,
+                    endpoint=tmpl,
+                    status=str(response.status_code),
+                ).inc()
+                b2b_request_duration_seconds.labels(endpoint=tmpl).observe(elapsed_ms / 1000.0)
+            except Exception:
+                # Metrics are best-effort — never fail the request.
+                pass
 
         return response
+
+
+def _route_template(request: Request) -> str | None:
+    """Return /v1/wallets/{wallet_id} rather than /v1/wallets/abcdef…
+    so Prometheus cardinality stays bounded."""
+    route = getattr(request.scope.get("route"), "path", None) if request.scope else None
+    return route
 
 
 async def _rewrap_error(resp: Response, request_id: str) -> Response:

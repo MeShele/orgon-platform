@@ -138,6 +138,60 @@ await orgon.users.create({ external_id: "u123", email: "a@b.com" });`}</pre>
         </div>
         <h3 className="text-base font-medium pt-4">Проверка подписи (Node.js)</h3>
         <CodeBlock lang="ts" code={WEBHOOK_VERIFY_TS} />
+
+        <h3 className="text-base font-medium pt-4">Тестовый event без реального deposit</h3>
+        <p className="text-sm text-muted-foreground">
+          Чтобы убедиться что ваш endpoint валидно принимает события до прихода
+          первого реального deposit — поставьте в очередь synthetic event:
+        </p>
+        <CodeBlock
+          lang="bash"
+          code={`# из вашей машины, через signed SDK-call или curl:
+curl -X POST https://orgon.asystem.ai/v1/webhooks/test \\
+  -H "X-ORGON-Key: $ORGON_KEY" \\
+  -H "X-ORGON-Timestamp: $TS" \\
+  -H "X-ORGON-Nonce: $NONCE" \\
+  -H "X-ORGON-Signature: $SIG" \\
+  -d '{"event_type":"webhook.test","payload":{"hello":"world"}}'
+# → { "delivery_id": "...", "queued": true }`}
+        />
+      </motion.section>
+
+      {/* Errors */}
+      <motion.section {...reveal(0.17)} className="space-y-4">
+        <Eyebrow dash>Ошибки</Eyebrow>
+        <h2 className="text-2xl font-medium">Стандартный формат ответа</h2>
+        <p className="text-sm text-muted-foreground max-w-3xl">
+          Любая 4xx/5xx-ошибка из <Mono>/v1/*</Mono> приходит в одном виде:
+        </p>
+        <CodeBlock
+          lang="json"
+          code={`{
+  "error":   "<machine-readable code>",
+  "message": "<human-readable description>",
+  "request_id": "92f3e4a7…",
+  "details": [ ... ]    // только для 422 (валидация)
+}`}
+        />
+        <p className="text-sm text-muted-foreground max-w-3xl">
+          В каждом ответе также есть заголовок{" "}
+          <Mono>X-Request-Id</Mono>. Если что-то идёт не так — пришлите этот id
+          в support, и мы найдём весь путь запроса в логах.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-2">
+          {ERROR_CODES.map((e) => (
+            <div
+              key={e.code}
+              className="rounded-lg border border-border bg-muted/30 p-3 text-xs"
+            >
+              <div className="flex items-center gap-2">
+                <Mono className="text-foreground">{e.code}</Mono>
+                <span className="text-[10px] text-muted-foreground">HTTP {e.http}</span>
+              </div>
+              <p className="mt-1 text-muted-foreground">{e.desc}</p>
+            </div>
+          ))}
+        </div>
       </motion.section>
 
       {/* Sandbox */}
@@ -233,6 +287,17 @@ const QUICKSTART = [
     title: "Отправляйте транзакции",
     desc: "POST /v1/transactions {wallet_id, to_address, amount}. Подпись своим EC ключом → broadcast → Tronscan через ~30 сек.",
   },
+];
+
+const ERROR_CODES: { code: string; http: number; desc: string }[] = [
+  { code: "unauthorized", http: 401, desc: "Подпись не прошла или ключ отозван / истёк." },
+  { code: "rate_limited", http: 429, desc: "Достигнут лимит вашего pricing-плана за день." },
+  { code: "sandbox_restricted", http: 400, desc: "Sandbox-ключ обратился к mainnet-сети." },
+  { code: "validation_error", http: 422, desc: "Тело запроса не прошло pydantic-валидацию. См. `details`." },
+  { code: "not_found", http: 404, desc: "Ресурс не существует или принадлежит другому merchant'у." },
+  { code: "conflict", http: 409, desc: "Идентификатор уже занят (например slug merchant'а)." },
+  { code: "upstream_error", http: 502, desc: "Safina вернула ошибку при выполнении операции." },
+  { code: "internal_error", http: 500, desc: "Непредвиденная ошибка на нашей стороне. Пришлите request_id." },
 ];
 
 const EVENT_TYPES = [

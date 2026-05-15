@@ -99,6 +99,18 @@ class LoginRateLimitMiddleware(BaseHTTPMiddleware):
                     media_type="application/json",
                     headers={"Retry-After": "60"},
                 )
+        # Public B2B surface: tight per-IP guard BEFORE HMAC verify
+        # so a flood can't burn CPU on bcrypt-shaped work. Real
+        # quota enforcement still happens in the HMAC middleware
+        # (per-merchant-plan, not per-IP).
+        elif path.startswith("/v1/"):
+            if rate_limiter.is_rate_limited(f"v1:{client_ip}", max_requests=300, window_seconds=60):
+                return Response(
+                    content='{"error":"rate_limited","message":"IP rate limit exceeded (300/min)"}',
+                    status_code=429,
+                    media_type="application/json",
+                    headers={"Retry-After": "60"},
+                )
         # General API limit
         elif path.startswith("/api/"):
             if rate_limiter.is_rate_limited(f"api:{client_ip}", max_requests=100, window_seconds=60):

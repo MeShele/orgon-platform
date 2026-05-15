@@ -376,6 +376,36 @@ async def put_webhook_config(body: WebhookConfigBody, request: Request) -> dict:
     return await get_webhook_config(request)
 
 
+class WebhookTestBody(BaseModel):
+    event_type: str = Field(default="webhook.test", max_length=80)
+    payload: Optional[dict] = None
+
+
+@router.post("/webhooks/test", status_code=202)
+async def test_webhook(body: WebhookTestBody, request: Request) -> dict:
+    """Queue a synthetic event for the merchant's configured URL.
+
+    Useful for integration testing: lets a merchant verify HMAC
+    parsing on their side without waiting for a real deposit. The
+    event flows through the same delivery worker as any other —
+    retries, signing, log, all consistent.
+    """
+    from backend.services.webhook_publisher import publish_event
+    pool = get_db_pool(request)
+    mid = _merchant_id_of(request)
+    payload = body.payload if body.payload is not None else {
+        "note": "Synthetic event from /v1/webhooks/test",
+        "timestamp": int(__import__('time').time() * 1000),
+    }
+    delivery_id = await publish_event(
+        pool,
+        merchant_id=mid,
+        event_type=body.event_type,
+        payload=payload,
+    )
+    return {"delivery_id": delivery_id, "queued": True}
+
+
 @router.get("/webhooks/deliveries")
 async def list_webhook_deliveries(
     request: Request,

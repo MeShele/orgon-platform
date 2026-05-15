@@ -515,6 +515,7 @@ from backend.api.routes_webhooks_sumsub import router as webhooks_sumsub_router
 from backend.api.routes_merchant_admin import router as merchant_admin_router  # B2B API key admin
 from backend.api.routes_public_v1 import router as public_v1_router  # B2B public API (HMAC-signed)
 from backend.api.middleware_merchant_hmac import MerchantHMACAuthMiddleware
+from backend.api.middleware_request_id import RequestIdAndErrorMiddleware
 
 app.include_router(health_router)
 app.include_router(wallets_router)
@@ -557,6 +558,11 @@ app.add_middleware(LoginRateLimitMiddleware)
 # HMAC auth for /v1/* (B2B public). Runs only on that prefix — other
 # routes pass through. Verify -> attach merchant_id to request.state.
 app.add_middleware(MerchantHMACAuthMiddleware)
+
+# Tagging + error envelope. Sits OUTSIDE HMAC so we wrap auth errors
+# too. Starlette runs middlewares LIFO — last added = first to see
+# the request and last to see the response, exactly what we want.
+app.add_middleware(RequestIdAndErrorMiddleware)
 
 
 # Swagger UI at /api/docs for Cloudflare Tunnel compatibility

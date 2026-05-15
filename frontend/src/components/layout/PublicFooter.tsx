@@ -1,6 +1,4 @@
 // PublicFooter v2 — link columns + legal entity + license status
-// TODO: replace placeholder legal data with real ОсОО details when сделана
-// регистрация / куплен domain orgon.kg.
 
 import Link from "next/link";
 import Image from "next/image";
@@ -111,11 +109,11 @@ export function PublicFooter() {
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-faint">рег. №</span>
-                  <span className="text-foreground">000000-0000-ООО</span>
+                  <span className="text-foreground">136338-3301-ООО</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-faint">ИНН</span>
-                  <span className="text-foreground">00000000000000</span>
+                  <span className="text-foreground">01004201410217</span>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-faint">адрес</span>

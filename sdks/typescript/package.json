@@ -9,7 +9,9 @@
   "files": ["dist", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/__tests__/*.test.ts",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "engines": {
     "node": ">=18"
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
     "typescript": "^5.4.0"
   }
 }

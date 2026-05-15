@@ -18,6 +18,23 @@ pnpm add @orgon/sdk
 
 Node ≥ 18 (we use the built-in `fetch`, `crypto.randomUUID`, and `crypto.createHmac`).
 
+## Release flow (maintainers)
+
+```bash
+# Bump version + tag
+cd sdks/typescript
+npm version 0.1.1 --no-git-tag-version  # adjust as needed
+git add package.json
+git commit -m "chore(sdk): 0.1.1"
+git tag sdk-v0.1.1
+git push origin HEAD sdk-v0.1.1
+```
+
+The `.github/workflows/sdk-publish.yml` workflow picks up the
+`sdk-v*` tag and publishes to npm under the `@orgon` scope with
+[provenance](https://docs.npmjs.com/generating-provenance-statements).
+Requires `NPM_TOKEN` secret with `@orgon` publish rights.
+
 ## Usage
 
 ```ts

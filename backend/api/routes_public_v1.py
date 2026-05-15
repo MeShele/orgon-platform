@@ -166,8 +166,9 @@ async def create_wallet(body: CreateWalletBody, request: Request) -> dict:
             detail="Specify exactly one of end_user_id, treasury",
         )
     mid = _merchant_id_of(request)
-    if body.end_user_id:
-        try:
+    from backend.services.merchant_wallet_service import SandboxRestriction
+    try:
+        if body.end_user_id:
             return await wallets.provision_user_wallet(
                 pool,
                 merchant_id=mid,
@@ -175,16 +176,24 @@ async def create_wallet(body: CreateWalletBody, request: Request) -> dict:
                 network=body.network,
                 info=body.info,
             )
-        except ValueError as e:
-            raise HTTPException(status_code=404, detail=str(e))
-    assert body.treasury is not None
-    return await wallets.provision_treasury_wallet(
-        pool,
-        merchant_id=mid,
-        network=body.network,
-        purpose=body.treasury,
-        info=body.info,
-    )
+        assert body.treasury is not None
+        return await wallets.provision_treasury_wallet(
+            pool,
+            merchant_id=mid,
+            network=body.network,
+            purpose=body.treasury,
+            info=body.info,
+        )
+    except SandboxRestriction as e:
+        # Distinct 400 with a sandbox_restricted code so the SDK can
+        # surface it specifically (UI: "this is a sandbox key, switch
+        # to a live key or pick a testnet network").
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "sandbox_restricted", "message": str(e)},
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/wallets/{wallet_id}")

@@ -1,0 +1,59 @@
+name: Publish @orgon/sdk
+
+# Trigger:
+#   git tag sdk-v0.1.0
+#   git push origin sdk-v0.1.0
+#
+# Requires: NPM_TOKEN repo secret with publish rights to the
+# @orgon scope (create on https://www.npmjs.com → Tokens → "Granular
+# access token" → @orgon org → Publish).
+#
+# The tag's "vX.Y.Z" portion is written into package.json before
+# publishing so the npm version always matches the git tag.
+
+on:
+  push:
+    tags: ["sdk-v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write           # OIDC for npm provenance
+    defaults:
+      run:
+        working-directory: sdks/typescript
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Resolve version from tag
+        id: ver
+        run: |
+          v="${GITHUB_REF_NAME#sdk-v}"
+          echo "version=$v" >> $GITHUB_OUTPUT
+
+      - name: Install
+        run: npm ci || npm install
+
+      - name: Typecheck + tests
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Pin package.json version
+        run: |
+          npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance

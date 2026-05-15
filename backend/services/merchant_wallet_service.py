@@ -29,6 +29,38 @@ from backend.safina.models import CreateWalletRequest
 
 logger = logging.getLogger("orgon.merchant_wallets")
 
+# Networks safina exposes that are testnet. A sandbox merchant is
+# restricted to this set — they get a clear 400 if they try to create
+# a wallet on a mainnet chain, instead of accidentally losing real
+# funds while validating their integration.
+TESTNET_NETWORKS = {1010, 3010, 3040, 5010, 5810}
+
+
+class SandboxRestriction(ValueError):
+    """Raised when a sandbox merchant tries to use a non-testnet network."""
+
+
+async def _is_sandbox(pool, merchant_id: str) -> bool:
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT sandbox FROM organizations WHERE id = $1::uuid",
+            merchant_id,
+        )
+    return bool(row["sandbox"]) if row else False
+
+
+async def _enforce_sandbox(pool, *, merchant_id: str, network: str) -> None:
+    if not await _is_sandbox(pool, merchant_id):
+        return
+    try:
+        n = int(network)
+    except (TypeError, ValueError):
+        raise SandboxRestriction(f"Unknown network '{network}'")
+    if n not in TESTNET_NETWORKS:
+        raise SandboxRestriction(
+            f"Network {n} is mainnet — sandbox merchants are restricted to {sorted(TESTNET_NETWORKS)}."
+        )
+
 
 async def provision_user_wallet(
     pool,
@@ -69,6 +101,8 @@ async def provision_user_wallet(
 
     if existing:
         return _row_to_public(existing, purpose="user_deposit")
+
+    await _enforce_sandbox(pool, merchant_id=merchant_id, network=network)
 
     if not user:
         raise ValueError(f"end_user {end_user_id} not found under merchant {merchant_id}")
@@ -139,6 +173,7 @@ async def provision_treasury_wallet(
     a merchant might want separate `hot` and `fee` rows. So we don't
     short-circuit on existing rows; the caller is explicit.
     """
+    await _enforce_sandbox(pool, merchant_id=merchant_id, network=network)
     tenant = await get_safina_client_for_org(pool, merchant_id)
     try:
         merchant_ec = tenant._signer.address.lower()

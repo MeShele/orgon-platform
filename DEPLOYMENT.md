@@ -93,6 +93,8 @@ rotate on container restart and silently invalidate live tokens.
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASSWORD` | only if email enabled | empty → email_service falls back to file backend (writes to `/tmp/orgon_emails/`), useful for dev. |
 | `ORGON_PARTNER_REPLAY_OFF` | never in prod | dev escape hatch to skip HMAC nonce dedup for replay-testing. |
 | `ORGON_AUTO_MIGRATE` | greenfield deploys | Set to `1` so the container's entrypoint applies `000_canonical_schema.sql` on first boot (only if marker absent — safe to leave on across restarts). Leave unset on existing DBs to avoid accidental application. |
+| `MERCHANT_KEY_MASTER` | always once `/v1/*` is in use | 32+ bytes random hex (`openssl rand -hex 32`). Wrapping key for pgcrypto encryption of merchant API secrets in `merchant_api_keys.secret_encrypted`. Issued keys become unverifiable if this rotates without re-issuance — treat it like `JWT_SECRET_KEY`. The HMAC middleware refuses to verify when unset. |
+| `ETHERSCAN_API_KEY` | optional | Speeds up the ETH / Sepolia deposit watcher: 5 req/s with key vs 1 per 5s without. Get a free key at https://etherscan.io/myapikey. Same key works for both networks. |
 
 Verify after deploy: `curl -sS https://orgon-api.asystem.kg/api/health`
 should return `{"ok": true, ...}` with no 5xx in the logs for the first

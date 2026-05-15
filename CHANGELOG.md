@@ -7,6 +7,121 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 28 — B2B Merchant Platform (2026-05-14 → 2026-05-15)
+
+Pivoted ORGON from "operator-only dashboard" to "platform-as-a-service".
+The legacy `/api/v1/partner/*` family (removed in migration 033) was
+replaced top-to-bottom with a cleaner `/v1/*` surface designed dfns-
+style: per-merchant API keys, per-end-user wallets, multi-chain deposit
+watching, webhooks, billing.
+
+### Backend
+
+* **Schema** (migrations 041–046): merchants get `merchant_kind` /
+  `pricing_plan` / `sandbox` / `webhook_url` / `webhook_secret` columns
+  on `organizations`; new tables `merchant_api_keys` (with
+  `secret_encrypted` via pgcrypto), `merchant_request_nonces`,
+  `end_users`, `webhook_deliveries`, `merchant_usage_daily`,
+  `deposits`, `deposit_watch_cursors`, `invoices`. `wallets` gains
+  `end_user_id` and `purpose`.
+* **Auth**: `MerchantHMACAuthMiddleware` verifies
+  `X-ORGON-Key/Timestamp/Nonce/Signature` on `/v1/*` requests.
+  Secrets stored bcrypt-hashed AND pgcrypto-encrypted under
+  `MERCHANT_KEY_MASTER` so the middleware can recompute HMAC. ±60s
+  drift, replay-guard via `merchant_request_nonces` PK, 15-min prune.
+* **Endpoints**: `routes_public_v1.py` — end-users (idempotent on
+  `external_id`), wallets (lazy provisioning, sandbox-restricted on
+  mainnet), transactions (send/sign/list/get), deposits, webhooks
+  (config + test + deliveries), usage, invoices, health/extended,
+  ping. `routes_merchant_admin.py` — platform-admin endpoints for
+  onboarding, API-key issuance, usage, invoices.
+* **Multi-chain deposit watcher**: `services/deposit_watcher.py` is a
+  dispatcher over `services/deposit_sources/` modules. V1 covers Tron
+  mainnet + Nile (native TRX + TRC20 via TronGrid), Bitcoin mainnet
+  (Esplora), Ethereum mainnet + Sepolia (native + ERC20 via
+  Etherscan, honours `ETHERSCAN_API_KEY`). Per-stream cursors,
+  `UNIQUE(network, tx_hash, log_index)` for idempotency.
+* **Webhooks**: two-stage pipeline. `webhook_publisher.publish_event`
+  is one INSERT; `webhook_delivery.run_tick` (every 15s) drains the
+  queue, HMAC-signs (`X-ORGON-Webhook-Signature`), backs off
+  30s→6h, gives up after 6 attempts.
+* **Billing**: `merchant_billing.PLAN_LIMITS` enforces daily quotas in
+  the HMAC middleware (429 on breach), counters live in
+  `merchant_usage_daily`. `invoice_service` cron at 02:00 UTC
+  generates idempotent invoices for the previous calendar month with
+  base + overage line items.
+* **Error envelope**: `RequestIdAndErrorMiddleware` tags every `/v1/*`
+  response with `X-Request-Id` and rewraps 4xx/5xx into
+  `{error, message, request_id, details?}`. Canonical codes documented
+  in `/developers#errors` and `API.md`.
+* **Sandbox**: sandbox merchants physically blocked from mainnet
+  networks; `provision_*_wallet` raises `SandboxRestriction` → 400
+  `sandbox_restricted`.
+* **Observability**: new Prometheus counters
+  `orgon_b2b_{requests_total,request_duration_seconds,deposits_recorded_total,transactions_sent_total,signature_failures_total,webhook_pending,deposit_watcher_lag_seconds}`.
+  `/v1/health/extended` exposes the same numbers JSON-style for
+  status pages.
+
+### Frontend
+
+* `/admin/merchants` (new) — list with counts, onboard form
+  (`/admin/merchants/new`), detail page with suspend/resume + inline
+  webhook editor + embedded API-key issuance + billing tiles +
+  invoices table with "mark paid" back-office action. Sidebar entry
+  RBAC-gated to `admin / super_admin / platform_admin`.
+* `/settings → API ключи` (reworked) — full CRUD with one-time-reveal
+  modal, copy buttons, ready-to-paste HMAC header snippet.
+* `/developers` (new public page) — Quickstart (5 steps), HMAC
+  authentication with TS + Python snippets, webhook events table +
+  Node verify snippet, sandbox guide, error code catalog, endpoint
+  map. Hero CTAs link Swagger, TS SDK, Python SDK, sample apps.
+
+### SDKs
+
+* **`@orgon/sdk`** (TypeScript, `sdks/typescript/`): hand-written, no
+  runtime deps. `OrgonClient` + 6 resources. `WebhooksAPI.verify`
+  static helper. Unit tests for HMAC. CI workflow
+  (`.github/workflows/sdk-publish.yml`) publishes to npm under
+  `@orgon` scope on `sdk-v*` tag push with provenance.
+* **`orgon-sdk`** (Python, `sdks/python/`): 1:1 mirror of TS, httpx
+  client, `verify_webhook` helper.
+* **Sample apps** (`sdks/typescript/examples/`): `payment-receiver`
+  (Express server with onboard + webhook ledger), `payout-sender`
+  (CLI with full outbound flow).
+
+### Tests
+
+* `backend/tests/test_b2b_hmac.py` pins the exact byte layout of the
+  HMAC signing message so any accidental rotation of the protocol
+  trips CI before integrators see it. 3/3 passing locally.
+* SDK unit tests for `buildSignedHeaders` cover full header set,
+  method normalization, body byte-for-byte preservation. Wired into
+  `prepublishOnly`.
+
+### Migrations applied (in order on prod)
+
+```
+041_b2b_merchant_foundation.sql      schema for merchants + api-keys + end_users + webhook_deliveries + usage
+042_merchant_api_key_encryption.sql  pgcrypto + secret_encrypted column
+043_deposits_table.sql               inbound transfers + watch_cursors
+044_deposit_watcher_trc20.sql        split cursor into native/trc20
+045_deposit_cursor_rename.sql        rename last_seen_ts_trc20 → _tokens (chain-neutral)
+046_invoices.sql                     monthly billing ledger
+```
+
+### What's punted
+
+* ORGON-chain (5800/5810) watcher — pending Safina's explorer JSON API.
+* `npm publish` / `pip publish` on the @orgon scope — packages are
+  installable from git for now.
+* KMS-grade encryption for merchant secrets (we use envelope encryption
+  via pgcrypto; KMS migration is one swap on `signer_backends.py`
+  pattern).
+* Payment processor for invoice payments (currently invoices generated
+  + flipped to paid back-office manually).
+
+---
+
 ## Wave 27 — Fire-test bug pass (2026-05-11)
 
 Live mutation-flow under demo-admin against prod `https://orgon.asystem.ai`.

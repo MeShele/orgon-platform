@@ -42,22 +42,38 @@ shared `asyncpg.Pool`, then constructs services on top of it: `WalletService`,
 ### Middleware stack (outer → inner)
 
 ```
-LoginRateLimitMiddleware   5 req/min/IP for /api/auth/{login,verify-2fa,
-                           reset-password,reset-password/confirm};
-                           100 req/min/IP for everything else /api/*.
-                           IP from X-Forwarded-For (we sit behind Coolify proxy).
-PartnerRateLimitMiddleware tier-based limit for /api/v1/partner/*
-B2BReplayMiddleware        HMAC + X-Nonce + X-Timestamp (±5 min drift) on
-                           /api/v1/partner/*; nonces deduped via
-                           partner_request_nonces PK; 15-min cleanup cron.
-APIKeyAuthMiddleware       partner API-key for /api/v1/partner/*
-CORSMiddleware             explicit whitelist (orgon.asystem.kg, preview, localhost)
-AuthMiddleware             JWT bearer extraction → request.state.user
-RLSMiddleware              SET app.current_organization_id + is_super_admin from
-                           JWT-resolved org id, before each request
-RequestLoggingMiddleware   structured request log; goes through observability
-                           formatter when ORGON_JSON_LOGS=1
+LoginRateLimitMiddleware           5 req/min/IP on /api/auth/{login,verify-2fa,
+                                   reset-password,reset-password/confirm};
+                                   300 req/min/IP on /v1/* (circuit breaker
+                                   in front of HMAC);
+                                   100 req/min/IP on everything else /api/*.
+                                   IP from X-Forwarded-For (Coolify proxy).
+MerchantHMACAuthMiddleware         /v1/* only — verifies X-ORGON-Key /
+                                   Timestamp / Nonce / Signature; decrypts
+                                   secret via pgcrypto (MERCHANT_KEY_MASTER);
+                                   replay-guard via merchant_request_nonces
+                                   PK; quota-check (429) + records api_calls
+                                   in merchant_usage_daily on success;
+                                   attaches merchant_id / scopes to
+                                   request.state.
+RequestIdAndErrorMiddleware        /v1/* only — assigns X-Request-Id, rewraps
+                                   4xx/5xx into the canonical
+                                   {error, message, request_id} envelope,
+                                   structured access-log per hit, Prometheus
+                                   counters per (merchant_id, endpoint, status).
+JwtAuditMiddleware                 logs UI mutations into audit_log.
+CORSMiddleware                     explicit whitelist (orgon.asystem.ai,
+                                   preview, localhost).
+AuthMiddleware                     JWT bearer extraction →
+                                   request.state.user, for /api/* only.
+RLSMiddleware                      SET app.current_organization_id +
+                                   is_super_admin from JWT-resolved org id,
+                                   before each request.
 ```
+
+`B2BReplayMiddleware` / `APIKeyAuthMiddleware` / `PartnerRateLimitMiddleware`
+(the old `/api/v1/partner/*` family) were removed alongside the legacy
+partner schema in migration 033.
 
 Global 500 handler returns `{detail: "Internal server error", error_id: "<uuid>"}`
 to the client; full stacktrace stays in server logs (Sentry-shipped on
@@ -80,19 +96,30 @@ Compliance & ops:
 - `/api/v1/compliance`, `/api/v1/kyc-kyb`, `/api/v1/whitelabel`, `/api/v1/fiat`
 - `/api/documents`, `/api/reports`, `/api/support`
 
-Admin REST (super_admin / company_admin):
-- `/api/v1/admin/partners` — provision / list / get / rotate / revoke
-  partner API-key principals (`backend/api/routes_admin_partners.py`).
+Platform admin (super_admin / platform_admin):
+- `/api/admin/merchants/*` — onboard a merchant, edit settings,
+  suspend/resume, issue/list/revoke API keys, view usage & invoices,
+  mark invoice paid (back-office only, never exposed on /v1/*).
 
-B2B partner API (HMAC + replay-guarded):
-- `/api/v1/partner/*` — wallets, transactions, balances, webhooks,
-  analytics scoped by `partners.organization_id`.
+B2B Merchant API (HMAC-signed, `/v1/*`):
+- end-users, wallets (lazy provisioning under Safina with email-anchor
+  slist), transactions (send + sign), deposits (multi-chain watcher
+  output), webhook config + deliveries, usage, invoices.
+- Tenancy is derived from the signed key — no body-supplied
+  `organization_id` ever influences scoping.
 
 Health & ops:
 - `/api/health` — public liveness
+- `/v1/health/extended` — public; webhook queue depth + deposit
+  watcher lag, mirrored to Prometheus gauges.
 - `/api/health/run-migrations` — super_admin; canonical-then-overlay apply
 - `/api/monitoring`, `/api/v1/billing/webhook` (Stripe events, public route
   with HMAC signature verification — no JWT)
+
+The legacy `/api/v1/partner/*` family (`routes_partner*.py`,
+`routes_admin_partners.py`) and `partner_request_nonces` were removed
+in migration 033 when the platform pivoted to the cleaner `/v1/*`
+surface above.
 
 ### RBAC
 
@@ -130,11 +157,17 @@ detailed health, monitoring, billing admin actions).
   `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` so even
   table-owner roles cannot bypass.
 
-For B2B partners: `partners.organization_id` (nullable) ties an API-key
-principal to one organization, and `routes_partner*.py` resolves it via
-`_partner_org_ids(...)` before passing into the service layer's
-`org_ids=[…]` filter. A partner whose row has no `organization_id` sees
-nothing — that's the safe default.
+For B2B merchants (the modern `/v1/*` surface), tenancy is derived
+from the signed API key. `MerchantHMACAuthMiddleware` decrypts the
+secret (pgcrypto, `MERCHANT_KEY_MASTER`), verifies the signature, and
+writes `request.state.merchant_id` (= `organizations.id`). Every
+endpoint in `routes_public_v1.py` reads that field and scopes DB
+queries by it; nothing in the request body ever influences scoping.
+
+End-users are second-class tenancy: `end_users.merchant_id` FK on
+`organizations.id`, `wallets.end_user_id` FK on `end_users.id`,
+`wallets.purpose` = `'user_deposit' | 'treasury' | 'fee' | 'hot' | 'cold'`.
+A merchant can never see another merchant's end-users or wallets.
 
 ### Multi-signature — actual implementation
 
@@ -181,18 +214,70 @@ payload doesn't silently turn on broken verification.
 
 ### B2B HMAC replay protection
 
-Every request to `/api/v1/partner/*` must carry:
+Every request to `/v1/*` carries four headers (`X-ORGON-Key`,
+`-Timestamp`, `-Nonce`, `-Signature`). The signing message is
 
-- `Authorization: Bearer <api_key>` — the partner principal
-- `X-Nonce: <random>` — unique per request
-- `X-Timestamp: <unix_seconds>` — within ±5 minutes of server time
-- `X-Signature: <hmac_sha256_hex>` of `<method>|<path>|<body>|<nonce>|<timestamp>`,
-  keyed by the partner's `api_secret_hash`
+```
+f"{ts_ms}\n{nonce}\n{METHOD}\n{path}\n".encode() + raw_body
+```
 
-The middleware records `(partner_id, nonce)` in `partner_request_nonces`
-with a PK-conflict on replay. A 15-minute APScheduler cron prunes
-nonces whose `seen_at < NOW() - interval '1 hour'` so the table stays
-small. `ORGON_PARTNER_REPLAY_OFF=1` is a dev-only escape hatch.
+`Signature = hex(HMAC-SHA256(secret, msg))`. Timestamp tolerance ±60s.
+
+Secrets live in `merchant_api_keys` as bcrypt hash **and** as
+`pgp_sym_encrypt(secret, MERCHANT_KEY_MASTER)`. The middleware
+decrypts the encrypted column in-memory only when needed to recompute
+the HMAC.
+
+Replay-guard: `(key_pub, nonce)` is a PK on `merchant_request_nonces`;
+collision → 401. A 15-minute scheduler cron prunes rows older than
+1 hour.
+
+### Multi-chain deposit watcher
+
+`backend/services/deposit_watcher.py` is a per-tick dispatcher over a
+chain-source registry (`backend/services/deposit_sources/`). Each
+module owns one or more `NETWORKS` ids and exposes `scan_native` +
+`scan_tokens` coroutines. Current modules:
+
+| Source | Networks | Provider |
+|---|---|---|
+| `tron.py` | 5000, 5010 | TronGrid (`/v1/accounts/{addr}/transactions[/trc20]`) |
+| `bitcoin.py` | 1000 | Blockstream Esplora |
+| `ethereum.py` | 3000, 3040 | Etherscan / Sepolia Etherscan (honours `ETHERSCAN_API_KEY`) |
+
+Cursors live in `deposit_watch_cursors`: independent `last_seen_ts_native`
++ `last_seen_ts_tokens` columns + error_streak / last_error per wallet.
+`deposits` is keyed `UNIQUE(network, tx_hash, log_index)` (log_index
+is 0 for native, event_index for tokens).
+
+Adding a new chain is a single file under `deposit_sources/` calling
+`register(__import__(__name__, fromlist=["NETWORKS"]))` — no
+dispatcher changes.
+
+### Webhook delivery
+
+Two-stage pipeline:
+
+1. `webhook_publisher.publish_event(merchant_id, type, payload)` —
+   INSERT into `webhook_deliveries`. Decoupled from sending so the hot
+   path is one row and the queue survives restarts (DB-backed).
+2. `webhook_delivery.run_tick(pool)` — scheduler job every 15s. Picks
+   `delivered_at IS NULL AND next_retry_at <= now AND attempts < 6`,
+   POSTs the body signed with `X-ORGON-Webhook-Signature` (HMAC-SHA256
+   over `ts || \n || body`, key = merchant's `webhook_secret`). 2xx →
+   `delivered_at = now`. Non-2xx → backoff 30s/2m/10m/1h/6h; six
+   attempts then `last_error` frozen.
+
+### Billing
+
+`merchant_billing.PLAN_LIMITS` and `invoice_service.PLAN_PRICING`
+encode the V1 commercial model in code (sandbox / starter / growth /
+enterprise). HMAC middleware bumps `merchant_usage_daily.api_calls`
+on every successful `/v1/*` hit and 429s on quota breach; the
+transaction service bumps `tx_count` after Safina-accepted send. A
+daily cron at 02:00 UTC (`invoice_service.generate_invoices_for_month`)
+aggregates the previous calendar month into `invoices` rows
+(idempotent on `(merchant_id, billing_period)`).
 
 ### Append-only audit
 

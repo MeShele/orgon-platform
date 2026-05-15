@@ -496,6 +496,37 @@ export const api = {
       method: "DELETE",
     }),
 
+  // Merchant management (super_admin only)
+  listMerchants: () => fetchAPI(`/api/admin/merchants`),
+  getMerchant: (id: string) => fetchAPI(`/api/admin/merchants/${id}`),
+  createMerchant: (body: {
+    name: string;
+    slug: string;
+    merchant_kind: "exchanger" | "bank" | "exchange" | "internal";
+    pricing_plan?: "sandbox" | "starter" | "growth" | "enterprise";
+    sandbox?: boolean;
+    webhook_url?: string;
+  }) =>
+    fetchAPI(`/api/admin/merchants`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateMerchant: (
+    id: string,
+    body: {
+      name?: string;
+      merchant_kind?: string;
+      pricing_plan?: string;
+      sandbox?: boolean;
+      webhook_url?: string;
+      status?: "active" | "suspended";
+    },
+  ) =>
+    fetchAPI(`/api/admin/merchants/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+
   // Merchant API keys (B2B platform)
   /** List API keys issued for a merchant. Hash never returned. */
   listMerchantApiKeys: (merchantId: string) =>

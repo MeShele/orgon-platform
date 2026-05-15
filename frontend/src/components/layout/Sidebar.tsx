@@ -33,6 +33,7 @@ const allNavItems: NavItem[] = [
   { href: "/billing", label: "billing", icon: "solar:bill-list-linear", activeIcon: "solar:bill-list-bold", roles: ["admin"] },
   { href: "/compliance", label: "compliance", icon: "solar:shield-check-linear", activeIcon: "solar:shield-check-bold", roles: ["admin", "viewer"] },
   { href: "/networks", label: "networks", icon: "solar:global-linear", activeIcon: "solar:global-bold", roles: ["admin"] },
+  { href: "/admin/merchants", label: "merchants", icon: "solar:shop-linear", activeIcon: "solar:shop-bold", roles: ["admin", "super_admin", "platform_admin"] },
   { href: "/support", label: "support", icon: "solar:chat-round-dots-linear", activeIcon: "solar:chat-round-dots-bold" },
   { href: "/profile", label: "profile", icon: "solar:user-circle-linear", activeIcon: "solar:user-circle-bold" },
   { href: "/settings", label: "settings", icon: "solar:settings-linear", activeIcon: "solar:settings-bold" },

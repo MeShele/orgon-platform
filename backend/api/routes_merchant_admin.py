@@ -29,6 +29,222 @@ from backend.services import merchant_api_keys as keysvc
 router = APIRouter(prefix="/api/admin/merchants", tags=["merchant-admin"])
 
 
+# ---------------------------------------------------------------------
+# Merchant CRUD — super_admin / platform_admin only.
+# ---------------------------------------------------------------------
+
+class MerchantSummary(BaseModel):
+    id: str
+    name: str
+    slug: str
+    merchant_kind: Optional[str]
+    pricing_plan: Optional[str]
+    sandbox: bool
+    status: str
+    webhook_url: Optional[str]
+    api_keys_active: int
+    end_users_count: int
+    created_at: str
+
+
+class CreateMerchantBody(BaseModel):
+    name: str = Field(..., min_length=2, max_length=200)
+    slug: str = Field(..., min_length=2, max_length=60, pattern=r"^[a-z0-9][a-z0-9\-]*$")
+    merchant_kind: str = Field(..., pattern=r"^(exchanger|bank|exchange|internal)$")
+    pricing_plan: str = Field(default="sandbox", pattern=r"^(sandbox|starter|growth|enterprise)$")
+    sandbox: bool = False
+    webhook_url: Optional[str] = Field(default=None, max_length=500)
+
+
+class UpdateMerchantBody(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=2, max_length=200)
+    merchant_kind: Optional[str] = Field(default=None, pattern=r"^(exchanger|bank|exchange|internal)$")
+    pricing_plan: Optional[str] = Field(default=None, pattern=r"^(sandbox|starter|growth|enterprise)$")
+    sandbox: Optional[bool] = None
+    webhook_url: Optional[str] = Field(default=None, max_length=500)
+    status: Optional[str] = Field(default=None, pattern=r"^(active|suspended)$")
+
+
+def _ensure_platform(user: dict) -> None:
+    role = user.get("role")
+    if role not in ("super_admin", "platform_admin"):
+        raise HTTPException(status_code=403, detail="Only platform admins can manage merchants")
+
+
+@router.get("", response_model=list[MerchantSummary])
+async def list_merchants(
+    http_request: Request,
+    user: dict = Depends(require_roles("super_admin", "platform_admin", "admin")),
+) -> list[MerchantSummary]:
+    """Super-admin list of every merchant in the platform.
+
+    Includes counts (api_keys_active / end_users) so the dashboard
+    can show at a glance which tenants are onboarded vs dormant.
+    """
+    _ensure_platform(user)
+    pool = get_db_pool(http_request)
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT o.id::text, o.name, o.slug, o.merchant_kind, o.pricing_plan,
+                   o.sandbox, o.status, o.webhook_url, o.created_at,
+                   (SELECT count(*) FROM merchant_api_keys k
+                     WHERE k.merchant_id = o.id AND k.revoked_at IS NULL) AS api_keys_active,
+                   (SELECT count(*) FROM end_users u WHERE u.merchant_id = o.id) AS end_users_count
+              FROM organizations o
+             ORDER BY o.created_at DESC
+            """
+        )
+    return [
+        MerchantSummary(
+            id=r["id"],
+            name=r["name"],
+            slug=r["slug"],
+            merchant_kind=r["merchant_kind"],
+            pricing_plan=r["pricing_plan"],
+            sandbox=r["sandbox"],
+            status=r["status"],
+            webhook_url=r["webhook_url"],
+            api_keys_active=int(r["api_keys_active"]),
+            end_users_count=int(r["end_users_count"]),
+            created_at=r["created_at"].isoformat(),
+        )
+        for r in rows
+    ]
+
+
+@router.post("", response_model=MerchantSummary, status_code=201)
+async def create_merchant(
+    body: CreateMerchantBody,
+    http_request: Request,
+    user: dict = Depends(require_roles("super_admin", "platform_admin", "admin")),
+) -> MerchantSummary:
+    """Onboard a new merchant tenant.
+
+    Creates an `organizations` row with merchant fields populated.
+    Note: this does NOT generate API keys — admin issues them from
+    the merchant's settings page after creation. Slug must be unique
+    across the platform.
+    """
+    _ensure_platform(user)
+    pool = get_db_pool(http_request)
+    async with pool.acquire() as conn:
+        # Slug uniqueness check (clearer error than ON CONFLICT)
+        dup = await conn.fetchrow("SELECT 1 FROM organizations WHERE slug = $1", body.slug)
+        if dup:
+            raise HTTPException(status_code=409, detail=f"Slug '{body.slug}' already taken")
+        row = await conn.fetchrow(
+            """
+            INSERT INTO organizations
+              (name, slug, merchant_kind, pricing_plan, sandbox, webhook_url,
+               license_type, status, created_by)
+            VALUES ($1, $2, $3, $4, $5, $6, 'free', 'active', $7)
+            RETURNING id::text, name, slug, merchant_kind, pricing_plan, sandbox,
+                      status, webhook_url, created_at
+            """,
+            body.name,
+            body.slug,
+            body.merchant_kind,
+            body.pricing_plan,
+            body.sandbox,
+            body.webhook_url,
+            user.get("id") if isinstance(user.get("id"), int) else None,
+        )
+    return MerchantSummary(
+        id=row["id"],
+        name=row["name"],
+        slug=row["slug"],
+        merchant_kind=row["merchant_kind"],
+        pricing_plan=row["pricing_plan"],
+        sandbox=row["sandbox"],
+        status=row["status"],
+        webhook_url=row["webhook_url"],
+        api_keys_active=0,
+        end_users_count=0,
+        created_at=row["created_at"].isoformat(),
+    )
+
+
+@router.get("/{merchant_id}", response_model=MerchantSummary)
+async def get_merchant(
+    merchant_id: str,
+    http_request: Request,
+    user: dict = Depends(require_roles("super_admin", "platform_admin", "admin")),
+) -> MerchantSummary:
+    _ensure_platform(user)
+    pool = get_db_pool(http_request)
+    try:
+        UUID(merchant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="merchant_id must be uuid")
+    async with pool.acquire() as conn:
+        r = await conn.fetchrow(
+            """
+            SELECT o.id::text, o.name, o.slug, o.merchant_kind, o.pricing_plan,
+                   o.sandbox, o.status, o.webhook_url, o.created_at,
+                   (SELECT count(*) FROM merchant_api_keys k
+                     WHERE k.merchant_id = o.id AND k.revoked_at IS NULL) AS api_keys_active,
+                   (SELECT count(*) FROM end_users u WHERE u.merchant_id = o.id) AS end_users_count
+              FROM organizations o
+             WHERE o.id = $1
+            """,
+            UUID(merchant_id),
+        )
+    if not r:
+        raise HTTPException(status_code=404, detail="merchant not found")
+    return MerchantSummary(
+        id=r["id"],
+        name=r["name"],
+        slug=r["slug"],
+        merchant_kind=r["merchant_kind"],
+        pricing_plan=r["pricing_plan"],
+        sandbox=r["sandbox"],
+        status=r["status"],
+        webhook_url=r["webhook_url"],
+        api_keys_active=int(r["api_keys_active"]),
+        end_users_count=int(r["end_users_count"]),
+        created_at=r["created_at"].isoformat(),
+    )
+
+
+@router.patch("/{merchant_id}", response_model=MerchantSummary)
+async def update_merchant(
+    merchant_id: str,
+    body: UpdateMerchantBody,
+    http_request: Request,
+    user: dict = Depends(require_roles("super_admin", "platform_admin", "admin")),
+) -> MerchantSummary:
+    _ensure_platform(user)
+    try:
+        UUID(merchant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="merchant_id must be uuid")
+    sets: list[str] = []
+    args: list = [UUID(merchant_id)]
+    fields = {
+        "name": body.name,
+        "merchant_kind": body.merchant_kind,
+        "pricing_plan": body.pricing_plan,
+        "sandbox": body.sandbox,
+        "webhook_url": body.webhook_url,
+        "status": body.status,
+    }
+    for col, val in fields.items():
+        if val is not None:
+            sets.append(f"{col} = ${len(args) + 1}")
+            args.append(val)
+    if not sets:
+        return await get_merchant(merchant_id, http_request, user)
+    sets.append("updated_at = now()")
+    pool = get_db_pool(http_request)
+    async with pool.acquire() as conn:
+        await conn.execute(
+            f"UPDATE organizations SET {', '.join(sets)} WHERE id = $1",
+            *args,
+        )
+    return await get_merchant(merchant_id, http_request, user)
+
+
 class IssueKeyRequest(BaseModel):
     label: Optional[str] = Field(default=None, max_length=80)
     scopes: list[str] = Field(default_factory=list)

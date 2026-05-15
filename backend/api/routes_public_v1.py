@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 from backend.dependencies import get_db_pool
 from backend.services import end_user_service as users
 from backend.services import merchant_wallet_service as wallets
+from backend.services import merchant_tx_service as txs
 
 router = APIRouter(prefix="/v1", tags=["public-v1"])
 
@@ -204,6 +205,82 @@ async def list_user_wallets(user_id: str, request: Request) -> dict:
         pool, merchant_id=_merchant_id_of(request), end_user_id=user_id,
     )
     return {"wallets": rows}
+
+
+# ---------------------------------------------------------------------
+# Transactions
+# ---------------------------------------------------------------------
+
+class SendTxBody(BaseModel):
+    wallet_id: str = Field(..., min_length=1)
+    to_address: str = Field(..., min_length=1)
+    amount: str = Field(..., min_length=1, description="Decimal string, e.g. '1.05'")
+    asset: str = Field(default="TRX", min_length=1, max_length=20)
+    info: Optional[str] = Field(default=None, max_length=200)
+
+
+@router.post("/transactions", status_code=201)
+async def send_transaction(body: SendTxBody, request: Request) -> dict:
+    """Initiate an outbound transfer.
+
+    Returns the tx record in `pending` state. If the wallet's slist
+    requires the merchant's EC to sign (the default), call
+    POST /v1/transactions/{tx_id}/sign next. Once signed, Safina
+    broadcasts to the chain and `status` flips to `broadcasted` /
+    `confirmed` (poll the GET endpoint).
+    """
+    pool = get_db_pool(request)
+    try:
+        return await txs.send_transaction(
+            pool,
+            merchant_id=_merchant_id_of(request),
+            wallet_id=body.wallet_id,
+            to_address=body.to_address,
+            amount=body.amount,
+            asset=body.asset,
+            info=body.info,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/transactions/{tx_id}/sign")
+async def sign_transaction_endpoint(tx_id: str, request: Request) -> dict:
+    pool = get_db_pool(request)
+    out = await txs.sign_transaction(
+        pool, merchant_id=_merchant_id_of(request), tx_id=tx_id,
+    )
+    if not out:
+        raise HTTPException(status_code=404, detail="transaction not found")
+    return out
+
+
+@router.get("/transactions/{tx_id}")
+async def get_transaction_endpoint(tx_id: str, request: Request) -> dict:
+    pool = get_db_pool(request)
+    out = await txs.get_transaction(
+        pool, merchant_id=_merchant_id_of(request), tx_id=tx_id,
+    )
+    if not out:
+        raise HTTPException(status_code=404, detail="transaction not found")
+    return out
+
+
+@router.get("/transactions")
+async def list_transactions_endpoint(
+    request: Request,
+    wallet_id: Optional[str] = Query(default=None),
+    cursor: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict:
+    pool = get_db_pool(request)
+    return await txs.list_transactions(
+        pool,
+        merchant_id=_merchant_id_of(request),
+        wallet_id=wallet_id,
+        cursor=cursor,
+        limit=limit,
+    )
 
 
 # ---------------------------------------------------------------------

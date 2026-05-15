@@ -531,6 +531,16 @@ export const api = {
   getMerchantUsage: (merchantId: string, days = 30) =>
     fetchAPI(`/api/admin/merchants/${merchantId}/usage?days=${days}`),
 
+  /** Past invoices for a merchant (admin view). */
+  listMerchantInvoices: (merchantId: string, limit = 24) =>
+    fetchAPI(`/api/admin/merchants/${merchantId}/invoices?limit=${limit}`),
+
+  /** Mark an invoice paid (platform-side action). */
+  markInvoicePaid: (merchantId: string, invoiceId: string) =>
+    fetchAPI(`/api/admin/merchants/${merchantId}/invoices/${invoiceId}/paid`, {
+      method: "POST",
+    }),
+
   // Merchant API keys (B2B platform)
   /** List API keys issued for a merchant. Hash never returned. */
   listMerchantApiKeys: (merchantId: string) =>

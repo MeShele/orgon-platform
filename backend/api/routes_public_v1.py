@@ -275,6 +275,16 @@ async def list_wallet_deposits(
 # Usage & billing
 # ---------------------------------------------------------------------
 
+@router.get("/invoices")
+async def list_invoices_endpoint(
+    request: Request, limit: int = Query(default=24, ge=1, le=120),
+) -> dict:
+    from backend.services import invoice_service as inv
+    pool = get_db_pool(request)
+    items = await inv.list_invoices(pool, merchant_id=_merchant_id_of(request), limit=limit)
+    return {"invoices": items}
+
+
 @router.get("/usage")
 async def usage_summary(request: Request, days: int = Query(default=30, ge=1, le=90)) -> dict:
     """Today's counters + N-day history + current plan limits.

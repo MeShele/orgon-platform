@@ -173,6 +173,37 @@ def setup_scheduler(
         name="Prune merchant HMAC replay nonces",
     )
 
+    # Monthly invoice generator. Runs every day at 02:00 UTC and
+    # idempotently generates invoices for the PREVIOUS month — so on
+    # the 1st of every month all merchants get their invoice within
+    # the first 2 hours. If the deploy was down on the 1st, the
+    # daily re-run catches up the next day.
+    from datetime import date as _date
+    async def b2b_monthly_invoice_job():
+        from backend.main import get_database
+        from backend.services.invoice_service import (
+            generate_invoices_for_month, previous_month_period,
+        )
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            period = previous_month_period(_date.today())
+            n = await generate_invoices_for_month(db.pool, period_start=period)
+            if n:
+                logger.info("monthly invoice job: %d invoices created for %s", n, period)
+        except Exception as e:
+            logger.error("monthly invoice job failed: %s", e)
+
+    from apscheduler.triggers.cron import CronTrigger
+    scheduler.add_job(
+        b2b_monthly_invoice_job,
+        CronTrigger(hour=2, minute=0, timezone="UTC"),
+        id="b2b_monthly_invoice",
+        name="B2B monthly invoice generator",
+    )
+    logger.info("Monthly invoice job added (daily 02:00 UTC, catches up previous month)")
+
     # On-chain deposit watcher (Tron only in V1). Each tick scans a
     # batch of active wallets via TronGrid and writes new inbound
     # transfers into the `deposits` table. Webhook delivery (which

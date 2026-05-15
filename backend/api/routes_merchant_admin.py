@@ -372,6 +372,45 @@ async def get_merchant_usage(
     }
 
 
+@router.get("/{merchant_id}/invoices")
+async def get_merchant_invoices(
+    merchant_id: str,
+    http_request: Request,
+    limit: int = 24,
+    user: dict = Depends(require_roles("company_admin", "company_auditor", "super_admin", "platform_admin", "admin")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    _ensure_caller_can_admin(merchant_id, user, org_ids)
+    from backend.services import invoice_service as inv
+    pool = get_db_pool(http_request)
+    items = await inv.list_invoices(pool, merchant_id=merchant_id, limit=limit)
+    return {"invoices": items}
+
+
+@router.post("/{merchant_id}/invoices/{invoice_id}/paid", status_code=200)
+async def mark_invoice_paid(
+    merchant_id: str,
+    invoice_id: str,
+    http_request: Request,
+    user: dict = Depends(require_roles("super_admin", "platform_admin", "admin")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    """Mark invoice as paid. Platform-side only (not merchant-self).
+
+    We don't expose this on /v1/* because merchants shouldn't be able
+    to flip their own invoice status — that's a back-office action.
+    """
+    _ensure_platform(user)
+    from backend.services import invoice_service as inv
+    pool = get_db_pool(http_request)
+    row = await inv.mark_paid(pool, invoice_id=invoice_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="invoice not found or already paid")
+    if row["merchant_id"] != merchant_id:
+        raise HTTPException(status_code=404, detail="invoice not found")
+    return {"ok": True}
+
+
 @router.post("/{merchant_id}/api-keys/{key_id}/revoke", status_code=200)
 async def revoke_api_key(
     merchant_id: str,

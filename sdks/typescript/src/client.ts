@@ -8,6 +8,7 @@ import { WalletsAPI } from "./resources/wallets";
 import { TransactionsAPI } from "./resources/transactions";
 import { DepositsAPI } from "./resources/deposits";
 import { WebhooksAPI } from "./resources/webhooks";
+import { InvoicesAPI } from "./resources/invoices";
 
 const DEFAULT_BASE = "https://orgon.asystem.ai";
 
@@ -17,6 +18,7 @@ export class OrgonClient {
   readonly transactions: TransactionsAPI;
   readonly deposits: DepositsAPI;
   readonly webhooks: WebhooksAPI;
+  readonly invoices: InvoicesAPI;
 
   private readonly apiKey: string;
   private readonly secret: string;
@@ -39,6 +41,7 @@ export class OrgonClient {
     this.transactions = new TransactionsAPI(this.request.bind(this));
     this.deposits = new DepositsAPI(this.request.bind(this));
     this.webhooks = new WebhooksAPI(this.request.bind(this));
+    this.invoices = new InvoicesAPI(this.request.bind(this));
   }
 
   /** True if this client is bound to a sandbox key (okt_*). */

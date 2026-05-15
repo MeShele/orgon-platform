@@ -158,6 +158,8 @@ export default function MerchantDetailPage() {
 
         <BillingSection merchantId={merchantId} planFromMerchant={m.pricing_plan} />
 
+        <InvoicesSection merchantId={merchantId} />
+
         <ApiKeysSection merchantId={merchantId} />
 
         <div>
@@ -270,6 +272,112 @@ function Metric({ label, used, limit }: { label: string; used: number; limit: nu
         </div>
       ) : null}
     </div>
+  );
+}
+
+type Invoice = {
+  id: string;
+  billing_period: string;
+  plan: string;
+  currency: string;
+  amount_total: string;
+  items: { label: string; amount: number; qty?: number; unit?: number; unit_per_1000?: number }[];
+  api_calls_total: number;
+  tx_count_total: number;
+  status: "open" | "paid" | "void";
+  issued_at: string | null;
+  paid_at: string | null;
+};
+
+function InvoicesSection({ merchantId }: { merchantId: string }) {
+  const [items, setItems] = useState<Invoice[] | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const r = (await api.listMerchantInvoices(merchantId, 24)) as { invoices: Invoice[] };
+      setItems(r.invoices || []);
+    } catch {
+      setItems([]);
+    }
+  }, [merchantId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const markPaid = async (invoiceId: string) => {
+    try {
+      await api.markInvoicePaid(merchantId, invoiceId);
+      toast.success("Инвойс отмечен оплаченным");
+      void load();
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Ошибка");
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader title="Инвойсы" subtitle="Генерируются автоматически 1-го числа каждого месяца" />
+      <div className="p-4 text-xs">
+        {items === null ? (
+          <div className="text-muted-foreground">Загрузка…</div>
+        ) : items.length === 0 ? (
+          <div className="text-muted-foreground">
+            Пока инвойсов нет. Первый сформируется 1-го числа следующего месяца.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="text-muted-foreground border-b border-border">
+                <tr className="text-left">
+                  <th className="py-2 pr-3 font-medium">Период</th>
+                  <th className="py-2 pr-3 font-medium">План</th>
+                  <th className="py-2 pr-3 font-medium text-right">API</th>
+                  <th className="py-2 pr-3 font-medium text-right">TX</th>
+                  <th className="py-2 pr-3 font-medium text-right">Сумма</th>
+                  <th className="py-2 pr-3 font-medium">Статус</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {items.map((i) => (
+                  <tr key={i.id}>
+                    <td className="py-2 pr-3 font-mono">{i.billing_period}</td>
+                    <td className="py-2 pr-3"><Badge variant="outline">{i.plan}</Badge></td>
+                    <td className="py-2 pr-3 text-right font-mono">{i.api_calls_total.toLocaleString("ru-RU")}</td>
+                    <td className="py-2 pr-3 text-right font-mono">{i.tx_count_total.toLocaleString("ru-RU")}</td>
+                    <td className="py-2 pr-3 text-right font-mono">${i.amount_total}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={
+                          i.status === "paid"
+                            ? "rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px]"
+                            : i.status === "void"
+                            ? "rounded-full bg-muted text-muted-foreground px-2 py-0.5 text-[10px]"
+                            : "rounded-full bg-warning/15 text-warning px-2 py-0.5 text-[10px]"
+                        }
+                      >
+                        {i.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3">
+                      {i.status === "open" ? (
+                        <button
+                          onClick={() => markPaid(i.id)}
+                          className="text-primary hover:underline"
+                        >
+                          Отметить оплаченным
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 

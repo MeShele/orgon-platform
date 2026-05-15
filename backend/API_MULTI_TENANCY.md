@@ -7,11 +7,11 @@ of truth.
 
 For the current state:
 
-- **Conceptual overview** of the multi-tenancy model (RLS, partner
-  org-scoping, defense-in-depth at the service layer):
-  [`../ARCHITECTURE.md` § Multi-tenancy](../ARCHITECTURE.md#multi-tenancy--actual-implementation)
-- **Endpoint catalogue** (auth, partner API contract, billing,
-  webhooks):
+- **Conceptual overview** of the multi-tenancy model (RLS at /api/*,
+  signed-key tenancy at /v1/*, defense-in-depth at the service
+  layer): [`../ARCHITECTURE.md` § Multi-tenancy](../ARCHITECTURE.md#multi-tenancy--actual-implementation)
+- **Endpoint catalogue** (both /api/* operator surface and /v1/* B2B
+  merchant surface; HMAC scheme, error envelope, SDK pointers):
   [`../API.md`](../API.md)
 - **Live OpenAPI spec** (always current — generated from FastAPI):
   `GET /api/openapi.json`

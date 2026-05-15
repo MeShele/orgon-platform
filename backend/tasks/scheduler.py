@@ -199,6 +199,31 @@ def setup_scheduler(
     )
     logger.info("Deposit watcher job added (every 60s, Tron only for V1)")
 
+    # B2B webhook delivery: drains webhook_deliveries queue every 15s
+    # with HMAC-signed POST to each merchant's configured URL. Errors
+    # are retried with exponential backoff (30s → 2m → 10m → 1h → 6h);
+    # six attempts then we mark the row as given up.
+    async def b2b_webhook_delivery_tick():
+        from backend.main import get_database
+        from backend.services.webhook_delivery import run_tick as wh_run_tick
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            stats = await wh_run_tick(db.pool)
+            if any(stats.values()):
+                logger.info("b2b webhook tick: %s", stats)
+        except Exception as e:
+            logger.error("b2b webhook tick failed: %s", e)
+
+    scheduler.add_job(
+        b2b_webhook_delivery_tick,
+        IntervalTrigger(seconds=15),
+        id="b2b_webhook_delivery",
+        name="B2B merchant webhook delivery",
+    )
+    logger.info("B2B webhook delivery job added (every 15s)")
+
     # Process pending webhook events (every 30 seconds)
     if webhook_service:
         async def process_webhooks_job():

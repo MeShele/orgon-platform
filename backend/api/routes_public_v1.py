@@ -271,6 +271,109 @@ async def list_wallet_deposits(
     return {"deposits": items, "next_cursor": next_cursor}
 
 
+# ---------------------------------------------------------------------
+# Webhook configuration & log
+# ---------------------------------------------------------------------
+
+class WebhookConfigBody(BaseModel):
+    url: Optional[str] = Field(default=None, max_length=500)
+    secret: Optional[str] = Field(default=None, max_length=120)
+
+
+@router.get("/webhooks/config")
+async def get_webhook_config(request: Request) -> dict:
+    """Returns the merchant's current webhook URL and whether a secret
+    is set (the secret itself is never returned)."""
+    from uuid import UUID
+    pool = get_db_pool(request)
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT webhook_url, webhook_secret FROM organizations WHERE id = $1",
+            UUID(_merchant_id_of(request)),
+        )
+    if not row:
+        raise HTTPException(status_code=404, detail="merchant not found")
+    return {
+        "url": row["webhook_url"],
+        "secret_set": bool((row["webhook_secret"] or "").strip()),
+    }
+
+
+@router.put("/webhooks/config")
+async def put_webhook_config(body: WebhookConfigBody, request: Request) -> dict:
+    """Partial update — only fields the caller passed.
+
+    Setting `url` to empty string clears it (delivery worker will
+    treat unconfigured rows as permanent skips).
+    """
+    from uuid import UUID
+    pool = get_db_pool(request)
+    sets = []
+    args: list = [UUID(_merchant_id_of(request))]
+    if body.url is not None:
+        sets.append(f"webhook_url = ${len(args) + 1}")
+        args.append(body.url)
+    if body.secret is not None:
+        sets.append(f"webhook_secret = ${len(args) + 1}")
+        args.append(body.secret)
+    if not sets:
+        return await get_webhook_config(request)
+    async with pool.acquire() as conn:
+        await conn.execute(
+            f"UPDATE organizations SET {', '.join(sets)}, updated_at = now() WHERE id = $1",
+            *args,
+        )
+    return await get_webhook_config(request)
+
+
+@router.get("/webhooks/deliveries")
+async def list_webhook_deliveries(
+    request: Request,
+    cursor: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict:
+    """Deliverability log for the merchant — useful for debugging
+    integration. Newest first."""
+    from uuid import UUID
+    pool = get_db_pool(request)
+    args: list = [UUID(_merchant_id_of(request))]
+    where = "merchant_id = $1"
+    if cursor:
+        args.append(cursor)
+        where += f" AND created_at < ${len(args)}"
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT id::text, event_type, attempts, last_status, last_error,
+                   next_retry_at, delivered_at, created_at
+              FROM webhook_deliveries
+             WHERE {where}
+             ORDER BY created_at DESC
+             LIMIT {limit + 1}
+            """,
+            *args,
+        )
+    items = [
+        {
+            "id": r["id"],
+            "event_type": r["event_type"],
+            "attempts": r["attempts"],
+            "last_status": r["last_status"],
+            "last_error": r["last_error"],
+            "next_retry_at": r["next_retry_at"].isoformat() if r["next_retry_at"] else None,
+            "delivered_at": r["delivered_at"].isoformat() if r["delivered_at"] else None,
+            "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+        }
+        for r in rows[:limit]
+    ]
+    next_cursor = (
+        rows[limit - 1]["created_at"].isoformat()
+        if len(rows) > limit and items
+        else None
+    )
+    return {"deliveries": items, "next_cursor": next_cursor}
+
+
 @router.get("/users/{user_id}/deposits")
 async def list_user_deposits(
     user_id: str,

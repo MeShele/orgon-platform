@@ -213,6 +213,36 @@ async def _scan_tron_wallet(
                     "deposit recorded merchant=%s wallet=%s amount=%s TRX tx=%s",
                     merchant_id, wallet_id, amount_trx, tx_id,
                 )
+                # Fire the webhook event right away; failure here
+                # is non-fatal, the deposit row is the source of
+                # truth and a manual replay tool can re-publish.
+                try:
+                    from backend.services.webhook_publisher import (
+                        publish_event,
+                        EV_WALLET_DEPOSIT,
+                    )
+                    await publish_event(
+                        pool,
+                        merchant_id=merchant_id,
+                        event_type=EV_WALLET_DEPOSIT,
+                        payload={
+                            "deposit_id": str(row["id"]),
+                            "wallet_id": wallet_id,
+                            "end_user_id": end_user_id,
+                            "network": network,
+                            "tx_hash": tx_id,
+                            "from_address": from_addr,
+                            "to_address": addr,
+                            "asset": "TRX",
+                            "amount": str(amount_trx),
+                            "block_number": block_number,
+                        },
+                    )
+                except Exception as pub_err:
+                    logger.warning(
+                        "deposit webhook publish failed (deposit kept) tx=%s err=%s",
+                        tx_id, pub_err,
+                    )
 
     if newest_ts_ms:
         cursor_ts = datetime.fromtimestamp(newest_ts_ms / 1000, tz=timezone.utc)

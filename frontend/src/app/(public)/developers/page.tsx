@@ -49,6 +49,24 @@ export default function DevelopersPage() {
               TypeScript SDK
             </Button>
           </Link>
+          <Link
+            href="https://github.com/MeShele/orgon-platform/tree/main/sdks/python"
+            target="_blank"
+          >
+            <Button variant="secondary" size="md">
+              <Icon icon="solar:code-square-bold" className="text-base" />
+              Python SDK
+            </Button>
+          </Link>
+          <Link
+            href="https://github.com/MeShele/orgon-platform/tree/main/sdks/typescript/examples"
+            target="_blank"
+          >
+            <Button variant="ghost" size="md">
+              <Icon icon="solar:folder-open-bold" className="text-base" />
+              Sample apps
+            </Button>
+          </Link>
         </div>
 
         <div className="mt-6 rounded-xl border border-border bg-card p-4 text-xs">

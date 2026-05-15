@@ -135,6 +135,13 @@ async def send_transaction(
             wallet_name, network, UUID(merchant_id), now,
         )
 
+    # Bump billing counter — non-fatal if it errors.
+    try:
+        from backend.services.merchant_billing import record_tx
+        await record_tx(pool, merchant_id)
+    except Exception:
+        pass
+
     return await get_transaction(
         pool, merchant_id=merchant_id, tx_id=tx_unid,
     )

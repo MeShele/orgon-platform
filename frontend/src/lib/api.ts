@@ -527,6 +527,10 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  /** Merchant usage / billing snapshot — admin-side view of a merchant's plan + counters. */
+  getMerchantUsage: (merchantId: string, days = 30) =>
+    fetchAPI(`/api/admin/merchants/${merchantId}/usage?days=${days}`),
+
   // Merchant API keys (B2B platform)
   /** List API keys issued for a merchant. Hash never returned. */
   listMerchantApiKeys: (merchantId: string) =>

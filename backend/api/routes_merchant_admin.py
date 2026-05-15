@@ -339,6 +339,39 @@ async def list_api_keys(
     ]
 
 
+@router.get("/{merchant_id}/usage")
+async def get_merchant_usage(
+    merchant_id: str,
+    http_request: Request,
+    days: int = 30,
+    user: dict = Depends(require_roles("company_admin", "company_auditor", "super_admin", "platform_admin", "admin")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    """Today's counters + N-day history + plan limits, admin-side.
+
+    Same shape as /v1/usage so the dashboard can render the merchant
+    panel from either endpoint.
+    """
+    _ensure_caller_can_admin(merchant_id, user, org_ids)
+    from backend.services import merchant_billing as billing
+    pool = get_db_pool(http_request)
+    async with pool.acquire() as conn:
+        org = await conn.fetchrow(
+            "SELECT pricing_plan, sandbox FROM organizations WHERE id = $1::uuid",
+            merchant_id,
+        )
+    plan = (org["pricing_plan"] if org else None) or "sandbox"
+    today = await billing.today_counters(pool, merchant_id)
+    hist = await billing.history(pool, merchant_id=merchant_id, days=days)
+    return {
+        "plan": plan,
+        "sandbox": bool(org["sandbox"]) if org else False,
+        "limits": billing.limits_for(plan),
+        "today": today,
+        "history": hist,
+    }
+
+
 @router.post("/{merchant_id}/api-keys/{key_id}/revoke", status_code=200)
 async def revoke_api_key(
     merchant_id: str,

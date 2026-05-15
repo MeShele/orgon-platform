@@ -272,6 +272,37 @@ async def list_wallet_deposits(
 
 
 # ---------------------------------------------------------------------
+# Usage & billing
+# ---------------------------------------------------------------------
+
+@router.get("/usage")
+async def usage_summary(request: Request, days: int = Query(default=30, ge=1, le=90)) -> dict:
+    """Today's counters + N-day history + current plan limits.
+
+    Lets the merchant see how close they are to their plan ceiling
+    without polling our admin endpoints.
+    """
+    from backend.services import merchant_billing as billing
+    pool = get_db_pool(request)
+    mid = _merchant_id_of(request)
+    async with pool.acquire() as conn:
+        org = await conn.fetchrow(
+            "SELECT pricing_plan, sandbox FROM organizations WHERE id = $1::uuid",
+            mid,
+        )
+    plan = (org["pricing_plan"] if org else None) or "sandbox"
+    today = await billing.today_counters(pool, mid)
+    hist = await billing.history(pool, merchant_id=mid, days=days)
+    return {
+        "plan": plan,
+        "sandbox": bool(org["sandbox"]) if org else False,
+        "limits": billing.limits_for(plan),
+        "today": today,
+        "history": hist,
+    }
+
+
+# ---------------------------------------------------------------------
 # Webhook configuration & log
 # ---------------------------------------------------------------------
 

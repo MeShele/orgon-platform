@@ -156,6 +156,8 @@ export default function MerchantDetailPage() {
           />
         </Card>
 
+        <BillingSection merchantId={merchantId} planFromMerchant={m.pricing_plan} />
+
         <ApiKeysSection merchantId={merchantId} />
 
         <div>
@@ -165,6 +167,109 @@ export default function MerchantDetailPage() {
         </div>
       </div>
     </>
+  );
+}
+
+function BillingSection({ merchantId, planFromMerchant }: { merchantId: string; planFromMerchant: string | null }) {
+  const [usage, setUsage] = useState<{
+    plan: string;
+    sandbox: boolean;
+    limits: { api_calls: number; tx_count: number; active_users: number };
+    today: { api_calls: number; tx_count: number; active_users: number };
+    history: { day: string; api_calls: number; tx_count: number; active_users: number }[];
+  } | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const u = (await api.getMerchantUsage(merchantId, 30)) as never;
+      setUsage(u);
+    } catch {
+      setUsage(null);
+    }
+  }, [merchantId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (!usage) {
+    return (
+      <Card>
+        <CardHeader title="Биллинг" subtitle={`План: ${planFromMerchant ?? "—"}`} />
+        <div className="p-4 text-xs text-muted-foreground">Загрузка статистики…</div>
+      </Card>
+    );
+  }
+
+  const histMax = Math.max(1, ...usage.history.map((h) => h.api_calls));
+
+  return (
+    <Card>
+      <CardHeader
+        title="Биллинг"
+        subtitle={`План: ${usage.plan}${usage.sandbox ? " · sandbox" : ""}`}
+      />
+      <div className="p-4 space-y-4 text-xs">
+        <div className="grid sm:grid-cols-3 gap-3">
+          <Metric
+            label="API-запросы сегодня"
+            used={usage.today.api_calls}
+            limit={usage.limits.api_calls}
+          />
+          <Metric
+            label="Транзакции сегодня"
+            used={usage.today.tx_count}
+            limit={usage.limits.tx_count}
+          />
+          <Metric
+            label="Активные юзеры"
+            used={usage.today.active_users}
+            limit={usage.limits.active_users}
+          />
+        </div>
+        {usage.history.length > 0 ? (
+          <div>
+            <p className="text-muted-foreground mb-2">API-запросы за 30 дней</p>
+            <div className="flex items-end gap-0.5 h-16">
+              {usage.history.map((h) => (
+                <div
+                  key={h.day}
+                  className="flex-1 bg-primary/30 rounded-t"
+                  style={{
+                    height: `${Math.max(2, (h.api_calls / histMax) * 100)}%`,
+                  }}
+                  title={`${h.day}: ${h.api_calls} api / ${h.tx_count} tx / ${h.active_users} active`}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+function Metric({ label, used, limit }: { label: string; used: number; limit: number }) {
+  const unlimited = limit < 0;
+  const pct = unlimited ? 0 : Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+  const tone = pct >= 90 ? "bg-destructive" : pct >= 70 ? "bg-warning" : "bg-success";
+  return (
+    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+      <p className="text-muted-foreground">{label}</p>
+      <p className="text-base text-foreground font-mono">
+        {used.toLocaleString("ru-RU")}{" "}
+        {unlimited ? (
+          <span className="text-muted-foreground text-[10px]">/ ∞</span>
+        ) : (
+          <span className="text-muted-foreground text-[10px]">/ {limit.toLocaleString("ru-RU")}</span>
+        )}
+      </p>
+      {!unlimited ? (
+        <div className="h-1 rounded-full bg-muted overflow-hidden">
+          <div className={`h-full ${tone}`} style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

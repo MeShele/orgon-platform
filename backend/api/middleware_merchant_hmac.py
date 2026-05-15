@@ -160,8 +160,26 @@ async def _verify(request: Request, body_bytes: bytes) -> tuple[str, str, list[s
     if not _const_eq(expected, sig_hex.lower()):
         raise HTTPException(status_code=401, detail="Bad signature")
 
-    # 5. Update last_used. Best-effort — failure here doesn't reject
-    # the request.
+    # 5. Quota enforcement — if today's api_calls is already at plan
+    # ceiling, reject with 429 BEFORE we count this request. Pricing
+    # plan is read from organizations.pricing_plan.
+    try:
+        async with pool.acquire() as conn:
+            plan_row = await conn.fetchrow(
+                "SELECT pricing_plan FROM organizations WHERE id = $1::uuid",
+                key_row["merchant_id"],
+            )
+        plan = plan_row["pricing_plan"] if plan_row else None
+        from backend.services.merchant_billing import is_over_quota, record_api_call
+        if await is_over_quota(pool, merchant_id=key_row["merchant_id"], plan=plan, metric="api_calls"):
+            raise HTTPException(status_code=429, detail="API daily limit exceeded for current plan")
+        await record_api_call(pool, key_row["merchant_id"])
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.debug("quota/usage record failed (non-fatal): %s", e)
+
+    # 6. Update last_used. Best-effort.
     try:
         await keysvc.touch_last_used(pool, key_pub)
     except Exception:

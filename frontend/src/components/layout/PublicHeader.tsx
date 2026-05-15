@@ -32,6 +32,7 @@ const NAV = [
   { href: "/features",          label: "Возможности" },
   { href: "/demo/architecture", label: "Архитектура" },
   { href: "/docs",              label: "Документация" },
+  { href: "/developers",        label: "Developers" },
   { href: "/about",             label: "О компании" },
 ];
 

@@ -208,6 +208,106 @@ async def list_user_wallets(user_id: str, request: Request) -> dict:
 
 
 # ---------------------------------------------------------------------
+# Deposits (incoming on-chain transfers)
+# ---------------------------------------------------------------------
+
+def _deposit_to_public(row) -> dict:
+    return {
+        "id": str(row["id"]),
+        "wallet_id": str(row["wallet_id"]),
+        "end_user_id": str(row["end_user_id"]) if row.get("end_user_id") else None,
+        "network": row["network"],
+        "tx_hash": row["tx_hash"],
+        "log_index": row.get("log_index", 0),
+        "from_address": row.get("from_address"),
+        "to_address": row["to_address"],
+        "asset": row["asset"],
+        "amount": str(row["amount"]),
+        "confirmations": row.get("confirmations", 0),
+        "block_number": row.get("block_number"),
+        "block_timestamp": row["block_timestamp"].isoformat() if row.get("block_timestamp") else None,
+        "discovered_at": row["discovered_at"].isoformat() if row.get("discovered_at") else None,
+        "status": row["status"],
+    }
+
+
+@router.get("/wallets/{wallet_id}/deposits")
+async def list_wallet_deposits(
+    wallet_id: str,
+    request: Request,
+    cursor: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict:
+    """Inbound on-chain transfers seen by our watcher.
+
+    Returns most-recent-first. Cursor is discovered_at iso of the
+    last row on the previous page.
+    """
+    from uuid import UUID
+    pool = get_db_pool(request)
+    mid = _merchant_id_of(request)
+
+    args: list = [UUID(mid), UUID(wallet_id)]
+    where = "merchant_id = $1 AND wallet_id = $2"
+    if cursor:
+        args.append(cursor)
+        where += f" AND discovered_at < ${len(args)}"
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT * FROM deposits
+             WHERE {where}
+             ORDER BY discovered_at DESC
+             LIMIT {limit + 1}
+            """,
+            *args,
+        )
+    items = [_deposit_to_public(r) for r in rows[:limit]]
+    next_cursor = (
+        rows[limit - 1]["discovered_at"].isoformat()
+        if len(rows) > limit and items
+        else None
+    )
+    return {"deposits": items, "next_cursor": next_cursor}
+
+
+@router.get("/users/{user_id}/deposits")
+async def list_user_deposits(
+    user_id: str,
+    request: Request,
+    cursor: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+) -> dict:
+    """All inbound transfers across all of the user's wallets."""
+    from uuid import UUID
+    pool = get_db_pool(request)
+    mid = _merchant_id_of(request)
+
+    args: list = [UUID(mid), UUID(user_id)]
+    where = "merchant_id = $1 AND end_user_id = $2"
+    if cursor:
+        args.append(cursor)
+        where += f" AND discovered_at < ${len(args)}"
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            f"""
+            SELECT * FROM deposits
+             WHERE {where}
+             ORDER BY discovered_at DESC
+             LIMIT {limit + 1}
+            """,
+            *args,
+        )
+    items = [_deposit_to_public(r) for r in rows[:limit]]
+    next_cursor = (
+        rows[limit - 1]["discovered_at"].isoformat()
+        if len(rows) > limit and items
+        else None
+    )
+    return {"deposits": items, "next_cursor": next_cursor}
+
+
+# ---------------------------------------------------------------------
 # Transactions
 # ---------------------------------------------------------------------
 

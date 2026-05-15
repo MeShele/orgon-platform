@@ -173,6 +173,32 @@ def setup_scheduler(
         name="Prune merchant HMAC replay nonces",
     )
 
+    # On-chain deposit watcher (Tron only in V1). Each tick scans a
+    # batch of active wallets via TronGrid and writes new inbound
+    # transfers into the `deposits` table. Webhook delivery (which
+    # this feeds) lands in the next sprint — for now consumers query
+    # /v1/wallets/{id}/deposits.
+    async def deposit_watch_tick():
+        from backend.main import get_database
+        from backend.services.deposit_watcher import run_tick as deposit_run_tick
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            stats = await deposit_run_tick(db.pool)
+            if stats.get("deposits_found"):
+                logger.info("deposit watcher tick: %s", stats)
+        except Exception as e:
+            logger.error("deposit watcher tick failed: %s", e)
+
+    scheduler.add_job(
+        deposit_watch_tick,
+        IntervalTrigger(seconds=60),
+        id="deposit_watch_tick",
+        name="On-chain deposit watcher (Tron)",
+    )
+    logger.info("Deposit watcher job added (every 60s, Tron only for V1)")
+
     # Process pending webhook events (every 30 seconds)
     if webhook_service:
         async def process_webhooks_job():

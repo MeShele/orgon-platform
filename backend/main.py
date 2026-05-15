@@ -512,6 +512,7 @@ from backend.api.routes_reports import router as reports_router
 from backend.api.routes_support import router as support_router
 from backend.api.routes_safina_integration import router as safina_integration_router
 from backend.api.routes_webhooks_sumsub import router as webhooks_sumsub_router
+from backend.api.routes_merchant_admin import router as merchant_admin_router  # B2B API key admin
 
 app.include_router(health_router)
 app.include_router(wallets_router)
@@ -532,6 +533,7 @@ app.include_router(compliance_router)  # Compliance & Regulatory
 app.include_router(whitelabel_router)  # White Label
 app.include_router(kyc_kyb_router)  # KYC/KYB Verification Flow
 app.include_router(monitoring_router)  # Monitoring & Prometheus metrics
+app.include_router(merchant_admin_router)  # B2B merchant API-key admin
 app.include_router(documents_router)  # OnlyOffice document tokens
 app.include_router(reports_router)  # Reports
 app.include_router(support_router)  # Support tickets

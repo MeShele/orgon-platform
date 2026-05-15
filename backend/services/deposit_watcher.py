@@ -1,30 +1,16 @@
 """On-chain deposit watcher.
 
-V1: Tron (Nile testnet 5010 + mainnet 5000) via TronGrid.
-Later sprints: BTC via Esplora, ETH via Alchemy.
+V1 streams:
+  * Tron native (TRX)  — /v1/accounts/{addr}/transactions
+  * Tron TRC20 (USDT…) — /v1/accounts/{addr}/transactions/trc20
 
-Per tick:
-  1. Pick wallets in supported networks that have an on-chain addr.
-  2. For each, ask the explorer for inbound transfers since the
-     `last_seen_ts` cursor. First poll on a wallet defaults to "last
-     hour" so we don't accidentally backfill its entire history.
-  3. INSERT new rows into `deposits` (ON CONFLICT DO NOTHING).
-  4. Update cursor.
-
-Idempotent at the DB level via UNIQUE (network, tx_hash, log_index).
-The watcher is best-effort and never raises: a single wallet's
-explorer error is logged on the cursor row and skipped.
-
-Confirmation threshold:
-  Tron — 19 SR confirmations / ~57s (one round). We treat any tx
-  visible in /v1/accounts/.../transactions as confirmed by the API
-  layer; TronGrid only returns committed transactions. Reorgs on
-  Tron are exceedingly rare (Solidified after ~19 SRs sign).
+Each stream has its own cursor in deposit_watch_cursors so the two
+don't truncate each other. Later sprints add BTC (Esplora) and ETH
+(Alchemy/Etherscan) the same way.
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -35,46 +21,47 @@ import httpx
 
 logger = logging.getLogger("orgon.deposit_watcher")
 
-# Supported networks → explorer base URL.
 NETWORK_EXPLORERS: dict[int, str] = {
     5010: "https://nile.trongrid.io",
     5000: "https://api.trongrid.io",
 }
 
-# Per-wallet history horizon on first poll. Anything older than this
-# we treat as "not our problem yet" — merchants will get a backfill
-# tool in a later sprint.
+# TRC20 contract addresses we recognise. Anything not in this map is
+# still recorded but with asset=<contract addr> — merchants can map
+# the rest in their own systems. Keep the canonical token symbol
+# uppercase.
+TRC20_KNOWN: dict[int, dict[str, str]] = {
+    5010: {  # Nile testnet
+        "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf": "USDT",
+        "TLBaRhANQoJFTqre9Nf1mjuwNWjCJeYqUL": "USDT",
+        "TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj": "USDT",
+    },
+    5000: {  # mainnet
+        "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t": "USDT",
+        "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8": "USDC",
+    },
+}
+
 INITIAL_BACKFILL_HOURS = 1
-
-# How many requests we can make to TronGrid per tick (free tier
-# allows about 100k/day shared across the deployment — keep room for
-# other usages).
-MAX_REQUESTS_PER_TICK = 100
-
-# Per-request timeout. TronGrid is usually fast; cap it so a slow
-# response doesn't starve the rest of the tick.
+MAX_WALLETS_PER_TICK = 50          # 2 requests per wallet → 100 explorer calls/tick
 HTTP_TIMEOUT_S = 8.0
 
 
 async def run_tick(pool) -> dict:
-    """Single sweep. Returns a counter dict for observability."""
     stats = {
         "wallets_scanned": 0,
-        "deposits_found": 0,
+        "deposits_native": 0,
+        "deposits_trc20": 0,
         "explorer_errors": 0,
         "skipped_unsupported_network": 0,
     }
 
-    # Pull active wallets that live on a supported network. Hidden /
-    # treasury / user — doesn't matter at this layer; the merchant
-    # decides what to do with the deposit. We do skip wallets with no
-    # addr (not yet activated by Safina).
     async with pool.acquire() as conn:
         wallets = await conn.fetch(
             """
             SELECT w.id::text, w.organization_id::text AS merchant_id,
                    w.end_user_id::text AS end_user_id, w.network, w.addr,
-                   c.last_seen_ts
+                   c.last_seen_ts_native, c.last_seen_ts_trc20
               FROM wallets w
               LEFT JOIN deposit_watch_cursors c ON c.wallet_id = w.id
              WHERE COALESCE(w.is_hidden, false) = false
@@ -83,7 +70,7 @@ async def run_tick(pool) -> dict:
              ORDER BY COALESCE(c.last_polled_at, 'epoch') ASC
              LIMIT $1
             """,
-            MAX_REQUESTS_PER_TICK,
+            MAX_WALLETS_PER_TICK,
         )
 
     if not wallets:
@@ -95,178 +82,281 @@ async def run_tick(pool) -> dict:
                 stats["skipped_unsupported_network"] += 1
                 continue
             stats["wallets_scanned"] += 1
+            ok_any = False
             try:
-                count = await _scan_tron_wallet(
-                    client=client,
-                    pool=pool,
-                    wallet_id=w["id"],
-                    merchant_id=w["merchant_id"],
-                    end_user_id=w["end_user_id"],
-                    network=w["network"],
-                    addr=w["addr"],
-                    since=w["last_seen_ts"],
+                n = await _scan_tron_native(
+                    client=client, pool=pool, w=w,
                 )
-                stats["deposits_found"] += count
+                stats["deposits_native"] += n
+                ok_any = True
             except Exception as e:
                 stats["explorer_errors"] += 1
-                await _record_error(pool, w["id"], str(e)[:300])
-                logger.warning("deposit scan failed wallet=%s err=%s", w["id"], e)
-
+                logger.warning("native scan failed wallet=%s err=%s", w["id"], e)
+                await _record_error(pool, w["id"], f"native: {str(e)[:200]}")
+            try:
+                n = await _scan_tron_trc20(
+                    client=client, pool=pool, w=w,
+                )
+                stats["deposits_trc20"] += n
+                ok_any = True
+            except Exception as e:
+                stats["explorer_errors"] += 1
+                logger.warning("trc20 scan failed wallet=%s err=%s", w["id"], e)
+                await _record_error(pool, w["id"], f"trc20: {str(e)[:200]}")
+            if ok_any:
+                # Clear streak after at least one successful stream.
+                await _clear_error(pool, w["id"])
     return stats
 
 
-async def _scan_tron_wallet(
-    *,
-    client: httpx.AsyncClient,
-    pool,
-    wallet_id: str,
-    merchant_id: str,
-    end_user_id: Optional[str],
-    network: int,
-    addr: str,
-    since: Optional[datetime],
+async def _scan_tron_native(
+    *, client: httpx.AsyncClient, pool, w
 ) -> int:
-    """Pull inbound TRX (native) transfers since `since`.
-
-    TRC20 transfers (USDT etc.) come from a different endpoint and
-    will be wired in a follow-up — keeping this V1 narrow.
-    """
-    base = NETWORK_EXPLORERS[network]
-    # Default backfill window for first scan.
-    if since is None:
-        since = datetime.now(timezone.utc) - timedelta(hours=INITIAL_BACKFILL_HOURS)
-    min_ts_ms = int(since.timestamp() * 1000)
-
-    url = f"{base}/v1/accounts/{addr}/transactions"
+    base = NETWORK_EXPLORERS[w["network"]]
+    since = w["last_seen_ts_native"] or _default_since()
+    url = f"{base}/v1/accounts/{w['addr']}/transactions"
     params = {
         "only_to": "true",
         "only_confirmed": "true",
-        "min_timestamp": str(min_ts_ms),
+        "min_timestamp": str(int(since.timestamp() * 1000)),
         "limit": "50",
     }
     r = await client.get(url, params=params)
     r.raise_for_status()
-    data = r.json()
-    transactions = data.get("data") or []
-
-    if not transactions:
-        await _touch_cursor(pool, wallet_id=wallet_id, last_seen_ts=None)
+    txs = (r.json() or {}).get("data") or []
+    if not txs:
+        await _touch_cursor(pool, wallet_id=w["id"], stream="native", new_ts=None)
         return 0
 
     inserted = 0
     newest_ts_ms = 0
-    for tx in transactions:
+    for tx in txs:
         tx_id = tx.get("txID") or tx.get("transaction_id")
         if not tx_id:
             continue
         ret = (tx.get("ret") or [{}])[0].get("contractRet")
         if ret != "SUCCESS":
             continue
-        block_ts_ms = int(tx.get("block_timestamp") or 0)
-        if block_ts_ms > newest_ts_ms:
-            newest_ts_ms = block_ts_ms
-        block_number = int(tx.get("blockNumber") or 0) or None
-
-        # Native TRX transfer: contract[0].type == "TransferContract"
+        ts_ms = int(tx.get("block_timestamp") or 0)
+        if ts_ms > newest_ts_ms:
+            newest_ts_ms = ts_ms
+        block_n = int(tx.get("blockNumber") or 0) or None
         contracts = (tx.get("raw_data") or {}).get("contract") or []
-        if not contracts:
+        if not contracts or contracts[0].get("type") != "TransferContract":
             continue
-        c0 = contracts[0]
-        if c0.get("type") != "TransferContract":
-            continue
-        v = (c0.get("parameter") or {}).get("value") or {}
-        # Only count txs whose destination matches our wallet address.
-        # TronGrid's only_to=true filter is usually accurate, but
-        # double-check after b58/hex conversion would require its own
-        # encoder; trust the filter for V1.
+        v = (contracts[0].get("parameter") or {}).get("value") or {}
         amount_sun = int(v.get("amount") or 0)
         if amount_sun <= 0:
             continue
-        amount_trx = Decimal(amount_sun) / Decimal(1_000_000)
+        amount = Decimal(amount_sun) / Decimal(1_000_000)
         from_addr = v.get("owner_address_base58") or v.get("owner_address") or ""
 
-        async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                """
-                INSERT INTO deposits
-                    (merchant_id, wallet_id, end_user_id, network, tx_hash,
-                     log_index, from_address, to_address, asset, amount,
-                     confirmations, block_number, block_timestamp, status)
-                VALUES ($1, $2, $3, $4, $5, 0, $6, $7, 'TRX', $8, 19, $9, $10, 'confirmed')
-                ON CONFLICT (network, tx_hash, log_index) DO NOTHING
-                RETURNING id
-                """,
-                UUID(merchant_id),
-                UUID(wallet_id),
-                UUID(end_user_id) if end_user_id else None,
-                network,
-                tx_id,
-                from_addr,
-                addr,
-                amount_trx,
-                block_number,
-                datetime.fromtimestamp(block_ts_ms / 1000, tz=timezone.utc) if block_ts_ms else None,
-            )
-            if row is not None:
-                inserted += 1
-                logger.info(
-                    "deposit recorded merchant=%s wallet=%s amount=%s TRX tx=%s",
-                    merchant_id, wallet_id, amount_trx, tx_id,
-                )
-                # Fire the webhook event right away; failure here
-                # is non-fatal, the deposit row is the source of
-                # truth and a manual replay tool can re-publish.
-                try:
-                    from backend.services.webhook_publisher import (
-                        publish_event,
-                        EV_WALLET_DEPOSIT,
-                    )
-                    await publish_event(
-                        pool,
-                        merchant_id=merchant_id,
-                        event_type=EV_WALLET_DEPOSIT,
-                        payload={
-                            "deposit_id": str(row["id"]),
-                            "wallet_id": wallet_id,
-                            "end_user_id": end_user_id,
-                            "network": network,
-                            "tx_hash": tx_id,
-                            "from_address": from_addr,
-                            "to_address": addr,
-                            "asset": "TRX",
-                            "amount": str(amount_trx),
-                            "block_number": block_number,
-                        },
-                    )
-                except Exception as pub_err:
-                    logger.warning(
-                        "deposit webhook publish failed (deposit kept) tx=%s err=%s",
-                        tx_id, pub_err,
-                    )
+        if await _insert_deposit(
+            pool,
+            merchant_id=w["merchant_id"],
+            wallet_id=w["id"],
+            end_user_id=w["end_user_id"],
+            network=w["network"],
+            tx_hash=tx_id,
+            log_index=0,
+            from_addr=from_addr,
+            to_addr=w["addr"],
+            asset="TRX",
+            amount=amount,
+            block_number=block_n,
+            block_ts_ms=ts_ms,
+        ):
+            inserted += 1
 
-    if newest_ts_ms:
-        cursor_ts = datetime.fromtimestamp(newest_ts_ms / 1000, tz=timezone.utc)
-        await _touch_cursor(pool, wallet_id=wallet_id, last_seen_ts=cursor_ts)
-    else:
-        await _touch_cursor(pool, wallet_id=wallet_id, last_seen_ts=None)
-
+    await _touch_cursor(
+        pool,
+        wallet_id=w["id"],
+        stream="native",
+        new_ts=datetime.fromtimestamp(newest_ts_ms / 1000, tz=timezone.utc) if newest_ts_ms else None,
+    )
     return inserted
 
 
-async def _touch_cursor(pool, *, wallet_id: str, last_seen_ts: Optional[datetime]) -> None:
+async def _scan_tron_trc20(
+    *, client: httpx.AsyncClient, pool, w
+) -> int:
+    base = NETWORK_EXPLORERS[w["network"]]
+    since = w["last_seen_ts_trc20"] or _default_since()
+    url = f"{base}/v1/accounts/{w['addr']}/transactions/trc20"
+    params = {
+        "only_to": "true",
+        "only_confirmed": "true",
+        "min_timestamp": str(int(since.timestamp() * 1000)),
+        "limit": "50",
+    }
+    r = await client.get(url, params=params)
+    r.raise_for_status()
+    txs = (r.json() or {}).get("data") or []
+    if not txs:
+        await _touch_cursor(pool, wallet_id=w["id"], stream="trc20", new_ts=None)
+        return 0
+
+    inserted = 0
+    newest_ts_ms = 0
+    for tx in txs:
+        tx_id = tx.get("transaction_id")
+        if not tx_id:
+            continue
+        ts_ms = int(tx.get("block_timestamp") or 0)
+        if ts_ms > newest_ts_ms:
+            newest_ts_ms = ts_ms
+        token_info = tx.get("token_info") or {}
+        contract = (tx.get("token_info") or {}).get("address") or ""
+        decimals = int(token_info.get("decimals") or 6)
+        symbol = (
+            TRC20_KNOWN.get(w["network"], {}).get(contract)
+            or token_info.get("symbol")
+            or contract
+        )
+        raw_value = tx.get("value") or "0"
+        try:
+            amount = Decimal(raw_value) / (Decimal(10) ** decimals)
+        except Exception:
+            continue
+        if amount <= 0:
+            continue
+        from_addr = tx.get("from") or ""
+        log_index = int(tx.get("event_index") or 0)
+
+        if await _insert_deposit(
+            pool,
+            merchant_id=w["merchant_id"],
+            wallet_id=w["id"],
+            end_user_id=w["end_user_id"],
+            network=w["network"],
+            tx_hash=tx_id,
+            log_index=log_index,
+            from_addr=from_addr,
+            to_addr=w["addr"],
+            asset=symbol,
+            amount=amount,
+            block_number=None,  # TRC20 endpoint doesn't include it directly
+            block_ts_ms=ts_ms,
+        ):
+            inserted += 1
+
+    await _touch_cursor(
+        pool,
+        wallet_id=w["id"],
+        stream="trc20",
+        new_ts=datetime.fromtimestamp(newest_ts_ms / 1000, tz=timezone.utc) if newest_ts_ms else None,
+    )
+    return inserted
+
+
+async def _insert_deposit(
+    pool,
+    *,
+    merchant_id: str,
+    wallet_id: str,
+    end_user_id: Optional[str],
+    network: int,
+    tx_hash: str,
+    log_index: int,
+    from_addr: str,
+    to_addr: str,
+    asset: str,
+    amount: Decimal,
+    block_number: Optional[int],
+    block_ts_ms: int,
+) -> bool:
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO deposits
+                (merchant_id, wallet_id, end_user_id, network, tx_hash,
+                 log_index, from_address, to_address, asset, amount,
+                 confirmations, block_number, block_timestamp, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 19, $11, $12, 'confirmed')
+            ON CONFLICT (network, tx_hash, log_index) DO NOTHING
+            RETURNING id
+            """,
+            UUID(merchant_id),
+            UUID(wallet_id),
+            UUID(end_user_id) if end_user_id else None,
+            network,
+            tx_hash,
+            log_index,
+            from_addr,
+            to_addr,
+            asset,
+            amount,
+            block_number,
+            datetime.fromtimestamp(block_ts_ms / 1000, tz=timezone.utc) if block_ts_ms else None,
+        )
+    if row is None:
+        return False
+    logger.info(
+        "deposit recorded merchant=%s wallet=%s asset=%s amount=%s tx=%s",
+        merchant_id, wallet_id, asset, amount, tx_hash,
+    )
+    # Fire the webhook event. Non-fatal on failure — deposit row is
+    # source of truth, a manual replay tool can re-publish.
+    try:
+        from backend.services.webhook_publisher import (
+            publish_event,
+            EV_WALLET_DEPOSIT,
+        )
+        await publish_event(
+            pool,
+            merchant_id=merchant_id,
+            event_type=EV_WALLET_DEPOSIT,
+            payload={
+                "deposit_id": str(row["id"]),
+                "wallet_id": wallet_id,
+                "end_user_id": end_user_id,
+                "network": network,
+                "tx_hash": tx_hash,
+                "log_index": log_index,
+                "from_address": from_addr,
+                "to_address": to_addr,
+                "asset": asset,
+                "amount": str(amount),
+                "block_number": block_number,
+            },
+        )
+    except Exception as e:
+        logger.warning("webhook publish failed tx=%s err=%s", tx_hash, e)
+    return True
+
+
+def _default_since() -> datetime:
+    return datetime.now(timezone.utc) - timedelta(hours=INITIAL_BACKFILL_HOURS)
+
+
+async def _touch_cursor(
+    pool, *, wallet_id: str, stream: str, new_ts: Optional[datetime]
+) -> None:
+    col = "last_seen_ts_native" if stream == "native" else "last_seen_ts_trc20"
+    async with pool.acquire() as conn:
+        await conn.execute(
+            f"""
+            INSERT INTO deposit_watch_cursors
+                (wallet_id, {col}, last_polled_at, error_streak, last_error)
+            VALUES ($1, $2, now(), 0, NULL)
+            ON CONFLICT (wallet_id) DO UPDATE SET
+                {col}          = COALESCE(EXCLUDED.{col}, deposit_watch_cursors.{col}),
+                last_polled_at = EXCLUDED.last_polled_at
+            """,
+            UUID(wallet_id),
+            new_ts,
+        )
+
+
+async def _clear_error(pool, wallet_id: str) -> None:
     async with pool.acquire() as conn:
         await conn.execute(
             """
-            INSERT INTO deposit_watch_cursors (wallet_id, last_seen_ts, last_polled_at, error_streak, last_error)
-            VALUES ($1, $2, now(), 0, NULL)
-            ON CONFLICT (wallet_id) DO UPDATE SET
-                last_seen_ts   = COALESCE(EXCLUDED.last_seen_ts, deposit_watch_cursors.last_seen_ts),
-                last_polled_at = EXCLUDED.last_polled_at,
-                error_streak   = 0,
-                last_error     = NULL
+            UPDATE deposit_watch_cursors
+               SET error_streak = 0, last_error = NULL
+             WHERE wallet_id = $1
             """,
             UUID(wallet_id),
-            last_seen_ts,
         )
 
 

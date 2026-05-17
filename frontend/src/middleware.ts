@@ -30,13 +30,14 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes — auth handled at backend, no /login redirect)
-     * - ws (WebSocket — redirecting to /login breaks the upgrade handshake)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public assets
+     * - api  (operator API — auth handled at backend, no /login redirect)
+     * - v1   (B2B merchant API — HMAC-signed; integrators MUST get a
+     *         JSON envelope from the backend, never an HTML redirect)
+     * - ws   (WebSocket — redirecting to /login breaks the upgrade handshake)
+     * - _next/static / _next/image (assets)
+     * - favicon.ico
+     * - public assets (.png/.jpg/.jpeg/.svg)
      */
-    '/((?!api|ws|_next/static|_next/image|favicon.ico|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.svg).*)',
+    '/((?!api|v1|ws|_next/static|_next/image|favicon.ico|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.svg).*)',
   ],
 };

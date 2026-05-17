@@ -41,6 +41,16 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: `${apiUrl}/api/:path*`,
       },
+      // B2B Merchant API. Lives under the operator host
+      // (orgon.asystem.ai/v1/*) so integrators don't need to manage
+      // a separate domain. The Node middleware excludes /v1 from the
+      // auth redirect; this rewrite forwards the raw bytes to the
+      // backend so HMAC verification sees the exact body the client
+      // signed.
+      {
+        source: '/v1/:path*',
+        destination: `${apiUrl}/v1/:path*`,
+      },
       // WebSocket endpoint for real-time updates. Next.js rewrites
       // forward upgrade headers when the destination supports WS, so
       // /ws/updates → backend's FastAPI websocket handler at the same

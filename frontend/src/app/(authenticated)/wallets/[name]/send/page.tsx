@@ -11,15 +11,9 @@ import { Button } from "@/components/ui/Button";
 import { Icon } from "@/lib/icons";
 import { api } from "@/lib/api";
 import { networkName } from "@/lib/walletDisplay";
+import { getNetworkConfig, explorerTxUrl } from "@/lib/networkConfig";
 
 type Stage = "input" | "preview" | "signing" | "broadcasting" | "done" | "error";
-
-const explorerTxUrl = (network: number | string | null, hash: string) => {
-  const n = Number(network);
-  if (n === 5010) return `https://nile.tronscan.org/#/transaction/${hash}`;
-  if (n === 5000) return `https://tronscan.org/#/transaction/${hash}`;
-  return null;
-};
 
 export default function SendTransactionPage() {
   const params = useParams();
@@ -68,9 +62,16 @@ export default function SendTransactionPage() {
     (wallet.addr as string | null) ||
     "";
   const network = (wallet.network as number | string | null) ?? null;
+  // Per-network config drives everything network-dependent on this page
+  // (placeholders, currency label, explorer link). Fallback when an
+  // unknown network slips through — render generic copy rather than
+  // mis-labeling something as TRX.
+  const netCfg = getNetworkConfig(network);
+  const nativeSymbol = netCfg?.nativeSymbol ?? "—";
+  const addrPlaceholder = netCfg?.addressPlaceholder ?? "адрес получателя";
+  const explorerName = netCfg?.explorerName ?? "explorer";
   // Token string format Safina expects: "<network>:::<symbol>###<wallet_name>".
   // We only support the native token here for now.
-  const nativeSymbol = Number(network) >= 5000 && Number(network) < 6000 ? "TRX" : "TRX";
   const tokenStr = `${String(network)}:::${nativeSymbol}###${String(wallet.name ?? walletName)}`;
 
   const canSubmit = toAddr.trim().length > 0 && Number(value) > 0;
@@ -156,7 +157,7 @@ export default function SendTransactionPage() {
                       type="text"
                       value={toAddr}
                       onChange={(e) => setToAddr(e.target.value)}
-                      placeholder="T… (Tron)"
+                      placeholder={addrPlaceholder}
                       className={inputClass + " font-mono"}
                     />
                   </Field>
@@ -229,7 +230,7 @@ export default function SendTransactionPage() {
                           rel="noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                         >
-                          Открыть в Tronscan
+                          Открыть в {explorerName}
                           <Icon icon="solar:arrow-right-up-linear" className="text-sm" />
                         </a>
                       ) : null}

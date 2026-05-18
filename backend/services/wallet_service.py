@@ -346,16 +346,25 @@ class WalletService:
         from uuid import UUID
         org_uuid = UUID(organization_id) if organization_id else None
         # wallet_type=1 is Safina's "hot wallet" code — every wallet we
-        # provision is hot (we hold the signing key, can broadcast). The
-        # column would stay NULL until the first sync_wallets tick
-        # otherwise, which makes the UI render "STANDARD" for ~5 min
-        # after creation despite the wallet actually being a single-EC
-        # multi-sig under the hood.
+        # provision is hot (we hold the signing key, can broadcast).
+        #
+        # purpose='hot' is our internal classification. The column would
+        # stay NULL until the operator manually labels the wallet —
+        # which never happens in practice. NULL-purpose rows then look
+        # indistinguishable from legacy ghost wallets to any
+        # "everything-without-a-purpose-is-stale" cleanup path, and they
+        # vanish from the UI after a tombstone sweep (observed
+        # 2026-05-18: user-created TRX-Nile wallet hidden by an
+        # operator UPDATE targeting `purpose IS NULL`).
+        #
+        # Both columns also get refreshed by sync_wallets later, but
+        # writing sensible defaults at INSERT time keeps the UI
+        # consistent for the ~5 min window before the first sync tick.
         await self._db.execute(
-            """INSERT INTO wallets (name, network, info, my_unid, wallet_type, organization_id, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """INSERT INTO wallets (name, network, info, my_unid, wallet_type, purpose, organization_id, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                ON CONFLICT (name) DO NOTHING""",
-            (unid, int(request.network), request.info, unid, 1, org_uuid,
+            (unid, int(request.network), request.info, unid, 1, "hot", org_uuid,
              datetime.now(timezone.utc)),
         )
 

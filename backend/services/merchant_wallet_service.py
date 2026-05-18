@@ -1,20 +1,28 @@
 """Lazy wallet provisioning for merchants and end-users.
 
-dfns model: a wallet always belongs to one of two owners:
+dfns-style headless custodial model. A wallet always belongs to one
+of two owners:
   * merchant treasury  — corporate hot/fee/cold wallet
   * end user           — per-customer custodial deposit address
+
+Every wallet is created via `POST /ece/newWallet` **without `slist`**.
+That gives a single-signer wallet owned by the merchant's per-org EC,
+which Safina activates instantly — no email-confirm, no second party,
+no end-user interaction with Safina at all. This matches how
+`www.safina.pro` itself creates wallets (confirmed by aozerov 2026-05-14:
+"Привязки по email нет, www работает с этим же API через свой EC
+ключ"); the wiki at pm.kaz.one is explicit that an absent slist yields
+"обычный одноподписной кошелёк".
+
+The user ↔ wallet binding lives only in ORGON DB (`wallets.end_user_id`).
+Safina has no concept of the merchant's end-users; that abstraction
+is ours. This is what makes ORGON a platform rather than a Safina UI:
+the exchanger's customer never sees Safina, never registers there,
+never confirms an email.
 
 We create wallets on demand (lazy) — never eager. A merchant with 10
 enabled networks but only Tron-active customers won't pay for 9
 useless wallets per user.
-
-For end-user wallets, the slist always contains the user's email plus
-the merchant's EC. That's the configuration Safina monitors for
-balance updates and the format we verified end-to-end on 2026-05-14.
-
-For treasury wallets, slist is just the merchant's EC plus
-min_signs=1 — they live under the merchant's own root EC for direct
-operational control.
 """
 
 from __future__ import annotations
@@ -25,7 +33,6 @@ from typing import Optional
 from uuid import UUID
 
 from backend.safina.factory import get_safina_client_for_org
-from backend.safina.models import CreateWalletRequest
 
 logger = logging.getLogger("orgon.merchant_wallets")
 
@@ -93,8 +100,8 @@ async def provision_user_wallet(
             UUID(end_user_id),
             int(network),
         )
-        user = await conn.fetchrow(
-            "SELECT email FROM end_users WHERE id = $1 AND merchant_id = $2",
+        user_exists = await conn.fetchval(
+            "SELECT 1 FROM end_users WHERE id = $1 AND merchant_id = $2",
             UUID(end_user_id),
             UUID(merchant_id),
         )
@@ -104,29 +111,19 @@ async def provision_user_wallet(
 
     await _enforce_sandbox(pool, merchant_id=merchant_id, network=network)
 
-    if not user:
+    if not user_exists:
         raise ValueError(f"end_user {end_user_id} not found under merchant {merchant_id}")
-    email = user["email"]
 
-    # Build the slist: merchant's EC plus the end-user's email.
-    # Safina renders the email-confirm link to the user; clicking it
-    # is what wires balance polling on. The merchant onboarding flow
-    # should explain this to its customers.
+    # Headless custodial: no slist → Safina creates a single-signer
+    # wallet under the merchant's per-org EC, activated instantly.
+    # The end_user_id below is our own ORGON-side binding; Safina
+    # neither knows nor needs to know who that user is.
+    wallet_info = info or f"deposit:{end_user_id}"
     tenant = await get_safina_client_for_org(pool, merchant_id)
     try:
-        merchant_ec = tenant._signer.address.lower()
-        slist = {
-            "0": {"type": "all", "ecaddress": merchant_ec},
-            "1": {"type": "all", "email": email},
-            "min_signs": "1",
-        }
-        req = CreateWalletRequest(
-            network=str(network),
-            info=info or f"deposit:{end_user_id}",
-            slist=slist,
-        )
         unid = await tenant.create_wallet(
-            network=req.network, info=req.info, slist=req.slist,
+            network=str(network),
+            info=wallet_info,
         )
     finally:
         await tenant.close()
@@ -144,7 +141,7 @@ async def provision_user_wallet(
             """,
             unid,
             int(network),
-            req.info,
+            wallet_info,
             UUID(merchant_id),
             UUID(end_user_id),
             now,
@@ -167,24 +164,21 @@ async def provision_treasury_wallet(
     purpose: str = "treasury",  # 'treasury' | 'fee' | 'hot' | 'cold'
     info: Optional[str] = None,
 ) -> dict:
-    """Create a merchant-owned wallet (no end_user, no email).
+    """Create a merchant-owned wallet (no end_user).
 
     Multiple treasury wallets per (merchant, network) are allowed —
     a merchant might want separate `hot` and `fee` rows. So we don't
     short-circuit on existing rows; the caller is explicit.
+
+    Same headless model as user wallets — newWallet without slist,
+    single-signer under the merchant's per-org EC.
     """
     await _enforce_sandbox(pool, merchant_id=merchant_id, network=network)
     tenant = await get_safina_client_for_org(pool, merchant_id)
     try:
-        merchant_ec = tenant._signer.address.lower()
-        slist = {
-            "0": {"type": "all", "ecaddress": merchant_ec},
-            "min_signs": "1",
-        }
         unid = await tenant.create_wallet(
             network=str(network),
             info=info or f"{purpose}:{merchant_id[:8]}",
-            slist=slist,
         )
     finally:
         await tenant.close()

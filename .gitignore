@@ -91,3 +91,6 @@ outbox/
 # Per-project Coolify overrides
 /.coolify
 .venv/
+
+# Local DB snapshots (pg_dump) — never commit
+backups/

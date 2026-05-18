@@ -167,12 +167,24 @@ ETH watcher honours `ETHERSCAN_API_KEY` env when set (5 req/s with key,
 1 per 5s without). ORGON's own chain (5800/5810) is provisioned in
 Safina but not yet watcher-supported pending their explorer API.
 
-### Multi-sig
+### Custody model
 
-Wallet `slist` is set at creation via Safina. ORGON auto-injects
-`min_signs: "1"` plus either the merchant's EC (treasury) or the
-merchant's EC + end-user's email (user_deposit) — verified end-to-end
-on 2026-05-14 against Safina's monitor.
+Headless custodial. Every wallet is created via Safina `newWallet`
+**without an `slist`** — single-signer wallet owned by the merchant's
+per-org EC key (auto-generated at onboarding,
+`organizations.safina_ec_private_key`). Safina activates the wallet
+instantly; the merchant's end-user never sees or interacts with
+Safina, never registers on `my.safina.pro`, never clicks a confirm
+link. The `end_user ↔ wallet` mapping lives entirely in ORGON DB
+(`wallets.end_user_id`); Safina has no concept of the merchant's
+end-users.
+
+This is exactly the way `www.safina.pro` itself creates wallets
+(confirmed by Safina: «Привязки по email нет, www работает с этим
+же API через свой EC ключ» — 2026-05-14). An earlier iteration
+injected the user's email into `slist` and forced a confirm-click;
+that was reverted on 2026-05-18 because it leaked Safina to the
+end-user.
 
 `POST /v1/transactions/{tx_id}/sign` is idempotent on
 `(tx_unid, signer_address, action)`; duplicate sign returns **409**

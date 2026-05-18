@@ -345,11 +345,17 @@ class WalletService:
         # of inserting a duplicate.
         from uuid import UUID
         org_uuid = UUID(organization_id) if organization_id else None
+        # wallet_type=1 is Safina's "hot wallet" code — every wallet we
+        # provision is hot (we hold the signing key, can broadcast). The
+        # column would stay NULL until the first sync_wallets tick
+        # otherwise, which makes the UI render "STANDARD" for ~5 min
+        # after creation despite the wallet actually being a single-EC
+        # multi-sig under the hood.
         await self._db.execute(
-            """INSERT INTO wallets (name, network, info, my_unid, organization_id, created_at)
-               VALUES ($1, $2, $3, $4, $5, $6)
+            """INSERT INTO wallets (name, network, info, my_unid, wallet_type, organization_id, created_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)
                ON CONFLICT (name) DO NOTHING""",
-            (unid, int(request.network), request.info, unid, org_uuid,
+            (unid, int(request.network), request.info, unid, 1, org_uuid,
              datetime.now(timezone.utc)),
         )
 

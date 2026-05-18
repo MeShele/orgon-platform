@@ -247,7 +247,12 @@ export default function WalletsPage() {
                       </td>
                       <td className="px-3 py-3.5">
                         <Mono size="xs" className="text-muted-foreground">
-                          {w.wallet_type === 1 ? "MULTI-SIG" : "STANDARD"}
+                          {/* Every wallet we provision is single-EC multi-sig
+                              under the hood (wallet_type=1 = hot). NULL only
+                              shows up between INSERT and the first sync tick;
+                              treat that window as MULTI-SIG too so the column
+                              doesn't flicker "STANDARD → MULTI-SIG" for users. */}
+                          {(w.wallet_type ?? 1) === 1 ? "MULTI-SIG" : `TYPE ${w.wallet_type}`}
                         </Mono>
                       </td>
                       <td className="px-3 py-3.5">

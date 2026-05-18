@@ -269,14 +269,16 @@ export default function WalletDetailPage() {
                 <p className="font-mono text-xs text-muted-foreground">{String(wallet.unid)}</p>
               </div>
             ) : null}
-            {wallet.wallet_type !== undefined && wallet.wallet_type !== null ? (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-1.5">Тип кошелька</p>
-                <p className="font-mono text-xs text-foreground">
-                  {Number(wallet.wallet_type) === 1 ? "MULTI-SIG (горячий)" : `STANDARD (тип ${String(wallet.wallet_type)})`}
-                </p>
-              </div>
-            ) : null}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Тип кошелька</p>
+              <p className="font-mono text-xs text-foreground">
+                {/* NULL during the brief INSERT→sync window — default to
+                    multi-sig (hot) since that's what we always create. */}
+                {Number(wallet.wallet_type ?? 1) === 1
+                  ? "MULTI-SIG (горячий)"
+                  : `TYPE ${String(wallet.wallet_type)}`}
+              </p>
+            </div>
             {wallet.safina_signer ? (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1.5">EC, подписывающий запросы</p>

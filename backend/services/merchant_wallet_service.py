@@ -5,20 +5,31 @@ of two owners:
   * merchant treasury  — corporate hot/fee/cold wallet
   * end user           — per-customer custodial deposit address
 
-Every wallet is created via `POST /ece/newWallet` **without `slist`**.
-That gives a single-signer wallet owned by the merchant's per-org EC,
-which Safina activates instantly — no email-confirm, no second party,
+Every wallet is created via `POST /ece/newWallet` with a slist
+containing the merchant's per-org EC as the SOLE signatory:
+
+    slist = {
+      "0": {"type": "all", "ecaddress": merchant_ec},
+      "min_signs": "1"
+    }
+
+Safina auto-activates within ~60s because the request is signed by
+exactly that EC ("owner approves own application"). No email, no SMS,
 no end-user interaction with Safina at all. This matches how
-`www.safina.pro` itself creates wallets (confirmed by aozerov 2026-05-14:
-"Привязки по email нет, www работает с этим же API через свой EC
-ключ"); the wiki at pm.kaz.one is explicit that an absent slist yields
-"обычный одноподписной кошелёк".
+`www.safina.pro` creates wallets — every Safina-side flow uses a
+single owning EC, with no second-party confirmation channel.
 
 The user ↔ wallet binding lives only in ORGON DB (`wallets.end_user_id`).
 Safina has no concept of the merchant's end-users; that abstraction
 is ours. This is what makes ORGON a platform rather than a Safina UI:
 the exchanger's customer never sees Safina, never registers there,
 never confirms an email.
+
+Historical note — empirically verified 2026-05-18: dropping slist
+entirely (the obvious-looking "headless" path) leaves the wallet
+pending indefinitely. The заявка never gets approved because Safina
+has no concept of "approve by owner without a slist entry". A slist
+of exactly `{ec_owner}` is the right minimum.
 
 We create wallets on demand (lazy) — never eager. A merchant with 10
 enabled networks but only Tron-active customers won't pay for 9
@@ -114,16 +125,28 @@ async def provision_user_wallet(
     if not user_exists:
         raise ValueError(f"end_user {end_user_id} not found under merchant {merchant_id}")
 
-    # Headless custodial: no slist → Safina creates a single-signer
-    # wallet under the merchant's per-org EC, activated instantly.
+    # Headless custodial: slist with the merchant's EC as the *only*
+    # signatory. Safina auto-activates the wallet within ~60s because
+    # the request is signed by exactly that EC ("owner approves own
+    # application") — no email, no SMS, no end-user confirmation.
     # The end_user_id below is our own ORGON-side binding; Safina
     # neither knows nor needs to know who that user is.
+    #
+    # Empirically verified 2026-05-18: dropping slist entirely leaves
+    # the wallet pending indefinitely (заявка never approved); a slist
+    # of `{ec_owner}` activates within one polling cycle.
     wallet_info = info or f"deposit:{end_user_id}"
     tenant = await get_safina_client_for_org(pool, merchant_id)
     try:
+        merchant_ec = tenant._signer.address.lower()
+        slist = {
+            "0": {"type": "all", "ecaddress": merchant_ec},
+            "min_signs": "1",
+        }
         unid = await tenant.create_wallet(
             network=str(network),
             info=wallet_info,
+            slist=slist,
         )
     finally:
         await tenant.close()
@@ -170,15 +193,21 @@ async def provision_treasury_wallet(
     a merchant might want separate `hot` and `fee` rows. So we don't
     short-circuit on existing rows; the caller is explicit.
 
-    Same headless model as user wallets — newWallet without slist,
-    single-signer under the merchant's per-org EC.
+    Same headless model as user wallets — slist with the merchant's
+    EC as the only signatory, auto-activated by Safina.
     """
     await _enforce_sandbox(pool, merchant_id=merchant_id, network=network)
     tenant = await get_safina_client_for_org(pool, merchant_id)
     try:
+        merchant_ec = tenant._signer.address.lower()
+        slist = {
+            "0": {"type": "all", "ecaddress": merchant_ec},
+            "min_signs": "1",
+        }
         unid = await tenant.create_wallet(
             network=str(network),
             info=info or f"{purpose}:{merchant_id[:8]}",
+            slist=slist,
         )
     finally:
         await tenant.close()

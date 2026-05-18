@@ -170,21 +170,39 @@ Safina but not yet watcher-supported pending their explorer API.
 ### Custody model
 
 Headless custodial. Every wallet is created via Safina `newWallet`
-**without an `slist`** — single-signer wallet owned by the merchant's
-per-org EC key (auto-generated at onboarding,
-`organizations.safina_ec_private_key`). Safina activates the wallet
-instantly; the merchant's end-user never sees or interacts with
-Safina, never registers on `my.safina.pro`, never clicks a confirm
-link. The `end_user ↔ wallet` mapping lives entirely in ORGON DB
+with a slist of **exactly one entry — the merchant's per-org EC** —
+as the sole signatory:
+
+```json
+{
+  "slist": {
+    "0": {"type": "all", "ecaddress": "0x<merchant_org_ec>"},
+    "min_signs": "1"
+  },
+  "network": "5010",
+  "info": "deposit:<end_user_id>"
+}
+```
+
+Safina auto-activates the wallet within ~60s because the request is
+signed by exactly that EC ("owner approves own application"). The
+merchant's end-user never sees or interacts with Safina, never
+registers on `my.safina.pro`, never clicks a confirm link. The
+`end_user ↔ wallet` mapping lives entirely in ORGON DB
 (`wallets.end_user_id`); Safina has no concept of the merchant's
 end-users.
 
-This is exactly the way `www.safina.pro` itself creates wallets
-(confirmed by Safina: «Привязки по email нет, www работает с этим
-же API через свой EC ключ» — 2026-05-14). An earlier iteration
-injected the user's email into `slist` and forced a confirm-click;
-that was reverted on 2026-05-18 because it leaked Safina to the
-end-user.
+The per-org EC is auto-generated at merchant onboarding
+(`POST /api/admin/merchants` writes `secrets.token_hex(32)` into
+`organizations.safina_ec_private_key`).
+
+Historical note — empirically verified 2026-05-18:
+- An earlier iteration injected the end-user's email into `slist` and
+  forced a confirm-click on `my.safina.pro` — that leaked Safina to
+  the customer of the merchant. Reverted.
+- The obvious "no slist at all" path leaves the wallet pending
+  indefinitely (Safina treats it as an unapproved заявка). The
+  single-EC slist is the right minimum.
 
 `POST /v1/transactions/{tx_id}/sign` is idempotent on
 `(tx_unid, signer_address, action)`; duplicate sign returns **409**

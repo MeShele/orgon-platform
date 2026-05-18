@@ -102,10 +102,11 @@ Platform admin (super_admin / platform_admin):
   mark invoice paid (back-office only, never exposed on /v1/*).
 
 B2B Merchant API (HMAC-signed, `/v1/*`):
-- end-users, wallets (lazy provisioning via Safina `newWallet`
-  without slist → single-signer under the merchant's per-org EC,
-  no email-confirm), transactions (send + sign), deposits (multi-chain
-  watcher output), webhook config + deliveries, usage, invoices.
+- end-users, wallets (lazy provisioning via Safina `newWallet` with
+  `slist={ec: merchant_org_ec, min_signs: "1"}` → auto-activated by
+  Safina within ~60s, no email-confirm), transactions (send + sign),
+  deposits (multi-chain watcher output), webhook config + deliveries,
+  usage, invoices.
 - Tenancy is derived from the signed key — no body-supplied
   `organization_id` ever influences scoping.
 

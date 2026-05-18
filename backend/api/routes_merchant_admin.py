@@ -128,6 +128,14 @@ async def create_merchant(
     """
     _ensure_platform(user)
     pool = get_db_pool(http_request)
+    # Every merchant MUST have its own Safina EC private key — otherwise
+    # /v1/wallets falls back to the global env signer and tenants share
+    # one Safina-side identity (silent tenancy leak). Generate a fresh
+    # SECP256k1 key right here so the merchant is correctly isolated
+    # from the moment they're created. Stored encrypted-at-rest by the
+    # pgcrypto envelope wrapping the column (see signer backend docs).
+    import secrets as _secrets
+    safina_ec = "0x" + _secrets.token_hex(32)
     async with pool.acquire() as conn:
         # Slug uniqueness check (clearer error than ON CONFLICT)
         dup = await conn.fetchrow("SELECT 1 FROM organizations WHERE slug = $1", body.slug)
@@ -137,8 +145,9 @@ async def create_merchant(
             """
             INSERT INTO organizations
               (name, slug, merchant_kind, pricing_plan, sandbox, webhook_url,
+               safina_ec_private_key,
                license_type, status, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, 'free', 'active', $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'free', 'active', $8)
             RETURNING id::text, name, slug, merchant_kind, pricing_plan, sandbox,
                       status, webhook_url, created_at
             """,
@@ -148,6 +157,7 @@ async def create_merchant(
             body.pricing_plan,
             body.sandbox,
             body.webhook_url,
+            safina_ec,
             user.get("id") if isinstance(user.get("id"), int) else None,
         )
     return MerchantSummary(

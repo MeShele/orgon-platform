@@ -1,11 +1,15 @@
 """Ethereum deposit source: native ETH + ERC20 via Etherscan.
 
-Etherscan offers a free tier without API key (1 req per 5s), and a
-free-with-key tier (5 req/s). We read `ETHERSCAN_API_KEY` from env
-and pass it when present.
+Uses Etherscan API V2 (the V1 per-chain endpoints were deprecated and
+return ``NOTOK / deprecated V1 endpoint`` for every call as of
+2026-Q2). V2 is a single unified endpoint where the chain is selected
+by a ``chainid`` query parameter; one API key works across every
+supported chain (mainnet, Sepolia, etc.).
 
-Mainnet endpoint:        https://api.etherscan.io/api
-Sepolia endpoint:        https://api-sepolia.etherscan.io/api
+Free tier requires the key: 5 req/s, 100k req/day. The key is read
+from ``ETHERSCAN_API_KEY`` env at request time. Without a key V2
+returns ``Missing/Invalid API Key`` even for public read endpoints, so
+that's the minimum prod requirement now (no anonymous fallback).
 """
 
 from __future__ import annotations
@@ -19,9 +23,14 @@ from . import DepositEvent, register
 
 NETWORKS = [3000, 3040]
 
-_BASE = {
-    3000: "https://api.etherscan.io/api",
-    3040: "https://api-sepolia.etherscan.io/api",
+_V2_BASE = "https://api.etherscan.io/v2/api"
+
+# Etherscan V2 selects the chain via `chainid` rather than per-host
+# endpoints. Map our internal Safina-style network id to the canonical
+# EVM chain id Etherscan uses.
+_CHAIN_ID: dict[int, str] = {
+    3000: "1",          # Ethereum mainnet
+    3040: "11155111",   # Sepolia testnet
 }
 
 # Canonical token symbol overrides. Anything outside this map keeps
@@ -43,6 +52,7 @@ def _api_key() -> str:
 
 async def _etherscan(client: httpx.AsyncClient, network: int, action: str, params: dict):
     full = {
+        "chainid": _CHAIN_ID[network],
         "module": "account",
         "action": action,
         "sort": "desc",
@@ -53,7 +63,7 @@ async def _etherscan(client: httpx.AsyncClient, network: int, action: str, param
     key = _api_key()
     if key:
         full["apikey"] = key
-    r = await client.get(_BASE[network], params=full)
+    r = await client.get(_V2_BASE, params=full)
     r.raise_for_status()
     data = r.json() or {}
     # Etherscan returns status "0" when "No transactions found" — not

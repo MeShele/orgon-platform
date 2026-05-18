@@ -1,31 +1,33 @@
 -- 039_wallet_hidden_tombstone.sql
 --
--- Wallet `is_hidden` tombstone column.
+-- Wallet `is_hidden` tombstone column (the schema part, kept).
 --
--- Why: ECE-created wallets without `min_signs: "1"` in the slist are
--- not picked up by Safina's on-chain balance monitor — the addr is
--- live, but Safina's `value` field stays 0 forever, which makes them
--- useless for any send flow. We want to hide every such wallet from
--- the UI and prevent the scheduler sync from re-inserting it on the
--- next tick (Safina still returns them in /wallets).
+-- Original migration also did a one-time tombstone of every
+-- pre-min_signs Asystem Change wallet:
 --
--- The fix going forward is auto-injecting `min_signs: "1"` at create
--- time (wallet_service._create_wallet_internal). For the existing
--- ghost wallets in the Asystem Change org, mark them hidden so:
---   * /api/wallets list filters them out
---   * sync_wallets skips them on the next tick instead of resurrecting
+--   UPDATE public.wallets SET is_hidden = TRUE
+--     WHERE organization_id = 'aabbccdd-1111-2222-3333-aaaabbbbcccc';
 --
--- We hide rather than DELETE because Safina still owns these wallets;
--- a hard delete would let the next sync tick re-create them.
+-- That repair ran against the live DB in May 2026. It is RETIRED
+-- here for the same reason migration 040's body is retired:
+-- `backend/entrypoint.sh` re-runs every overlay on every container
+-- boot (ORGON_AUTO_MIGRATE=1). Leaving the destructive UPDATE in
+-- place means every deploy re-tombstones every wallet in the org —
+-- including the post-fix legit wallets — and the UI goes empty.
+-- Observed exactly this 2026-05-18 right after deploy w13u30jd:
+-- "каждая организация пустая".
+--
+-- The `is_hidden` column itself is still added below (DDL stays —
+-- without it later migrations/code that reads `is_hidden` would
+-- error on a fresh DB).
+--
+-- If a similar bulk tombstone is ever needed again, write a NEW
+-- migration (e.g. 0NN_wallet_tombstone_<date>.sql), don't reuse this
+-- slot.
 --
 -- Idempotent.
 
 ALTER TABLE public.wallets
     ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT FALSE;
 
--- Hide every wallet currently attached to Asystem Change — they were
--- created before min_signs auto-inject existed and are stuck with a
--- broken slist that Safina won't monitor.
-UPDATE public.wallets
-SET is_hidden = TRUE
-WHERE organization_id = 'aabbccdd-1111-2222-3333-aaaabbbbcccc';
+-- (Original bulk-tombstone body retired — see header.)

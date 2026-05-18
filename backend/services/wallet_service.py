@@ -415,8 +415,13 @@ class WalletService:
             # rename. `name` is not stable: Safina returns one value
             # at /newWallet time and a different one in /wallets after
             # activation, so matching on `name` would create duplicates.
+            # Fetch addr/end_user_id/organization_id/id alongside the
+            # identity columns so we can detect the empty→populated
+            # transition for the wallet.activated webhook and emit a
+            # payload that references our row's UUID.
             existing = await self._db.fetchrow(
-                "SELECT name, is_hidden FROM wallets WHERE my_unid = $1",
+                "SELECT id, name, is_hidden, addr, end_user_id, organization_id "
+                "FROM wallets WHERE my_unid = $1",
                 (w.myUNID,),
             )
 
@@ -463,6 +468,43 @@ class WalletService:
                      addr, w.addr_info, w.tokenShortNames, org_uuid, now,
                      w.myUNID),
                 )
+
+                # Webhook: wallet.activated fires exactly once, on the
+                # transition from empty addr → populated addr. We compare
+                # the pre-UPDATE row to the value we're about to write
+                # because the UPDATE has just landed and SELECTing now
+                # would always show the new value.
+                prev_addr = (existing.get("addr") or "").strip()
+                if not prev_addr and addr:
+                    merchant_id = existing.get("organization_id") or org_uuid
+                    if merchant_id is not None:
+                        try:
+                            from backend.services.webhook_publisher import (
+                                publish_event,
+                                EV_WALLET_ACTIVATED,
+                            )
+                            await publish_event(
+                                self._db.pool,
+                                merchant_id=str(merchant_id),
+                                event_type=EV_WALLET_ACTIVATED,
+                                payload={
+                                    "wallet_id": str(existing["id"]),
+                                    "end_user_id": (
+                                        str(existing["end_user_id"])
+                                        if existing.get("end_user_id") else None
+                                    ),
+                                    "network": w.network,
+                                    "address": addr,
+                                    "my_unid": w.myUNID,
+                                },
+                            )
+                        except Exception as e:
+                            # Webhook queue is best-effort — never let a
+                            # delivery hiccup break the sync loop.
+                            logger.warning(
+                                "wallet.activated publish failed for %s: %s",
+                                w.myUNID, e,
+                            )
             else:
                 await self._db.execute(
                     """INSERT INTO wallets

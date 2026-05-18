@@ -578,6 +578,15 @@ class TransactionService:
             if tx.token and "###" in tx.token:
                 wallet_name = tx.token.split("###")[1]
 
+            # Snapshot the pre-UPSERT tx_hash + tenancy so we can detect
+            # the NULL→hex transition and fire transaction.broadcasted
+            # exactly once. organization_id comes from the existing row
+            # (we don't mutate tenancy in this UPSERT).
+            prev_row = await self._db.fetchrow(
+                "SELECT id, tx_hash, organization_id FROM transactions WHERE unid = $1",
+                (tx.unid,),
+            )
+
             # DO UPDATE only references columns that are actually inserted —
             # the original SET clause referenced EXCLUDED.info and
             # EXCLUDED.network, but neither is in the column list above and
@@ -608,6 +617,41 @@ class TransactionService:
                  int(tx.min_sign) if tx.min_sign else 0,
                  status, wallet_name, now, now),
             )
+
+            # Webhook: transaction.broadcasted fires exactly once, when
+            # tx_hash flips from NULL/empty to a real hex string. We
+            # gate on prev_row being present (we only ever broadcast a
+            # tx we created) AND the existing row being tenant-attached.
+            if (
+                prev_row is not None
+                and not (prev_row.get("tx_hash") or "").strip()
+                and tx.tx
+                and prev_row.get("organization_id") is not None
+            ):
+                try:
+                    from backend.services.webhook_publisher import (
+                        publish_event,
+                        EV_TX_BROADCASTED,
+                    )
+                    await publish_event(
+                        self._db.pool,
+                        merchant_id=str(prev_row["organization_id"]),
+                        event_type=EV_TX_BROADCASTED,
+                        payload={
+                            "tx_id": str(prev_row["id"]),
+                            "tx_unid": tx.unid,
+                            "tx_hash": tx.tx,
+                            "wallet_name": wallet_name,
+                            "to_address": tx.to_addr,
+                            "amount": str(tx.value),
+                            "token": tx.token,
+                        },
+                    )
+                except Exception as e:
+                    logger.warning(
+                        "transaction.broadcasted publish failed for %s: %s",
+                        tx.unid, e,
+                    )
 
             # Sync signatures
             if tx.wait:

@@ -165,7 +165,13 @@ async def _persist_deposit(pool, *, w, ev: DepositEvent) -> bool:
                 "to_address": w["addr"],
                 "asset": ev.asset,
                 "amount": str(ev.amount),
+                "confirmations": 0,  # at-detection; status='confirmed' written above
+                                     # reflects watcher's threshold, not raw count
                 "block_number": ev.block_number,
+                "block_timestamp": (
+                    datetime.fromtimestamp(ev.block_ts_ms / 1000, tz=timezone.utc).isoformat()
+                    if ev.block_ts_ms else None
+                ),
             },
         )
     except Exception as e:

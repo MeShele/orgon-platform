@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { api } from "@/lib/api";
 import { Card, CardHeader } from "@/components/common/Card";
-import { Icon } from "@/lib/icons";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
 
@@ -15,122 +14,40 @@ const inputClass =
 const selectClass =
   "rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground dark:border-border dark:bg-card/50 dark:text-white focus:outline-none focus:ring-1 focus:ring-primary/30 dark:focus:ring-slate-600 transition-colors";
 
-type SignerMethod = "ecaddress" | "email" | "sms";
-type Signer = { type: "all" | "any"; method: SignerMethod; value: string };
-
+/**
+ * Wallet creation form.
+ *
+ * Headless custodial model — the form just asks for `network` and an
+ * optional `info` note; the backend's wallet_service auto-injects an
+ * slist with the org's own EC as the sole signatory + `min_signs:"1"`
+ * (see backend/services/wallet_service.py:_create_wallet_internal).
+ *
+ * No multi-sig UI here: email/SMS-anchored slists trap the wallet in
+ * a "pending forever" state (Safina expects an email-confirm click,
+ * which leaks the platform to the merchant's end-user). The single-EC
+ * model is what `www.safina.pro` itself uses and what we've verified
+ * E2E across all seven networks (2026-05-18).
+ */
 export function CreateWalletForm() {
   const router = useRouter();
   const [network, setNetwork] = useState("5010");
   const [info, setInfo] = useState("");
-  // Default to multi-sig open with an email signer: that's the shape
-  // Safina actually requires to enable balance-monitor for the wallet
-  // (verified experimentally — wallets without an email-anchor never
-  // get their value populated). Users who want a bare wallet uncheck
-  // the box and submit.
-  const [isMultiSig, setIsMultiSig] = useState(true);
-  const [minSigns, setMinSigns] = useState("1");
-  const [signers, setSigners] = useState<Signer[]>([
-    { type: "all", method: "email", value: "" },
-  ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const addSigner = () => {
-    setSigners([...signers, { type: "all", method: "ecaddress", value: "" }]);
-  };
-
-  const updateSigner = <K extends keyof Signer>(idx: number, field: K, value: Signer[K]) => {
-    const updated = [...signers];
-    updated[idx] = { ...updated[idx], [field]: value };
-    setSigners(updated);
-  };
-
-  const removeSigner = (idx: number) => {
-    setSigners(signers.filter((_, i) => i !== idx));
-  };
-
-  const placeholderFor = (m: SignerMethod) =>
-    m === "ecaddress" ? "0x… EC-адрес" : m === "email" ? "user@example.com" : "+77770000000";
-
-  // Per-row validation. Returns an error string or null. Empty value
-  // is the most common mistake — name it explicitly. The format
-  // checks are loose on purpose (Safina rejects malformed values on
-  // its side too), we just catch obvious typos client-side.
-  const validateSigner = (s: Signer): string | null => {
-    const v = s.value.trim();
-    if (!v) return "Заполните идентификатор";
-    if (s.method === "ecaddress") {
-      if (!/^0x[a-fA-F0-9]{40}$/.test(v)) return "Ожидается 0x + 40 hex-символов";
-    } else if (s.method === "email") {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Не похоже на email";
-    } else if (s.method === "sms") {
-      if (!/^\+\d{10,15}$/.test(v)) return "Формат: +<10–15 цифр>";
-    }
-    return null;
-  };
-
-  const signerErrors = signers.map(validateSigner);
-  const minSignsNum = Number(minSigns);
-  const minSignsErr =
-    !isMultiSig
-      ? null
-      : !Number.isFinite(minSignsNum) || minSignsNum < 1
-      ? "Минимум 1 подпись"
-      : minSignsNum > signers.length
-      ? `Не больше, чем подписантов (${signers.length})`
-      : null;
-
-  const formInvalid = isMultiSig && (signerErrors.some(Boolean) || !!minSignsErr);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formInvalid) {
-      setError("Проверьте поля подписантов и минимальное число подписей");
-      return;
-    }
     setLoading(true);
     setError("");
 
     try {
-      const data: Record<string, unknown> = { network, info };
-      if (isMultiSig && signers.length > 0) {
-        const slist: Record<string, unknown> = { min_signs: minSigns };
-        signers.forEach((s, i) => {
-          slist[String(i)] = { type: s.type, [s.method]: s.value.trim() };
-        });
-        data.slist = slist;
-      }
-      await api.createWallet(data as Parameters<typeof api.createWallet>[0]);
-
-      // Highlight the action user must take: if there's at least one
-      // email signer, they have to click the confirm-link from Safina
-      // (which often lands in Spam) — without that the wallet never
-      // gets an on-chain addr. Show a distinct multi-line toast so it
-      // doesn't get lost in the redirect.
-      const emailSigners = isMultiSig
-        ? signers.filter((s) => s.method === "email" && s.value.trim()).map((s) => s.value.trim())
-        : [];
-      if (emailSigners.length > 0) {
-        toast.custom(
-          (t) => (
-            <div
-              className={`max-w-sm rounded-lg border border-primary/30 bg-card px-4 py-3 text-xs text-foreground shadow-md ${t.visible ? "animate-in fade-in slide-in-from-top-2" : "animate-out fade-out"}`}
-            >
-              <p className="font-medium text-foreground mb-1">Кошелёк создаётся</p>
-              <p className="text-muted-foreground leading-relaxed">
-                Письмо с подтверждением отправлено на{" "}
-                <span className="font-mono text-foreground">{emailSigners[0]}</span>
-                {emailSigners.length > 1 ? ` (+${emailSigners.length - 1})` : ""}.
-                Проверьте папку <strong>Spam</strong> и нажмите ссылку — после этого Safina выдаст адрес (≈ 5–10 минут).
-              </p>
-            </div>
-          ),
-          { duration: 8000 },
-        );
-      } else {
-        toast.success("Кошелёк создан. Адрес появится в течение 5–10 минут.", { duration: 6000 });
-      }
-
+      // No slist field — backend signs with the org's EC and injects
+      // single-signer slist itself. Sending an empty object or
+      // user-entered EC here would just confuse Safina.
+      await api.createWallet({ network, info });
+      toast.success("Кошелёк создан. Адрес появится в течение ~60 секунд.", {
+        duration: 6000,
+      });
       router.push("/wallets");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to create wallet");
@@ -158,11 +75,12 @@ export function CreateWalletForm() {
             className={`${selectClass} w-full`}
           >
             <option value="1000">Bitcoin (BTC)</option>
-            <option value="1010">Bitcoin Test (BTC)</option>
             <option value="3000">Ethereum (ETH)</option>
-            <option value="3010">ETH Ropsten Test</option>
+            <option value="3040">Ethereum Sepolia (testnet)</option>
             <option value="5000">Tron (TRX)</option>
-            <option value="5010">Tron Nile TestNet (TRX)</option>
+            <option value="5010">Tron Nile (testnet)</option>
+            <option value="5800">ORGON</option>
+            <option value="5810">ORGON TestNet</option>
           </select>
         </div>
 
@@ -184,139 +102,11 @@ export function CreateWalletForm() {
           />
         </div>
 
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="multisig"
-            checked={isMultiSig}
-            onChange={(e) => setIsMultiSig(e.target.checked)}
-            className="rounded border-slate-300 text-foreground focus:ring-slate-500 dark:border-border dark:bg-card"
-          />
-          <label htmlFor="multisig" className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            Мультиподписной кошелёк
-            <HelpTooltip
-              text={helpContent.createWallet.multiSig.text}
-              example={helpContent.createWallet.multiSig.example}
-              tips={helpContent.createWallet.multiSig.tips}
-              diagram={helpContent.createWallet.multiSig.diagram}
-            />
-          </label>
-        </div>
-
-        {isMultiSig && (
-          <div className="space-y-3 rounded-lg border border-border p-4 dark:border-border">
-            <div>
-              <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground mb-1.5">
-                Минимум подписей для проведения
-                <HelpTooltip
-                  text={helpContent.createWallet.minSigns.text}
-                  example={helpContent.createWallet.minSigns.example}
-                  tips={helpContent.createWallet.minSigns.tips}
-                />
-              </label>
-              <input
-                type="number"
-                value={minSigns}
-                onChange={(e) => setMinSigns(e.target.value)}
-                min="1"
-                className={`${inputClass} w-32 ${minSignsErr ? "border-destructive/60 focus:ring-destructive/30" : ""}`}
-              />
-              {minSignsErr ? (
-                <p className="text-[10px] text-destructive mt-1">{minSignsErr}</p>
-              ) : null}
-            </div>
-
-            <div className="space-y-2">
-              <div className="grid grid-cols-[7rem_8rem_1fr_auto] gap-2 text-xs font-medium text-muted-foreground">
-                <span>
-                  Подтверждение
-                  <HelpTooltip
-                    text={helpContent.createWallet.signerType.text}
-                    example={helpContent.createWallet.signerType.example}
-                    tips={helpContent.createWallet.signerType.tips}
-                  />
-                </span>
-                <span>Способ</span>
-                <span>
-                  Идентификатор
-                  <HelpTooltip
-                    text={helpContent.createWallet.ecAddress.text}
-                    example={helpContent.createWallet.ecAddress.example}
-                    tips={helpContent.createWallet.ecAddress.tips}
-                    diagram={helpContent.createWallet.ecAddress.diagram}
-                  />
-                </span>
-                <span />
-              </div>
-
-              {signers.map((s, i) => {
-                const err = signerErrors[i];
-                return (
-                <div key={i} className="space-y-1">
-                  <div className="grid grid-cols-[7rem_8rem_1fr_auto] gap-2 items-center">
-                    <select
-                      value={s.type}
-                      onChange={(e) => updateSigner(i, "type", e.target.value as Signer["type"])}
-                      className={selectClass}
-                    >
-                      <option value="all">Все методы</option>
-                      <option value="any">Любой метод</option>
-                    </select>
-                    <select
-                      value={s.method}
-                      onChange={(e) =>
-                        updateSigner(i, "method", e.target.value as SignerMethod)
-                      }
-                      className={selectClass}
-                    >
-                      <option value="ecaddress">EC-адрес</option>
-                      <option value="email">Email</option>
-                      <option value="sms">SMS</option>
-                    </select>
-                    <input
-                      type={s.method === "email" ? "email" : "text"}
-                      value={s.value}
-                      onChange={(e) => updateSigner(i, "value", e.target.value)}
-                      placeholder={placeholderFor(s.method)}
-                      className={`${inputClass} font-mono ${err ? "border-destructive/60 focus:ring-destructive/30" : ""}`}
-                    />
-                    {signers.length > 1 ? (
-                      <button
-                        type="button"
-                        onClick={() => removeSigner(i)}
-                        className="text-destructive hover:text-destructive dark:hover:text-red-300 transition-colors"
-                        aria-label="Удалить подписанта"
-                      >
-                        <Icon icon="solar:trash-bin-minimalistic-linear" className="text-base" />
-                      </button>
-                    ) : (
-                      <span />
-                    )}
-                  </div>
-                  {err ? (
-                    <p className="pl-[15.5rem] text-[10px] text-destructive">{err}</p>
-                  ) : null}
-                </div>
-                );
-              })}
-
-              {signers.some((s) => s.method === "email") ? (
-                <p className="text-[11px] text-muted-foreground/80 leading-snug pt-1">
-                  Email-подписант получит письмо с ссылкой подтверждения от Safina.
-                  Без клика по ссылке кошелёк не активируется (адрес не выдаётся).
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={addSigner}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground dark:hover:text-white transition-colors"
-            >
-              <Icon icon="solar:add-circle-linear" className="text-sm" />
-              Добавить подписанта
-            </button>
-          </div>
-        )}
+        <p className="text-[11px] text-muted-foreground/80 leading-snug">
+          Подписант — EC-ключ вашей организации; подставляется автоматически.
+          Активация в Safina занимает ~60 секунд, потом on-chain адрес
+          появится в списке.
+        </p>
 
         {error && (
           <p className="text-xs text-destructive">{error}</p>
@@ -324,7 +114,7 @@ export function CreateWalletForm() {
 
         <button
           type="submit"
-          disabled={loading || formInvalid}
+          disabled={loading}
           className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {loading ? "Создание…" : "Создать кошелёк"}

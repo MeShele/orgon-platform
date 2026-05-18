@@ -282,23 +282,97 @@ Verify with **`WebhooksAPI.verify(...)`** in the TypeScript SDK or
 Retries: 30s → 2m → 10m → 1h → 6h, six attempts; then marked
 permanently failed (still visible via `GET /v1/webhooks/deliveries`).
 
-Event types:
+Event types (be careful: most of these are declared but not yet wired
+to a publish-site):
 
 | Type | Fires when | Status |
 |---|---|---|
-| `wallet.activated` | Safina issues the on-chain address | ⚠ **not yet emitted** — poll `GET /v1/wallets/{id}` |
 | `wallet.deposit.detected` | inbound on-chain transfer seen by our watcher | ✅ live |
-| `transaction.broadcasted` | outbound tx broadcast to chain | ✅ live |
-| `transaction.confirmed` | tx reached configured confirmations | ✅ live |
-| `transaction.failed` | tx canceled/failed | ✅ live |
-| `user.created` | echo after `POST /v1/users` (audit) | ✅ live |
 | `webhook.test` | manual via `POST /v1/webhooks/test` | ✅ live |
+| `wallet.activated` | Safina issues the on-chain address | ⏳ declared, **not yet emitted** |
+| `transaction.broadcasted` | outbound tx broadcast to chain | ⏳ declared, **not yet emitted** |
+| `transaction.confirmed` | tx reached configured confirmations | ⏳ declared, **not yet emitted** |
+| `transaction.failed` | tx canceled/failed | ⏳ declared, **not yet emitted** |
+| `user.created` | echo after `POST /v1/users` (audit) | ⏳ declared, **not yet emitted** |
 
-`wallet.activated` event is declared in `webhook_publisher.py` but the
-publish-site isn't wired into `sync_wallets` yet — until that lands,
-integrators should treat `POST /v1/wallets` as polling-based (see
-Wallet provisioning flow above). When the emission ships, the same
-payload contract will fire and polling becomes optional.
+Only the `EV_WALLET_DEPOSIT` constant has a corresponding
+`publish_event()` call (in `deposit_watcher.py`). The other event
+constants exist in `webhook_publisher.py` but no producer publishes
+them. Until that's wired, integrators should:
+
+* For wallet activation — poll `GET /v1/wallets/{id}` (see Wallet
+  provisioning flow above).
+* For transaction lifecycle — poll `GET /v1/transactions/{tx_id}` after
+  a `POST /v1/transactions`.
+* For `user.created` — just trust the `POST /v1/users` response.
+
+Wiring priority (Phase 3): `wallet.activated`, `transaction.broadcasted`,
+`transaction.confirmed` first — those unblock real-time payment UIs.
+When emission ships, the documented payload contracts below fire as-is
+and polling becomes optional, not required.
+
+### Outbound webhook signing
+
+Different canonical from inbound `/v1/*` HMAC — outbound is simpler
+because the URL is owned by the receiver and the method is always POST:
+
+```python
+ts_ms = int(time.time() * 1000)
+body  = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode()
+msg   = f"{ts_ms}\n".encode() + body
+sig   = HMAC-SHA256(webhook_secret, msg).hexdigest()
+```
+
+No nonce in the canonical string, no method, no path. `body` MUST be
+compact with `sort_keys=True` — that's what the publisher uses
+(`webhook_delivery.py:91-104`), so any byte-identical reproduction
+needs the same serializer settings.
+
+The `X-ORGON-Webhook-Id` header carries a delivery UUID for replay
+protection, but it's a header — not part of the signed message.
+
+### Outbound webhook payload shape
+
+Every event shares the same envelope. `data` is event-specific:
+
+```jsonc
+{
+  "id":          "<delivery_uuid>",          // matches X-ORGON-Webhook-Id
+  "type":        "<event type>",             // e.g. "wallet.deposit.detected"
+  "merchant_id": "<uuid>",
+  "created_at":  "<iso8601 UTC>",
+  "data":        { /* event-specific */ }
+}
+```
+
+`wallet.deposit.detected` (only live event today):
+
+```jsonc
+{
+  "deposit_id":   "<uuid>",
+  "wallet_id":    "<uuid>",
+  "end_user_id":  "<uuid> | null",           // null for treasury wallets
+  "network":      3040,                       // int chain id (NOT a string)
+  "tx_hash":      "0x...",
+  "log_index":    0,
+  "from_address": "0x...",
+  "to_address":   "0x...",
+  "asset":        "USDT",                     // currency ticker
+  "amount":       "100.50",                   // string-decimal
+  "block_number": 12345678
+}
+```
+
+`wallet.activated` (planned — when wired):
+
+```jsonc
+{
+  "wallet_id":   "<uuid>",
+  "end_user_id": "<uuid> | null",
+  "network":     3040,
+  "address":     "0x..."                      // on-chain address
+}
+```
 
 ### Pricing & quotas
 

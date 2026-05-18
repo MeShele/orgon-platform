@@ -155,19 +155,72 @@ support and we trace the full path in our logs.
 Provisioning via Safina; deposit watcher reads each chain's public
 explorer.
 
-| ID | Name | Native | Tokens | Watcher source |
-|---|---|---|---|---|
-| 1000 | Bitcoin | BTC | — | Blockstream Esplora |
-| 3000 | Ethereum | ETH | USDT, USDC | Etherscan |
-| 3040 | Ethereum Sepolia | ETH | (per contract) | Sepolia Etherscan |
-| 5000 | Tron | TRX | USDT, USDC, LDFT, … | TronGrid |
-| 5010 | Tron Nile testnet | TRX | USDT, LDFT, … | TronGrid Nile |
+| `network` value | Chain | Native | Tokens | Mainnet/test | Watcher source |
+|---|---|---|---|---|---|
+| `"1000"` | Bitcoin | BTC | — | mainnet | Blockstream Esplora |
+| `"3000"` | Ethereum | ETH | USDT, USDC | mainnet | Etherscan |
+| `"3040"` | Ethereum Sepolia | ETH | (per contract) | test | Sepolia Etherscan |
+| `"5000"` | Tron | TRX | USDT, USDC, LDFT, … | mainnet | TronGrid |
+| `"5010"` | Tron Nile | TRX | USDT, LDFT, … | test | TronGrid Nile |
+| `"5800"` | ORGON | — | — | mainnet | — (pending explorer API) |
+| `"5810"` | ORGON TestNet | — | — | test | — (pending explorer API) |
+
+The `network` field on `POST /v1/wallets` is **a string holding the
+decimal chain id** — `"3040"`, not `3040` (integer → 422) and not
+`"eth-sepolia"` (slugs not yet supported; we'll add a mapping in the
+SDK when there's a real need). Same string format on
+`GET /v1/transactions?network=…` etc.
 
 ETH watcher honours `ETHERSCAN_API_KEY` env when set (5 req/s with key,
 1 per 5s without). ORGON's own chain (5800/5810) is provisioned in
-Safina but not yet watcher-supported pending their explorer API.
+Safina but not yet watcher-supported pending their explorer API — so
+deposits on those networks aren't auto-detected; outbound tx works.
 
-### Custody model
+### Wallet provisioning flow
+
+`POST /v1/wallets` is asynchronous in spirit: we call Safina's
+`newWallet` synchronously and return `201` immediately with the local
+wallet `id` and **`address: null`, `status: 'pending'`**. The on-chain
+address arrives ~60s later (single-EC slist auto-activation — see
+Custody model below for why).
+
+Two request shapes:
+
+```jsonc
+// end-user deposit wallet — Safina is invisible to the end-user
+POST /v1/wallets
+{
+  "end_user_id": "0d180b1d-d2f6-451f-8b83-cadc42191a5d",
+  "network":     "3040"
+}
+
+// merchant-owned (treasury / fee / hot / cold) — for the merchant's
+// own funds, never exposed to its customers
+POST /v1/wallets
+{
+  "treasury": "treasury",      // string enum: "treasury"|"fee"|"hot"|"cold"
+  "network":  "5000"
+}
+```
+
+Exactly one of `end_user_id` / `treasury` must be set; both or neither
+returns `400`. `treasury` is a **string enum**, not a boolean — if your
+client's OpenAPI snapshot shows it as `bool`, refresh from
+`GET /api/openapi.json`.
+
+**Reading the address.** Until the `wallet.activated` webhook is wired
+on our side (see Webhooks section), poll:
+
+```
+GET /v1/wallets/{wallet_id}      # every 5–10s
+                                 # → returns same shape as POST
+                                 # → address populated when status='active'
+```
+
+SLA on activation: 60–90s in 95% of cases, up to ~3 min when Safina
+is under load. A 5-minute polling cap is sufficient.
+
+
 
 Headless custodial. Every wallet is created via Safina `newWallet`
 with a slist of **exactly one entry — the merchant's per-org EC** —
@@ -231,15 +284,21 @@ permanently failed (still visible via `GET /v1/webhooks/deliveries`).
 
 Event types:
 
-| Type | Fires when |
-|---|---|
-| `wallet.activated` | Safina issues the on-chain address |
-| `wallet.deposit.detected` | inbound on-chain transfer seen by our watcher |
-| `transaction.broadcasted` | outbound tx broadcast to chain |
-| `transaction.confirmed` | tx reached configured confirmations |
-| `transaction.failed` | tx canceled/failed |
-| `user.created` | echo after `POST /v1/users` (audit) |
-| `webhook.test` | manual via `POST /v1/webhooks/test` |
+| Type | Fires when | Status |
+|---|---|---|
+| `wallet.activated` | Safina issues the on-chain address | ⚠ **not yet emitted** — poll `GET /v1/wallets/{id}` |
+| `wallet.deposit.detected` | inbound on-chain transfer seen by our watcher | ✅ live |
+| `transaction.broadcasted` | outbound tx broadcast to chain | ✅ live |
+| `transaction.confirmed` | tx reached configured confirmations | ✅ live |
+| `transaction.failed` | tx canceled/failed | ✅ live |
+| `user.created` | echo after `POST /v1/users` (audit) | ✅ live |
+| `webhook.test` | manual via `POST /v1/webhooks/test` | ✅ live |
+
+`wallet.activated` event is declared in `webhook_publisher.py` but the
+publish-site isn't wired into `sync_wallets` yet — until that lands,
+integrators should treat `POST /v1/wallets` as polling-based (see
+Wallet provisioning flow above). When the emission ships, the same
+payload contract will fire and polling becomes optional.
 
 ### Pricing & quotas
 
@@ -262,10 +321,25 @@ one invoice per (merchant, calendar month). Visible to merchant via
 
 ### Sandbox
 
-Issue a key with `sandbox: true` → prefix `okt_*`. Sandbox merchants
-are restricted on the backend: any attempt to provision a wallet on a
-mainnet network (1000, 3000, 5000, 5800) returns
-`400 sandbox_restricted`. Testnets: 1010 (deferred), 3040, 5010, 5810.
+Issue a key with `sandbox: true` → prefix `okt_*` (vs. live `okl_*`).
+Sandbox merchants are restricted on the backend to **testnet networks
+only**:
+
+| `network` | Available to sandbox? |
+|---|---|
+| `"1000"` Bitcoin mainnet | ❌ → `400 sandbox_restricted` |
+| `"3000"` Ethereum mainnet | ❌ → `400 sandbox_restricted` |
+| `"3040"` Ethereum Sepolia | ✅ |
+| `"5000"` Tron mainnet | ❌ → `400 sandbox_restricted` |
+| `"5010"` Tron Nile | ✅ |
+| `"5800"` ORGON mainnet | ❌ → `400 sandbox_restricted` |
+| `"5810"` ORGON TestNet | ✅ |
+| `"1010"` Bitcoin testnet | ⏳ deferred (no watcher yet) |
+
+The error envelope is the standard one — `{"error":
+"sandbox_restricted", "message": "..."}` — so the SDK can branch on
+the code, and the UI can render "switch to a testnet network or
+upgrade to a live key" with a single check.
 
 ---
 

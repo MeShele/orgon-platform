@@ -88,6 +88,11 @@ outbox/
 # Claude Design hand-offs (the .md is the source of truth, not the zip)
 /claude design/*.zip
 
+# Claude Code session artifacts (per-machine, not project state)
+.claude/scheduled_tasks.lock
+.claude/*.tmp
+.claude/cache/
+
 # Per-project Coolify overrides
 /.coolify
 .venv/

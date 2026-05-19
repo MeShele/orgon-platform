@@ -261,22 +261,33 @@ async def search_audit_logs(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _serialize_row(row) -> dict:
-    """Stable shape for both /events and /events.csv. Keeps the
-    serialization contract in one place."""
-    details = row["details"]
-    if isinstance(details, str):
+def _normalize_details(value) -> dict | list:
+    """audit_log.details is jsonb. asyncpg returns it as dict/list, but
+    a Postgres round-trip via .text or a raw fetch can deliver it as a
+    JSON string. Normalise once so both /events JSON and /events.csv
+    streamer share the same shape (TD-9).
+    """
+    if value is None:
+        return {}
+    if isinstance(value, str):
         try:
-            details = json.loads(details)
+            parsed = json.loads(value)
         except Exception:
-            pass
+            return {"_raw": value}
+        return parsed if parsed is not None else {}
+    return value  # already dict/list
+
+
+def _serialize_row(row) -> dict:
+    """Stable shape for /events. Keeps the serialization contract in
+    one place."""
     return {
         "id": int(row["id"]),
         "user_id": int(row["user_id"]) if row["user_id"] is not None else None,
         "action": row["action"],
         "resource_type": row["resource_type"],
         "resource_id": row["resource_id"],
-        "details": details if details is not None else {},
+        "details": _normalize_details(row["details"]),
         "ip_address": row["ip_address"],
         "user_agent": row["user_agent"],
         "created_at": row["created_at"].isoformat() if row["created_at"] else None,
@@ -413,10 +424,10 @@ async def export_audit_events_csv(
                 async for r in conn.cursor(sql, *params):
                     buf = io.StringIO()
                     w = csv.writer(buf, lineterminator="\n")
-                    details = r["details"]
-                    if isinstance(details, (dict, list)):
+                    details = _normalize_details(r["details"])
+                    if isinstance(details, (dict, list)) and details:
                         details = json.dumps(details, ensure_ascii=False, sort_keys=True)
-                    elif details is None:
+                    else:
                         details = ""
                     w.writerow([
                         r["id"],

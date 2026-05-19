@@ -43,9 +43,11 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
   {
     label: "insights",
     items: [
-      { href: "/analytics", label: "analytics", icon: "solar:chart-linear",         activeIcon: "solar:chart-bold",         roles: ["all"] },
-      { href: "/audit",     label: "audit",     icon: "solar:history-linear",       activeIcon: "solar:history-bold",       roles: ["admin", "viewer"] },
-      { href: "/reports",   label: "reports",   icon: "solar:document-text-linear", activeIcon: "solar:document-text-bold", roles: ["admin", "viewer"] },
+      { href: "/analytics",          label: "analytics",         icon: "solar:chart-linear",         activeIcon: "solar:chart-bold",         roles: ["all"] },
+      { href: "/audit",              label: "audit",             icon: "solar:history-linear",       activeIcon: "solar:history-bold",       roles: ["admin", "viewer"] },
+      { href: "/compliance/rules",   label: "complianceRules",   icon: "solar:filter-linear",        activeIcon: "solar:filter-bold",        roles: ["admin", "viewer"] },
+      { href: "/compliance/reviews", label: "complianceReviews", icon: "solar:shield-warning-linear", activeIcon: "solar:shield-warning-bold", roles: ["admin", "viewer"] },
+      { href: "/reports",            label: "reports",           icon: "solar:document-text-linear", activeIcon: "solar:document-text-bold", roles: ["admin", "viewer"] },
     ],
   },
   {
@@ -63,11 +65,16 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
       { href: "/help",     label: "help",     icon: "solar:question-circle-linear",  activeIcon: "solar:question-circle-bold",  roles: ["all"] },
     ],
   },
-  // Roadmap = pages whose UI is scaffolded but the underlying flow is not
-  // yet a real product feature. Kept visible so a demo viewer sees breadth,
-  // but signposted with a "Скоро" badge so they don't click expecting prod.
-  // Routes themselves still resolve — the existing pages render their own
-  // honest "in development" banners.
+  // Roadmap = pages whose UI is scaffolded but the underlying flow is
+  // not yet a real product feature. Kept visible so a demo viewer
+  // sees breadth, signposted with "Скоро" so they don't click
+  // expecting prod. Routes still resolve — the existing pages render
+  // their own honest "in development" banners.
+  //
+  // /compliance/rules + /compliance/reviews moved out of here into
+  // "insights" (Waves 23+25 — they're production-ready). The bare
+  // /compliance index page stays roadmap until a real dashboard
+  // exists at that route.
   {
     label: "roadmap",
     items: [

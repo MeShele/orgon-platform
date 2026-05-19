@@ -544,12 +544,13 @@ app.include_router(support_router)  # Support tickets
 app.include_router(safina_integration_router)  # Safina API gap closure
 app.include_router(webhooks_sumsub_router)     # Sumsub KYC webhook (Wave 19, story 2.4)
 
-# JWT-side audit: log UI mutations into the same `audit_log_b2b` table that
-# /api/audit/logs reads from. Closes the dashboard-actions audit gap.
-app.add_middleware(JwtAuditMiddleware)
-
-# JWT-side audit: log UI mutations into audit_log_b2b (the table
-# /api/audit/logs reads from). Best-effort, never blocks the response.
+# JWT-side audit: log UI mutations into `audit_log` (best-effort, never
+# blocks the response). The comment used to claim audit_log_b2b — that
+# table was dropped in migration 034; AuditService now writes the single
+# `audit_log` table. Adding the middleware once is sufficient; a duplicate
+# `app.add_middleware(JwtAuditMiddleware)` line below this one was
+# producing every dashboard mutation TWICE in audit_log (TD-4, removed
+# 2026-05-19 after prod analysis showed 88% of last-24h rows were paired).
 app.add_middleware(JwtAuditMiddleware)
 
 # General-API rate limit (login brute-force, 100 req/min/IP).

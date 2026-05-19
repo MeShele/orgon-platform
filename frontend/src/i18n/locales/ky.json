@@ -58,7 +58,9 @@
     },
     "badges": {
       "comingSoon": "Жакында"
-    }
+    },
+    "complianceRules": "Комплаенс эрежелери",
+    "complianceReviews": "AML текшерүүлөр"
   },
   "dashboard": {
     "title": "Башкы бет",

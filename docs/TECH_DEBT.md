@@ -88,54 +88,28 @@ separately on the SOC 2 trail.
 
 ## L2 — trust-degrading
 
-### TD-4. `JwtAuditMiddleware` added **twice** in `backend/main.py`
+### TD-4. ~~`JwtAuditMiddleware` added twice in `backend/main.py`~~ — **FIXED 2026-05-19**
 
-```python
-# backend/main.py
-app.add_middleware(JwtAuditMiddleware)  # line 549
-app.add_middleware(JwtAuditMiddleware)  # line 553 — duplicate
-```
+Prod analysis of the last 24h of `audit_log` showed **21 pair-buckets vs
+2 singles** at second-granularity. Duplicate confirmed. Second
+`app.add_middleware(JwtAuditMiddleware)` removed. After redeploy
+expect pair-count to drop to zero on new rows; existing duplicate
+rows stay (audit_log is append-only by trigger — `DELETE` blocked
+intentionally).
 
-Comments on both occurrences are nearly identical. Either:
-  (a) The second was a merge slip and we now log every dashboard
-      mutation TWICE into `audit_log`. (Likely. Need to grep prod
-      logs for paired rows on the same `(user_id, action, created_at)`
-      tuple to confirm.)
-  (b) The original intent was two configurations of the middleware
-      (one for `/api/`, one for `/api/v1/`) and the configuration
-      diff got lost during a refactor.
+### TD-5. ~~`backend/tests/test_compliance.py` ImportError~~ — **PARTIALLY FIXED 2026-05-19**
 
-**Fix:** dump 24h of prod `audit_log` rows grouped by
-`(user_id, action, resource_type, date_trunc('second', created_at))`;
-if pair-counts are ~2 across the board, drop the second `add_middleware`
-call and verify the count halves on next deploy.
+Collection no longer crashes. Bad `from backend.database.pool import
+get_pool` replaced with `asyncpg.create_pool(os.environ["DATABASE_URL"])`,
+whole module gated by `pytest.mark.skipif(no DATABASE_URL)`. CI now
+runs `pytest backend/tests/` without `--ignore` and gets clean
+collection.
 
-**Why not in Phase 1:** I spotted it during the E-02 audit but it's
-unrelated to any of the five epics. Doing it in the Phase 1 commit
-would have muddied the diff and made rollback grainy.
-
-### TD-5. `backend/tests/test_compliance.py` ImportError
-
-```
-backend/tests/test_compliance.py:7: in <module>
-    from backend.database.pool import get_pool
-E   ModuleNotFoundError: No module named 'backend.database.pool'
-```
-
-`backend/database/pool.py` does not exist — the directory has
-`db.py`, `db_postgres.py`, `db_hybrid.py`, `migrations.py`. CI
-explicitly excludes this file via `--ignore`, so it goes silent.
-
-This existed on `main` before any of my work. The test file is
-quoting Compliance Service API patterns that are still relevant —
-deleting it loses signal.
-
-**Fix:** rewrite the imports to use `backend.services.compliance_service`
-and the AsyncDatabase pool fixture pattern used by `test_aml_alerts.py`.
-2–3 hours.
-
-**Why not now:** outside Phase 1 / E-07 scope. Could be a clean tech-
-debt PR.
+**Still TODO:** the 12 collected tests use bare `async def` fixtures
+without `@pytest_asyncio.fixture` — they fail with
+"coroutine 'pool' was never awaited" even when a real Postgres is
+attached. A real rewrite — model the suite on `test_aml_alerts.py` /
+`test_idempotency.py` fake-pool unit tests — is still pending.
 
 ### TD-6. `transaction_monitoring_rules` evaluation order is undefined
 
@@ -165,41 +139,25 @@ gates KYC). Wire `_check_recipient_geo_block_stub` →
 if anyone makes a rule of type `recipient_geo_block` while the
 stub flag is on.
 
-### TD-8. `prefer-existing-overlay` vs `IF NOT EXISTS` discipline
+### TD-8. ~~Overlay migrations 027–046 don't write `schema_migrations`~~ — **FIXED 2026-05-19**
 
-Migrations 027–046 (pre-Phase-1) do not write into
-`schema_migrations`. The README says they MUST. The entrypoint
-loader applies them on every boot because they're not gated.
+`052_backfill_schema_migrations.sql` inserts the missing markers
+in one idempotent statement. Applied to prod via `psql`. Verified:
+`schema_migrations` now lists 28 rows (025–052 plus 000 canonical).
 
-This is fine while every overlay is idempotent. It becomes a
-problem the day someone writes a non-idempotent overlay and trusts
-the loader to skip it.
-
-**Fix:** retro-add `INSERT INTO schema_migrations VALUES (...)` to
-each 027–046 migration in a single chore PR. Then add a CI lint
-that fails if any new overlay lacks the marker. Phase 1's 047–051
-all do this correctly.
-
-**Why not now:** retro-edits to applied migrations are sketchy
-(the entrypoint won't re-apply them, so the new `INSERT` would
-never run on existing installs). Better fix: introduce a one-off
-`100_backfill_schema_migrations.sql` that lists everything
-pre-Phase-1.
+**Still TODO:** add a CI lint that fails if any new overlay file
+lacks an `INSERT INTO schema_migrations` final statement. Phase 1's
+047–051 all do this correctly; the lint catches future drift.
 
 ---
 
 ## L3 — friction
 
-### TD-9. CSV export reads details from text column inconsistently
+### TD-9. ~~CSV export reads details from text column inconsistently~~ — **FIXED 2026-05-19**
 
-`audit_log.details` is `jsonb`. asyncpg returns it as `dict` (or
-sometimes `str` after a round-trip via fetch + insert). The serializer
-in `routes_audit.py:_serialize_row` and the CSV streamer
-in `routes_audit.py:export_audit_events_csv` both handle both shapes.
-Same logic appears in two places.
-
-**Fix:** extract `_normalize_details(value) -> dict` and call from both.
-20-line refactor.
+Extracted `_normalize_details(value) -> dict | list` in
+`routes_audit.py`. Both `_serialize_row` and the CSV streamer now
+share it. 14 unit tests on the serializer stay green.
 
 ### TD-10. Pydantic v1 deprecation warnings
 
@@ -216,25 +174,17 @@ under time pressure.
 **Fix:** grep `class Config:` in pydantic model files, replace with
 `model_config = ConfigDict(...)`. One PR.
 
-### TD-11. `frontend/src/components/layout/sidebar-nav.ts` has 4 "roadmap" entries that aren't real
+### TD-11. ~~Sidebar nav `/compliance` mis-flagged as roadmap~~ — **PARTIALLY FIXED 2026-05-19**
 
-`/compliance`, `/users`, `/documents`, `/settings` are flagged
-`roadmap: true` in the sidebar. The "Скоро" badge sells breadth to
-demo viewers but customers actually click these and see the in-
-development banners.
+Promoted `/compliance/rules` (Wave 23+25) and `/compliance/reviews`
+(AML queue, Wave 23+26) into the "insights" group as production-ready
+entries. Index `/compliance` stays in roadmap until a real dashboard
+lives there. i18n keys added to ru/en/ky.
 
-`/compliance` is no longer roadmap — Wave 25 made `/compliance/rules`
-a real flow. Keeping the parent flagged misleads operators.
-
-**Fix:** split the entry into:
-* `/compliance/rules` — production-ready
-* `/compliance/alerts` — production-ready (AML queue)
-* `/compliance/sar` — production-ready (Wave 24)
-* leave `/compliance` (the index page) as `roadmap` until we build
-  a real dashboard at that route.
-
-**Why not now:** purely a frontend polish task; we're on the backend
-hardening sprint.
+**Still TODO:** if/when a `/compliance/sar` route surfaces, add it
+alongside the other two. Today the SAR pipeline (Wave 24) is invoked
+through compliance-officer flows inside `/compliance/reviews`, not a
+dedicated page.
 
 ---
 

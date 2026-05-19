@@ -1,10 +1,33 @@
-"""Compliance Service Tests — KYC, AML, Reports."""
+"""Compliance Service Tests — KYC, AML, Reports.
+
+Integration suite. Requires a live Postgres exposed via `DATABASE_URL`
+and the canonical schema applied. Pytest collection used to crash here
+because the legacy `from backend.database.pool import get_pool` import
+referred to a module that was renamed during the Postgres consolidation
+in Wave 11 (see TD-5 in docs/TECH_DEBT.md).
+
+Minimal fix: drop the bad import, gate the whole file with a
+DATABASE_URL skip — so CI collection stays healthy and the suite
+runs only when a real DB is wired in.
+
+Long-term: replace these tests with fake-pool unit tests in the
+shape of test_aml_alerts.py / test_idempotency.py.
+"""
+import os
 import pytest
 import asyncio
 from uuid import UUID, uuid4
 from datetime import datetime
+
+import asyncpg
+
 from backend.services.compliance_service import ComplianceService
-from backend.database.pool import get_pool
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("DATABASE_URL"),
+    reason="test_compliance.py is an integration suite — set DATABASE_URL to run",
+)
+
 
 @pytest.fixture(scope="module")
 def event_loop():
@@ -13,10 +36,11 @@ def event_loop():
     yield loop
     loop.close()
 
+
 @pytest.fixture(scope="module")
 async def pool():
-    """Database connection pool."""
-    p = await get_pool()
+    """Asyncpg pool against the configured DATABASE_URL."""
+    p = await asyncpg.create_pool(os.environ["DATABASE_URL"], min_size=1, max_size=4)
     yield p
     await p.close()
 

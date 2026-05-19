@@ -58,7 +58,9 @@
     },
     "badges": {
       "comingSoon": "Coming"
-    }
+    },
+    "complianceRules": "Compliance Rules",
+    "complianceReviews": "AML Reviews"
   },
   "dashboard": {
     "title": "Dashboard",

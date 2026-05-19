@@ -65,7 +65,10 @@ _header "2. RequestId/RBAC envelope on /v1/* errors (E-02)"
 # Unauthenticated /v1/ping should be 401 with the canonical envelope
 # {error, message, request_id}. Failing this means the error reshape
 # middleware or the request-id middleware regressed.
-OUT="$(curl -fsS -m 10 -o /tmp/orgon-401.json -w 'HTTP_STATUS=%{http_code}\nX_REQUEST_ID=%header{x-request-id}\n' \
+# NOTE: no `-f` here — curl --fail short-circuits on 4xx/5xx and
+# skips writing the body file, which is exactly the shape we want
+# to inspect. Use -sS + manual status check instead.
+OUT="$(curl -sS -m 10 -o /tmp/orgon-401.json -w 'HTTP_STATUS=%{http_code}\nX_REQUEST_ID=%header{x-request-id}\n' \
   "${BASE_URL}/v1/ping" 2>&1 || true)"
 
 if echo "$OUT" | grep -q 'HTTP_STATUS=401'; then
@@ -92,7 +95,8 @@ _header "3. Audit query API (E-04) — auth-gated"
 
 # Without JWT, /api/audit/events MUST refuse access (401 or 403),
 # never 200. A 500 would suggest the route itself is broken.
-OUT="$(curl -fsS -m 10 -o /tmp/orgon-audit-anon.json -w '%{http_code}' \
+# No `-f` — see /v1/ping note above; we want the body on 4xx.
+OUT="$(curl -sS -m 10 -o /tmp/orgon-audit-anon.json -w '%{http_code}' \
   "${BASE_URL}/api/audit/events" 2>&1 || true)"
 
 case "$OUT" in
@@ -108,7 +112,7 @@ case "$OUT" in
 esac
 
 # Same for /api/audit/events.csv — must NOT stream CSV to anonymous.
-OUT="$(curl -fsS -m 10 -o /tmp/orgon-audit-csv.bin -w '%{http_code}' \
+OUT="$(curl -sS -m 10 -o /tmp/orgon-audit-csv.bin -w '%{http_code}' \
   "${BASE_URL}/api/audit/events.csv" 2>&1 || true)"
 
 case "$OUT" in

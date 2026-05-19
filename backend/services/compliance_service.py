@@ -1,4 +1,6 @@
 """Compliance Service — KYC, AML, Regulatory Reports."""
+from __future__ import annotations
+
 import asyncpg
 import base64
 import json
@@ -1209,17 +1211,28 @@ class ComplianceService:
         action: str,
         severity: str,
         is_active: bool,
-        actor_user_id: int,
+        actor_user_id: Optional[int],
+        source: str = "ui",
     ) -> Dict[str, Any]:
-        """Insert + audit-log. Atomic via `conn.transaction()`."""
+        """Insert + audit-log. Atomic via `conn.transaction()`.
+
+        `actor_user_id` is NULL for API callers (HMAC /v1/* routes have
+        no user context). Audit rows with NULL user_id signal "machine
+        actor" — same pattern as `merchant_self_provisioned`.
+
+        `source` (migration 054) tags where the rule was created from
+        — UI dashboard ('ui') vs HMAC API ('api'). Defaults to 'ui'
+        so existing callers don't have to pass it.
+        """
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 row = await conn.fetchrow(
                     """
                     INSERT INTO transaction_monitoring_rules
                         (organization_id, rule_name, rule_type, description,
-                         rule_config, action, severity, is_active, created_by)
-                    VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9)
+                         rule_config, action, severity, is_active, created_by,
+                         source)
+                    VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10)
                     RETURNING *
                     """,
                     organization_id,
@@ -1231,10 +1244,11 @@ class ComplianceService:
                     severity,
                     is_active,
                     actor_user_id,
+                    source,
                 )
                 await self._write_rule_audit(
                     conn, actor_user_id, "rule.create", row["id"],
-                    {"after": _serialise_rule(row)},
+                    {"after": _serialise_rule(row), "source": source},
                 )
                 return dict(row)
 
@@ -1243,7 +1257,7 @@ class ComplianceService:
         rule_id: UUID,
         *,
         org_ids: Optional[List[UUID]],
-        actor_user_id: int,
+        actor_user_id: Optional[int],
         rule_name: Optional[str] = None,
         rule_type: Optional[str] = None,
         description: Optional[str] = None,
@@ -1300,7 +1314,7 @@ class ComplianceService:
         rule_id: UUID,
         *,
         org_ids: Optional[List[UUID]],
-        actor_user_id: int,
+        actor_user_id: Optional[int],
     ) -> bool:
         """Hard delete. Returns False if missing / out of scope."""
         async with self.pool.acquire() as conn:
@@ -1338,7 +1352,7 @@ class ComplianceService:
     async def _write_rule_audit(
         self,
         conn,
-        actor_user_id: int,
+        actor_user_id: Optional[int],
         action: str,
         rule_id: UUID,
         details: Dict[str, Any],

@@ -158,6 +158,12 @@ export default function RulesPage() {
                       <th className="text-left py-3 px-4 text-xs font-mono uppercase tracking-wider text-muted-foreground">Действие</th>
                       <th className="text-left py-3 px-4 text-xs font-mono uppercase tracking-wider text-muted-foreground">Активно</th>
                       <th className="text-left py-3 px-4 text-xs font-mono uppercase tracking-wider text-muted-foreground">Скоуп</th>
+                      <th
+                        className="text-left py-3 px-4 text-xs font-mono uppercase tracking-wider text-muted-foreground"
+                        title="Откуда правило: создано в этой админке или пришло через /v1/compliance/rules (например из asystem-core)"
+                      >
+                        Источник
+                      </th>
                       <th />
                     </tr>
                   </thead>
@@ -195,6 +201,18 @@ export default function RulesPage() {
                           </td>
                           <td className="py-3 px-4 text-xs text-muted-foreground">
                             {isGlobal ? <Badge variant="navy">Global</Badge> : "Org"}
+                          </td>
+                          <td className="py-3 px-4">
+                            {rule.source === "api" ? (
+                              <span
+                                className="rounded-full bg-primary/15 text-primary px-2 py-0.5 text-[10px]"
+                                title="Создано через /v1/compliance/rules внешним оркестратором (обычно asystem-core's admin). Правки в этой админке сохраняются и для внешнего канала видны как новые updated_at."
+                              >
+                                API
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/60 text-[11px]">—</span>
+                            )}
                           </td>
                           <td className="py-3 px-4 text-right">
                             {canEdit && (

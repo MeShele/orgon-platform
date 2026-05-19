@@ -24,6 +24,11 @@ export interface MonitoringRule {
   created_at: string;
   updated_at: string;
   created_by: number | null;
+  /** 'ui'  — created via this dashboard (/api/v1/compliance/rules, JWT).
+   *  'api' — pushed by an external orchestrator via /v1/compliance/rules
+   *          (HMAC, Wave 34). asystem-core's admin uses this channel
+   *          when mirroring AML config into their single pane of glass. */
+  source?: "ui" | "api" | string;
 }
 
 export interface MonitoringRuleCreate {

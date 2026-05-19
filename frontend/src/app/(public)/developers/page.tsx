@@ -397,10 +397,13 @@ const ENDPOINTS = [
   },
 ];
 
-const HEADERS_EXAMPLE = `X-ORGON-Key:        okl_a1b2c3d4...
-X-ORGON-Timestamp:  1715690000000
-X-ORGON-Nonce:      e3b0c442-98fc-1c14-9afb-f4c8996fb924
-X-ORGON-Signature:  7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730`;
+const HEADERS_EXAMPLE = `X-ORGON-Key:              okl_a1b2c3d4...
+X-ORGON-Timestamp:        1715690000000
+X-ORGON-Nonce:            e3b0c442-98fc-1c14-9afb-f4c8996fb924
+X-ORGON-Signature:        7d865e959b2466918c9863afca942d0fb89d7c9ac0c99bafc3749504ded97730
+# Опционально на mutating вызовах — гарантирует, что повтор
+# при network-сбое не создаст дубль транзакции/кошелька:
+X-ORGON-Idempotency-Key:  8c1d4f0e-4af3-49e2-b8a3-1f0c0a9d1234`;
 
 const TS_SIGN_SNIPPET = `import crypto from "node:crypto";
 import { randomUUID } from "node:crypto";

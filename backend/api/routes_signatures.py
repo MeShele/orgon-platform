@@ -161,7 +161,11 @@ async def sign_transaction(
         tenant_service = SignatureService(
             tenant_client, base_svc._db, telegram_notifier=base_svc._telegram,
         )
-        result = await tenant_service.sign_transaction(tx_unid, user_address)
+        result = await tenant_service.sign_transaction(
+            tx_unid,
+            user_address,
+            request_id=getattr(http_request.state, "request_id", None),
+        )
         return {
             "ok": True,
             "message": f"Transaction {tx_unid} signed successfully",
@@ -184,6 +188,7 @@ async def sign_transaction(
 async def reject_transaction(
     tx_unid: str,
     request: RejectRequest,
+    http_request: Request,
     user_address: str | None = None,
     user: dict = Depends(require_roles("company_admin", "company_operator")),
 ):
@@ -204,7 +209,8 @@ async def reject_transaction(
         result = await service.reject_transaction(
             tx_unid,
             request.reason,
-            user_address
+            user_address,
+            request_id=getattr(http_request.state, "request_id", None),
         )
         return {
             "ok": True,

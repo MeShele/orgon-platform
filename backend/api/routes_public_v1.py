@@ -462,6 +462,7 @@ async def test_webhook(body: WebhookTestBody, request: Request) -> dict:
         merchant_id=mid,
         event_type=body.event_type,
         payload=payload,
+        request_id=getattr(request.state, "request_id", None),
     )
     return {"delivery_id": delivery_id, "queued": True}
 

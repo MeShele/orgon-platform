@@ -80,6 +80,34 @@ Replay protection: `(key_pub, nonce)` is a PK on
 `merchant_request_nonces`; collision = 401. Pruned every 15 min by the
 scheduler.
 
+### Idempotency (optional, recommended on retries)
+
+On every mutating call (`POST` / `PATCH` / `PUT` / `DELETE`) the
+client MAY include:
+
+```
+X-ORGON-Idempotency-Key: <opaque, ≤ 128 chars, unique per intent>
+```
+
+A UUIDv4 generated client-side per business operation is the canonical
+shape. The same key MUST refer to the *same logical action* — reusing
+it for a different intent is a bug on your side.
+
+Semantics:
+
+| Scenario | Server behaviour |
+|---|---|
+| First successful call (2xx) | response is frozen for **24 hours**, indexed by `(merchant_id, idem_key)` |
+| Retry with same key, within TTL | frozen response is replayed byte-for-byte; `X-ORGON-Idempotent-Replay: 1` is set so observability can tell the difference |
+| Retry with same key but body bytes drift | replay still happens; the drift is logged server-side (your retry is *not* punished with a 409 — that would defeat the purpose) |
+| Retry after TTL expiry | treated as a brand-new request |
+| Original returned 4xx or 5xx | nothing was cached; retry hits the handler again |
+
+The nonce (`X-ORGON-Nonce`) is a separate, mandatory replay-guard at
+the signature layer — it MUST be fresh on every call, including
+idempotent retries. The HMAC signature itself MUST be recomputed too.
+Reusing the idempotency key does not exempt you from re-signing.
+
 ### Endpoint catalog
 
 ```
@@ -266,50 +294,38 @@ in our response shape.
 ### Webhooks
 
 Outbound: ORGON POSTs each event to the merchant's configured
-`webhook_url` with HMAC signature in headers:
+`webhook_url` with HMAC signature + exactly-once event-id in headers.
+
+The **public contract** lives in [`docs/WEBHOOKS.md`](docs/WEBHOOKS.md) —
+delivery headers, body shape, signing recipe, retry schedule (v1/v2),
+90-day retention, and the full event catalog with `live` / `defined`
+status per type.
+
+In short:
 
 ```
-X-ORGON-Webhook-Timestamp:  <unix ms>
-X-ORGON-Webhook-Signature:  hex(HMAC-SHA256(webhook_secret, ts + "\n" + body))
-X-ORGON-Webhook-Id:         <delivery uuid>
-X-ORGON-Webhook-Event:      <event type>
-User-Agent:                 Orgon-Webhook/1.0
+X-ORGON-Webhook-Timestamp:   <unix ms>
+X-ORGON-Webhook-Signature:   hex(HMAC-SHA256(webhook_secret, ts + "\n" + body))
+X-ORGON-Webhook-Event-Id:    <stable across retries — dedup on this>
+X-ORGON-Webhook-Id:          <legacy alias of -Event-Id>
+X-ORGON-Webhook-Event:       <event type>
+User-Agent:                  Orgon-Webhook/1.0
 ```
 
 Verify with **`WebhooksAPI.verify(...)`** in the TypeScript SDK or
 **`verify_webhook(...)`** in the Python SDK.
 
-Retries: 30s → 2m → 10m → 1h → 6h, six attempts; then marked
-permanently failed (still visible via `GET /v1/webhooks/deliveries`).
+**Currently emitting:** `wallet.activated`, `wallet.deposit.detected`,
+`transaction.broadcasted`, `policy.triggered`, plus `webhook.test`
+from `POST /v1/webhooks/test`.
 
-Event types (be careful: most of these are declared but not yet wired
-to a publish-site):
+**Defined but not yet wired:** `transaction.confirmed`,
+`transaction.failed`, `user.created`. We won't silently start firing
+them — there'll be a CHANGELOG entry when each goes live.
 
-| Type | Fires when | Status |
-|---|---|---|
-| `wallet.deposit.detected` | inbound on-chain transfer seen by our watcher | ✅ live |
-| `webhook.test` | manual via `POST /v1/webhooks/test` | ✅ live |
-| `wallet.activated` | Safina issues the on-chain address | ⏳ declared, **not yet emitted** |
-| `transaction.broadcasted` | outbound tx broadcast to chain | ⏳ declared, **not yet emitted** |
-| `transaction.confirmed` | tx reached configured confirmations | ⏳ declared, **not yet emitted** |
-| `transaction.failed` | tx canceled/failed | ⏳ declared, **not yet emitted** |
-| `user.created` | echo after `POST /v1/users` (audit) | ⏳ declared, **not yet emitted** |
-
-Only the `EV_WALLET_DEPOSIT` constant has a corresponding
-`publish_event()` call (in `deposit_watcher.py`). The other event
-constants exist in `webhook_publisher.py` but no producer publishes
-them. Until that's wired, integrators should:
-
-* For wallet activation — poll `GET /v1/wallets/{id}` (see Wallet
-  provisioning flow above).
-* For transaction lifecycle — poll `GET /v1/transactions/{tx_id}` after
-  a `POST /v1/transactions`.
-* For `user.created` — just trust the `POST /v1/users` response.
-
-Wiring priority (Phase 3): `wallet.activated`, `transaction.broadcasted`,
-`transaction.confirmed` first — those unblock real-time payment UIs.
-When emission ships, the documented payload contracts below fire as-is
-and polling becomes optional, not required.
+Until the missing events ship, poll the matching read endpoint
+(`GET /v1/wallets/{id}`, `GET /v1/transactions/{tx_id}`). For
+`user.created` the `POST /v1/users` response is authoritative.
 
 ### Outbound webhook signing
 

@@ -35,6 +35,7 @@ from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from backend.services import merchant_api_keys as keysvc
+from backend.services import idempotency_service as idem
 
 logger = logging.getLogger("orgon.middleware.merchant_hmac")
 
@@ -46,6 +47,11 @@ PUBLIC_EXEMPT_PATHS = {
     "/v1/health/extended",
     "/v1/networks",
 }
+
+IDEMPOTENCY_HEADER = "x-orgon-idempotency-key"
+# We only replay headers that are part of the public response contract;
+# stuff like Server, Date, Content-Length is re-derived per response.
+IDEMPOTENCY_REPLAY_HEADERS = ("content-type", "x-request-id")
 
 
 class MerchantHMACAuthMiddleware(BaseHTTPMiddleware):
@@ -79,7 +85,76 @@ class MerchantHMACAuthMiddleware(BaseHTTPMiddleware):
         request.state.merchant_id = merchant_id
         request.state.merchant_api_key_id = key_id
         request.state.merchant_scopes = scopes
-        return await call_next(request)
+
+        # ── Idempotency replay (after HMAC, before handler) ────────────
+        # Only mutating verbs carry the header semantically. If it's
+        # missing, we don't fabricate a key — caller opted out.
+        idem_key = request.headers.get(IDEMPOTENCY_HEADER)
+        pool = _get_pool(request)
+        req_hash: str | None = None
+        if idem_key and request.method.upper() in idem.MUTATING_METHODS and pool is not None:
+            req_hash = idem.compute_request_hash(
+                request.method, request.url.path, body_bytes
+            )
+            try:
+                cached = await idem.lookup(
+                    pool,
+                    merchant_id=merchant_id,
+                    idem_key=idem_key,
+                    request_hash=req_hash,
+                )
+            except Exception:
+                logger.exception("idempotency lookup failed; proceeding without cache")
+                cached = None
+            if cached is not None:
+                replay_headers = dict(cached.headers)
+                # Mark the replay so observability can tell apart fresh vs cached.
+                replay_headers["x-orgon-idempotent-replay"] = "1"
+                return Response(
+                    content=cached.body,
+                    status_code=cached.status,
+                    headers=replay_headers,
+                )
+
+        response = await call_next(request)
+
+        # ── Idempotency save (after handler, only on 2xx) ──────────────
+        if idem_key and req_hash is not None and pool is not None:
+            try:
+                body_chunks: list[bytes] = []
+                async for chunk in response.body_iterator:
+                    body_chunks.append(chunk)
+                response_body = b"".join(body_chunks)
+                if idem._cacheable_status(response.status_code):
+                    saved_headers = {
+                        k: v
+                        for k, v in response.headers.items()
+                        if k.lower() in IDEMPOTENCY_REPLAY_HEADERS
+                    }
+                    try:
+                        await idem.save(
+                            pool,
+                            merchant_id=merchant_id,
+                            idem_key=idem_key,
+                            request_hash=req_hash,
+                            status=response.status_code,
+                            body=response_body,
+                            headers=saved_headers,
+                        )
+                    except Exception:
+                        logger.exception("idempotency save failed (non-fatal)")
+                # Re-wrap the consumed iterator so FastAPI can still send it.
+                return Response(
+                    content=response_body,
+                    status_code=response.status_code,
+                    headers=dict(response.headers),
+                    media_type=response.media_type,
+                )
+            except Exception:
+                logger.exception("idempotency post-process failed; returning original")
+                return response
+
+        return response
 
 
 def _json_error(code: int, detail) -> Response:

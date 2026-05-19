@@ -60,8 +60,16 @@ class SafinaPayClient:
         method: str,
         path: str,
         data: Optional[dict] = None,
+        *,
+        origin_request_id: Optional[str] = None,
     ) -> any:
-        """Make a signed request with retry logic."""
+        """Make a signed request with retry logic.
+
+        `origin_request_id` is forwarded as `X-Origin-Request-Id` so
+        Safina-side logs can be correlated with our access log when
+        they expose a trace API. Optional — pass-through, never
+        validated locally.
+        """
         url = f"{self._base_url}/{path.lstrip('/')}"
         last_error = None
 
@@ -71,6 +79,10 @@ class SafinaPayClient:
                     headers = self._signer.sign_get()
                 else:
                     headers = self._signer.sign_post(data)
+
+                if origin_request_id:
+                    # Don't trust caller-provided dict identity — copy.
+                    headers = {**headers, "X-Origin-Request-Id": origin_request_id}
 
                 client = await self._get_client()
 

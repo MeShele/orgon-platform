@@ -173,6 +173,64 @@ def setup_scheduler(
         name="Prune merchant HMAC replay nonces",
     )
 
+    # Prune expired idempotency cache rows. TTL is 24h on each row;
+    # we sweep hourly. Without this the table monotonically grows.
+    async def prune_idempotency_keys_job():
+        from backend.main import get_database
+        from backend.services.idempotency_service import prune_expired
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            n = await prune_expired(db.pool)
+            if n:
+                logger.info("idempotency prune: %d expired rows deleted", n)
+        except Exception as e:
+            # Table may not exist yet on a fresh DB before migration
+            # 047 applies; demote to debug.
+            logger.debug("idempotency prune skipped: %s", e)
+
+    scheduler.add_job(
+        prune_idempotency_keys_job,
+        IntervalTrigger(hours=1),
+        id="prune_idempotency_keys",
+        name="Prune expired idempotency cache",
+    )
+
+    # 90-day retention sweep for webhook_deliveries. NEVER touches
+    # in-flight rows (delivered_at IS NULL AND attempts < 6) — only
+    # terminal rows beyond the horizon. Daily is enough; partial
+    # index from migration 049 keeps the DELETE cheap.
+    async def webhook_retention_sweep_job():
+        from backend.main import get_database
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            async with db.pool.acquire() as conn:
+                result = await conn.execute(
+                    """
+                    DELETE FROM webhook_deliveries
+                     WHERE created_at < now() - interval '90 days'
+                       AND (delivered_at IS NOT NULL OR attempts >= 6)
+                    """
+                )
+            try:
+                n = int(result.split()[-1])
+            except (ValueError, IndexError):
+                n = 0
+            if n:
+                logger.info("webhook retention sweep: %d terminal rows deleted", n)
+        except Exception as e:
+            logger.debug("webhook retention sweep skipped: %s", e)
+
+    scheduler.add_job(
+        webhook_retention_sweep_job,
+        IntervalTrigger(hours=24),
+        id="webhook_retention_sweep",
+        name="Sweep webhook_deliveries past 90-day retention",
+    )
+
     # Monthly invoice generator. Runs every day at 02:00 UTC and
     # idempotently generates invoices for the PREVIOUS month — so on
     # the 1st of every month all merchants get their invoice within

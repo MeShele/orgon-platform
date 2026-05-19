@@ -28,6 +28,7 @@ EV_TX_BROADCASTED = "transaction.broadcasted"
 EV_TX_CONFIRMED = "transaction.confirmed"
 EV_TX_FAILED = "transaction.failed"
 EV_USER_CREATED = "user.created"
+EV_POLICY_TRIGGERED = "policy.triggered"   # rule engine hit with action != 'alert'
 
 
 async def publish_event(
@@ -36,6 +37,7 @@ async def publish_event(
     merchant_id: str,
     event_type: str,
     payload: dict[str, Any],
+    request_id: str | None = None,
 ) -> str:
     """Persist event for delivery. Returns the delivery id.
 
@@ -43,21 +45,28 @@ async def publish_event(
     tenant. We deliberately don't include the row's `secret` here —
     the delivery worker reads merchant.webhook_secret at send time,
     so rotating the secret doesn't desync in-flight events.
+
+    `request_id` is the originating `X-Request-Id` of the /v1/* call
+    that triggered this event (see RequestIdAndErrorMiddleware). Pass
+    None for system-originated events (cron-driven deposits, manual
+    admin actions, retries).
     """
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
             INSERT INTO webhook_deliveries
-                (merchant_id, event_type, payload, next_retry_at, created_at)
-            VALUES ($1, $2, $3::jsonb, now(), now())
+                (merchant_id, event_type, payload,
+                 next_retry_at, created_at, originating_request_id)
+            VALUES ($1, $2, $3::jsonb, now(), now(), $4)
             RETURNING id::text
             """,
             UUID(merchant_id),
             event_type,
             json.dumps(payload),
+            request_id,
         )
     logger.info(
-        "webhook queued merchant=%s event=%s delivery=%s",
-        merchant_id, event_type, row["id"],
+        "webhook queued merchant=%s event=%s delivery=%s req_id=%s",
+        merchant_id, event_type, row["id"], request_id or "-",
     )
     return row["id"]

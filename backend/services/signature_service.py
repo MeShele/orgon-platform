@@ -72,7 +72,8 @@ class SignatureService:
     async def sign_transaction(
         self,
         tx_unid: str,
-        user_address: Optional[str] = None
+        user_address: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> dict:
         """
         Sign (approve) a transaction.
@@ -80,6 +81,9 @@ class SignatureService:
         Args:
             tx_unid: Transaction unique ID
             user_address: EC address of signer (for logging)
+            request_id: X-Request-Id of the API call producing this signature
+                (correlates row in signature_history with access log / webhook).
+                None for system-driven signs (e.g. scheduler retries).
 
         Returns:
             API response (typically empty dict on success)
@@ -115,9 +119,10 @@ class SignatureService:
             try:
                 await self._db.execute(
                     """INSERT INTO signature_history
-                       (tx_unid, signer_address, action, signed_at)
-                       VALUES ($1, $2, $3, $4)""",
-                    (tx_unid, user_address, "signed", datetime.now(timezone.utc))
+                       (tx_unid, signer_address, action, signed_at, request_id)
+                       VALUES ($1, $2, $3, $4, $5)""",
+                    (tx_unid, user_address, "signed",
+                     datetime.now(timezone.utc), request_id)
                 )
             except asyncpg.UniqueViolationError as exc:
                 raise DuplicateSignatureError(
@@ -148,7 +153,8 @@ class SignatureService:
         self,
         tx_unid: str,
         reason: str = "",
-        user_address: Optional[str] = None
+        user_address: Optional[str] = None,
+        request_id: Optional[str] = None,
     ) -> dict:
         """
         Reject a transaction.
@@ -157,6 +163,8 @@ class SignatureService:
             tx_unid: Transaction unique ID
             reason: Rejection reason (optional)
             user_address: EC address of rejector (for logging)
+            request_id: X-Request-Id of the API call producing this signature
+                (correlates row in signature_history with access log).
 
         Returns:
             API response (typically empty dict on success)
@@ -188,14 +196,15 @@ class SignatureService:
             try:
                 await self._db.execute(
                     """INSERT INTO signature_history
-                       (tx_unid, signer_address, action, reason, signed_at)
-                       VALUES ($1, $2, $3, $4, $5)""",
+                       (tx_unid, signer_address, action, reason, signed_at, request_id)
+                       VALUES ($1, $2, $3, $4, $5, $6)""",
                     (
                         tx_unid,
                         user_address,
                         "rejected",
                         reason,
-                        datetime.now(timezone.utc)
+                        datetime.now(timezone.utc),
+                        request_id,
                     )
                 )
             except asyncpg.UniqueViolationError as exc:

@@ -650,7 +650,12 @@ class ComplianceService:
     # when multiple rules trigger, the strictest action wins
     # (block > hold > alert).
 
-    _ACTION_PRIORITY = {"alert": 0, "hold": 1, "block": 2}
+    # Strictness ladder. `request_approval` sits at the same rung as
+    # `hold` for verdict resolution — both put the tx in `on_hold`
+    # status — but they emit different audit/webhook trails so the
+    # downstream approval-engine (E-08) can pick request_approval rows
+    # to enqueue without grabbing manual-hold rows.
+    _ACTION_PRIORITY = {"alert": 0, "request_approval": 1, "hold": 1, "block": 2}
 
     async def evaluate_transaction_rules(
         self,
@@ -681,7 +686,7 @@ class ComplianceService:
             rules = await conn.fetch(
                 """
                 SELECT id, organization_id, rule_name, rule_type,
-                       rule_config, action, severity
+                       rule_config, action, severity, scope
                 FROM transaction_monitoring_rules
                 WHERE is_active = TRUE
                   AND (organization_id = $1 OR organization_id IS NULL)
@@ -694,6 +699,15 @@ class ComplianceService:
                 cfg = rule["rule_config"] or {}
                 if isinstance(cfg, str):
                     cfg = json.loads(cfg)
+
+                scope = rule["scope"] if "scope" in rule.keys() else {}
+                if isinstance(scope, str):
+                    try:
+                        scope = json.loads(scope)
+                    except Exception:
+                        scope = {}
+                if not self._tx_matches_scope(scope or {}, tx):
+                    continue
 
                 try:
                     fired = await self._rule_fired(conn, rule_type, cfg, tx, org_id)
@@ -729,13 +743,104 @@ class ComplianceService:
                     "alert_id": str(alert_id) if alert_id else None,
                 })
 
+                # Non-alert actions emit `policy.triggered` so a merchant
+                # can react in real time (push to compliance officer,
+                # auto-reject on the partner side, etc.). `alert` is
+                # informational only — no webhook for noise control.
+                if action != "alert" and rule["organization_id"] is not None:
+                    await self._publish_policy_triggered(
+                        merchant_id=str(rule["organization_id"]),
+                        rule=rule,
+                        action=action,
+                        alert_id=alert_id,
+                        tx=tx,
+                    )
+
         # Strictest action wins. Default verdict = allow when nothing fired.
+        # request_approval rides the same "hold" rung in `_ACTION_PRIORITY`
+        # so the tx-flow puts it in on_hold — E-08 (approval workflow)
+        # will pick those rows out by the explicit action label.
         verdict = "allow"
         if any(t["action"] == "block" for t in triggered):
             verdict = "block"
-        elif any(t["action"] == "hold" for t in triggered):
+        elif any(t["action"] in ("hold", "request_approval") for t in triggered):
             verdict = "hold"
         return {"triggered": triggered, "verdict": verdict}
+
+    @staticmethod
+    def _tx_matches_scope(scope: Dict[str, Any], tx: Dict[str, Any]) -> bool:
+        """Return True iff this tx falls inside the rule's scope.
+
+        Empty / missing scope = applies to every tx (back-compat with
+        rules created before migration 051).
+        """
+        if not scope:
+            return True
+        wallet_ids = scope.get("wallet_ids") or []
+        if wallet_ids:
+            # `tx` may carry wallet_id (uuid str) or wallet_name; we
+            # gate on whichever the caller passed.
+            tx_wallet_id = tx.get("wallet_id")
+            if not tx_wallet_id or str(tx_wallet_id) not in {str(w) for w in wallet_ids}:
+                return False
+        networks = scope.get("networks") or []
+        if networks:
+            tx_net = tx.get("network")
+            try:
+                tx_net_int = int(tx_net) if tx_net is not None else None
+            except (TypeError, ValueError):
+                tx_net_int = None
+            if tx_net_int is None or tx_net_int not in {int(n) for n in networks}:
+                return False
+        return True
+
+    async def _publish_policy_triggered(
+        self,
+        *,
+        merchant_id: str,
+        rule,
+        action: str,
+        alert_id: Optional[UUID],
+        tx: Dict[str, Any],
+    ) -> None:
+        """Best-effort. Never blocks rule evaluation."""
+        try:
+            from backend.services.webhook_publisher import (
+                publish_event,
+                EV_POLICY_TRIGGERED,
+            )
+            await publish_event(
+                self.pool,
+                merchant_id=merchant_id,
+                event_type=EV_POLICY_TRIGGERED,
+                payload={
+                    "rule_id": str(rule["id"]),
+                    "rule_name": rule["rule_name"],
+                    "rule_type": rule["rule_type"],
+                    "severity": rule["severity"],
+                    "action": action,
+                    "alert_id": str(alert_id) if alert_id else None,
+                    "tx": {
+                        "transaction_id": (
+                            str(tx["transaction_id"])
+                            if tx.get("transaction_id") else None
+                        ),
+                        "to_address": tx.get("to_address"),
+                        "value": str(tx.get("value", "")),
+                        "token": tx.get("token"),
+                        "network": tx.get("network"),
+                        "wallet_id": (
+                            str(tx["wallet_id"]) if tx.get("wallet_id") else None
+                        ),
+                    },
+                },
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger("orgon.compliance.rules").warning(
+                "policy.triggered publish failed for rule %s: %s",
+                rule.get("rule_name"), exc,
+            )
 
     # ────────────────────────────────────────────────────────────────
     # Rule-type implementations
@@ -749,13 +854,33 @@ class ComplianceService:
         tx: Dict[str, Any],
         org_id: Optional[UUID],
     ) -> bool:
-        """Dispatch to the right checker. Unknown type → no-op."""
+        """Dispatch to the right checker. Unknown type → no-op.
+
+        Existing types `threshold` / `velocity` / `blacklist_address`
+        remain unchanged for back-compat with rules created before
+        migration 051. New types added in E-07:
+          * `velocity_amount_usd` — sum-of-value over window, not count
+          * `recipient_whitelist` — fire when `to_address` is NOT in the
+            allowlist (inverse-blacklist semantics)
+          * `time_window`        — fire when local hour falls outside the
+            allowed range (e.g. 02:00–06:00 UTC blocked)
+          * `recipient_geo_block` — stub; geo lookup not wired yet,
+            always returns False with a warning log on first sight.
+        """
         if rule_type == "threshold":
             return self._check_threshold(cfg, tx)
         if rule_type == "velocity":
             return await self._check_velocity(conn, cfg, org_id)
         if rule_type == "blacklist_address":
             return self._check_blacklist(cfg, tx)
+        if rule_type == "velocity_amount_usd":
+            return await self._check_velocity_amount(conn, cfg, org_id)
+        if rule_type == "recipient_whitelist":
+            return self._check_recipient_whitelist(cfg, tx)
+        if rule_type == "time_window":
+            return self._check_time_window(cfg)
+        if rule_type == "recipient_geo_block":
+            return self._check_recipient_geo_block_stub(cfg, tx)
         return False
 
     @staticmethod
@@ -799,6 +924,83 @@ class ComplianceService:
             cutoff,
         )
         return bool(row) and int(row["n"] or 0) >= int(count_threshold)
+
+    async def _check_velocity_amount(
+        self,
+        conn,
+        cfg: Dict[str, Any],
+        org_id: Optional[UUID],
+    ) -> bool:
+        """Sum-of-value over window. Fires when window total exceeds
+        `amount_usd` threshold. Independent of `velocity` (count-based)."""
+        if org_id is None:
+            return False
+        amount_threshold = cfg.get("amount_usd", cfg.get("amount"))
+        window_hours = cfg.get("window_hours", 24)
+        if amount_threshold is None:
+            return False
+        try:
+            limit = Decimal(str(amount_threshold))
+        except Exception:
+            return False
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=int(window_hours))
+        # `value` is text in transactions schema — coerce in SQL.
+        row = await conn.fetchrow(
+            """
+            SELECT COALESCE(SUM(NULLIF(value, '')::numeric), 0) AS total
+            FROM transactions
+            WHERE organization_id = $1 AND created_at >= $2
+            """,
+            org_id,
+            cutoff,
+        )
+        return bool(row) and Decimal(str(row["total"] or 0)) > limit
+
+    @staticmethod
+    def _check_recipient_whitelist(cfg: Dict[str, Any], tx: Dict[str, Any]) -> bool:
+        """Fire when `to_address` is NOT in `addresses`. Treat empty
+        allowlist as "no allowlist configured" — do not fire (operator
+        wouldn't define an empty whitelist on purpose)."""
+        allow = cfg.get("addresses") or []
+        if not allow:
+            return False
+        target = (tx.get("to_address") or "").lower()
+        if not target:
+            # Missing recipient is a bigger problem than whitelist, but
+            # this rule isn't the one to flag it. Defer to validation.
+            return False
+        return not any(str(a).lower() == target for a in allow)
+
+    @staticmethod
+    def _check_time_window(cfg: Dict[str, Any]) -> bool:
+        """Fire when current UTC hour is INSIDE the blocked window.
+        Config: `{"blocked_hours_utc": [2, 3, 4, 5]}` (inclusive list).
+        Empty list = nothing blocked = never fires."""
+        blocked = cfg.get("blocked_hours_utc") or []
+        if not blocked:
+            return False
+        try:
+            blocked_set = {int(h) for h in blocked}
+        except (TypeError, ValueError):
+            return False
+        return datetime.now(timezone.utc).hour in blocked_set
+
+    @staticmethod
+    def _check_recipient_geo_block_stub(
+        cfg: Dict[str, Any], tx: Dict[str, Any]
+    ) -> bool:
+        """Geo-lookup not wired. Documenting the contract so a rule of
+        this type can be created in the UI without quietly mis-firing.
+        Always returns False; logs once per-process for visibility."""
+        import logging
+        log = logging.getLogger("orgon.compliance.rules")
+        if not getattr(ComplianceService._check_recipient_geo_block_stub, "_warned", False):
+            log.warning(
+                "recipient_geo_block rule type is a stub — geo lookup "
+                "is not wired; rules of this type never fire. Track in E-09."
+            )
+            ComplianceService._check_recipient_geo_block_stub._warned = True  # type: ignore[attr-defined]
+        return False
 
     async def _record_rule_alert(
         self,
@@ -928,8 +1130,18 @@ class ComplianceService:
     # logging. Idempotency is the caller's problem (DB has no UNIQUE
     # constraint on rule_name).
 
-    SUPPORTED_RULE_TYPES = ("threshold", "velocity", "blacklist_address")
-    SUPPORTED_RULE_ACTIONS = ("alert", "hold", "block")
+    SUPPORTED_RULE_TYPES = (
+        # legacy / Wave 23 — do not remove without a CHANGELOG entry
+        "threshold",
+        "velocity",
+        "blacklist_address",
+        # E-07 extensions (migration 051)
+        "velocity_amount_usd",
+        "recipient_whitelist",
+        "time_window",
+        "recipient_geo_block",   # stub until geo provider lands (E-09)
+    )
+    SUPPORTED_RULE_ACTIONS = ("alert", "hold", "block", "request_approval")
     SUPPORTED_RULE_SEVERITIES = ("low", "medium", "high", "critical")
 
     async def list_monitoring_rules(

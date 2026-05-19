@@ -10,13 +10,12 @@ Per tick:
   4. 2xx → mark delivered_at; non-2xx or exception → bump attempts
      and schedule next_retry_at with exponential backoff (capped).
 
-Retry policy:
-    attempt 1  →   30s
-    attempt 2  →    2m
-    attempt 3  →   10m
-    attempt 4  →    1h
-    attempt 5  →    6h
-    attempt 6+ →  give up (mark delivered_at = NULL, attempts = 99 sentinel)
+Retry schedules — both run six attempts then give up. v2 stretches the
+tail so a partner with a 6h outage still has the burst-friendly first
+two retries plus a wide enough window to recover before we abandon.
+
+  v1 (default; legacy):  30s   2m   10m    1h    6h   6h
+  v2 (WEBHOOK_RETRY_V2=1):  1m  12m   2h    8h   24h  24h
 
 We pick at most 50 events per tick so a slow merchant endpoint
 can't starve the rest of the queue.
@@ -28,6 +27,7 @@ import hashlib
 import hmac
 import json
 import logging
+import os
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -39,10 +39,21 @@ BATCH_SIZE = 50
 HTTP_TIMEOUT_S = 8.0
 GIVE_UP_ATTEMPTS = 6
 
+# Public, stable. Either schedule MUST sum-tail to <= 31d (retention
+# horizon set in 049_webhook_retention.sql) so we never give up on
+# a row that will then be reaped before any operator sees the failure.
+_RETRY_V1 = {1: 30, 2: 120, 3: 600, 4: 3600, 5: 21_600}            # 30s/2m/10m/1h/6h
+_RETRY_V2 = {1: 60, 2: 720, 3: 7200, 4: 28_800, 5: 86_400}         # 1m/12m/2h/8h/24h
+
+
+def _use_retry_v2() -> bool:
+    """Env-flagged so we can roll v2 out per environment without a redeploy."""
+    return os.environ.get("WEBHOOK_RETRY_V2", "").lower() in ("1", "true", "yes", "on")
+
 
 def _backoff_seconds(attempt: int) -> int:
-    schedule = {1: 30, 2: 120, 3: 600, 4: 3600, 5: 21_600}
-    return schedule.get(attempt, 21_600)
+    schedule = _RETRY_V2 if _use_retry_v2() else _RETRY_V1
+    return schedule.get(attempt, schedule[5])
 
 
 async def run_tick(pool) -> dict:
@@ -107,6 +118,11 @@ async def _deliver_one(pool, client: httpx.AsyncClient, r, stats: dict) -> None:
         "Content-Type": "application/json",
         "X-ORGON-Webhook-Timestamp": str(ts_ms),
         "X-ORGON-Webhook-Signature": sig,
+        # Stable identifier of this *delivery attempt sequence*. Same
+        # value across retries — consumer dedupes on it for exactly-once.
+        # Both header names emit the same value; -Event-Id is the
+        # public name going forward, -Id stays as a legacy alias.
+        "X-ORGON-Webhook-Event-Id": delivery_id,
         "X-ORGON-Webhook-Id": delivery_id,
         "X-ORGON-Webhook-Event": r["event_type"],
         "User-Agent": "Orgon-Webhook/1.0",

@@ -51,6 +51,15 @@ const nextConfig: NextConfig = {
         source: '/v1/:path*',
         destination: `${apiUrl}/v1/:path*`,
       },
+      // Platform master-key API (Wave 33). Used by asystem-core's
+      // edge layer to self-provision merchants without a human in the
+      // loop. Same proxy pattern as /v1/* — middleware excludes
+      // /platform from the auth-redirect, this rewrite forwards
+      // bytes-for-bytes to the backend's PlatformMasterAuthMiddleware.
+      {
+        source: '/platform/:path*',
+        destination: `${apiUrl}/platform/:path*`,
+      },
       // WebSocket endpoint for real-time updates. Next.js rewrites
       // forward upgrade headers when the destination supports WS, so
       // /ws/updates → backend's FastAPI websocket handler at the same

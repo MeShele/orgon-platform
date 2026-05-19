@@ -7,6 +7,943 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 38 — UX-audit script + dead-link sweep (2026-05-20)
+
+Defensive safety net for everything shipped in Waves 30-37. The
+user-facing complaint behind this sprint: "не было нерабочих ссылок,
+страниц, кнопок" — Эльдар discovers a 404 in the dashboard the
+moment we let one slip through. Wave 38 adds a static-analysis tool
+that catches them before merge.
+
+### New: `frontend/scripts/audit-routes.mjs`
+
+Pure-Node ESM script (no deps, no TS-compile) that:
+
+* Walks `src/app/` to enumerate every Next.js page route, stripping
+  `(group)` parens and converting `[param]` slots into regex
+  wildcards. Found 51 routes on first run.
+* Walks every `.tsx` / `.ts` under `src/` and extracts literal
+  internal links from four patterns:
+  * `href="/…"` (anchors, `<Link>`, motion components)
+  * `href={"/…"}` (jsx expression with literal)
+  * `router.push("/…")` / `router.replace("/…")` / `router.prefetch("/…")`
+  * `redirect("/…")` (server actions / RSC)
+* Skips intentional non-routes: external URLs, `mailto:` / `tel:`,
+  anchors, JS pseudo-URLs, backend prefixes (`/api/`, `/v1/`,
+  `/platform/`), API docs (`/api/docs` etc.).
+* Diffs the found links against the route regexes; exits 1 with
+  a structured list of orphans (each url + every file referencing
+  it).
+
+New `npm run audit:ux` script in `frontend/package.json`. Documented
+in `CONTRIBUTING.md` under the existing Tests section.
+
+### Orphans found and fixed
+
+The first run surfaced four real orphans that would have produced
+404s for users:
+
+1. **`/pricing`** — referenced 3× (Hero, /about, /features). No
+   page existed. **Fixed**: created `(public)/pricing/page.tsx`
+   with four real tiers (Sandbox $0 / Starter $299 / Growth $1499
+   / Enterprise по запросу), each tier listing real platform
+   features (testnet-only for sandbox, AML rule engine + SAR
+   pipeline for Starter+, Финнадзор reporting + treasury endpoints
+   for Growth, per-tenant DB + M-of-N approval for Enterprise).
+   Honest CTAs (mailto: support, /register).
+
+2. **`/privacy`** — referenced from `/register`. **Fixed**:
+   created `(public)/privacy/page.tsx` — honest stub describing
+   actual data handling today (PostgreSQL in KG, pgcrypto
+   encryption, three categories of third parties — Финнадзор,
+   KYC providers, Safina Pay). Marked as pending legal review;
+   surface contact path so users aren't stuck.
+
+3. **`/terms`** — referenced from `/register`. **Fixed**:
+   created `(public)/terms/page.tsx` — describes who can use ORGON
+   (licensed VASPs only), the operator's AML/KYC responsibility
+   under their own license, prohibited operations, SLA fair-use,
+   and termination procedure. Same legal-review pending banner +
+   contact path.
+
+4. **`/settings/webhooks`** — referenced from `/settings` admin
+   tiles. **Fixed**: created
+   `(authenticated)/settings/webhooks/page.tsx` — resolves the
+   operator's merchant via `/api/organizations`, displays current
+   webhook URL + sandbox/live status, links to the admin merchant
+   detail page for actual editing (where the WebhookEditor already
+   lives). Right shape — read-only view here, full edit at
+   `/admin/merchants/[id]`. No duplicate logic.
+
+### Post-fix audit
+
+```
+audit-routes: 51 routes, 25 unique internal links scanned
+audit-routes: OK — every internal link resolves to a known route.
+```
+
+Backend: 102 tests pass across Sprints 1-11 (no regressions —
+Wave 38 is frontend-only).
+
+### Docs
+
+* `CONTRIBUTING.md` — `npm run audit:ux` listed in the Tests
+  section with the script's purpose + extension hint.
+* CHANGELOG entry (this).
+
+### Process change
+
+Going forward, **every PR that touches navigation should run
+`npm run audit:ux`** before merge. The script is fast (~100ms),
+deterministic, and surfaces the most embarrassing class of UX bug
+(404 inside the dashboard) before users see it. Considered making
+it a pre-commit hook; left it as an npm script for now so devs can
+choose their own pre-commit / CI integration timing.
+
+### What's NOT in this wave
+
+* **Empty-state audit** — separate concern (each page must render
+  with empty data). Spot-checked manually but not automated; would
+  need a dev-server smoke harness against a clean DB. Reserved
+  for a follow-up wave.
+* **Dead onClick detector** — grep `onClick={()=>{}}` / `onClick={undefined}`
+  / `// TODO` near buttons. Easy to write, more false positives
+  than route audit; deferred.
+* **i18n coverage** — `ru.json` / `en.json` parity check (every
+  user-facing string keyed). Deferred.
+* **Mobile-view audit** — Playwright screenshot at 375x667 viewport
+  for each authenticated page. Requires Playwright already to be
+  set up (it is — see `frontend/e2e/`), but the screenshot diff
+  pipeline is a real epic.
+
+These are documented as Wave 38 follow-ups; each adds incremental
+defence. Route audit was the highest-leverage of the set —
+shipped now, the others ship when prod incidents surface their
+absence.
+
+---
+
+## Wave 37 — `transaction.uncertain` 10-min preview signal (2026-05-20)
+
+Closes Айбек's dead zone between "Safina accepted my signature" and
+"tx_hash exists". Today that gap can be anywhere from 0s to 24h
+before the `transaction.failed` sweep (Wave 31) declares the payout
+dead. Айбек's exchanger has no signal in the middle — silent
+spinner, growing impatience, support ticket. This wave gives the
+exchanger an earlier honest warning (~10 minutes after signing) so
+the UI can render "checking, usually finishes in ~1 min, sometimes
+longer; contact support if it worries you" instead of nothing.
+
+### `transaction.uncertain` event — live
+
+* New `EV_TX_UNCERTAIN = "transaction.uncertain"` in
+  `webhook_publisher.py`.
+* New `backend/services/transaction_uncertain_sweep.py:run_tick(pool,
+  *, timeout_minutes)`. Atomic `UPDATE ... FOR UPDATE SKIP LOCKED
+  ... RETURNING` flips eligible rows from "not yet warned" to
+  "warned at now()" and surfaces the row data needed for the
+  webhook payload. **Does NOT change `status`** — the row stays in
+  `signed`; the 24h failure sweep is the one that flips to `failed`.
+* Eligibility: `status='signed'` AND `(tx_hash IS NULL OR tx_hash='')`
+  AND `updated_at < now() - <timeout_minutes>` AND
+  `organization_id IS NOT NULL` AND `uncertain_emitted_at IS NULL`.
+* Per-row at-most-once gate via the new `uncertain_emitted_at`
+  column. Retry-tick caused by webhook queue blip never re-fires
+  the warning for the same tx.
+* Scheduler job `transaction_uncertain_sweep` with
+  `IntervalTrigger(minutes=5)` — checking every 5 min so the
+  10-min threshold has at most ~5 min of additional latency.
+* Threshold env `TX_UNCERTAIN_TIMEOUT_MINUTES` (default 10).
+  Garbage / zero / negative values fall back to default — never
+  crashes the scheduler tick.
+
+### Migration 056
+
+`transactions.uncertain_emitted_at timestamptz` (nullable). Partial
+index `idx_transactions_uncertain_sweep ON (status, updated_at)
+WHERE uncertain_emitted_at IS NULL AND status = 'signed'` — keeps
+the sweep scan narrow even as the table grows. Idempotent.
+
+### Event semantics (documented in WEBHOOKS.md + playbook)
+
+`transaction.uncertain` is **non-terminal** by design. After it
+fires, three possible futures:
+
+1. Safina catches up → `transaction.broadcasted` + `confirmed` for
+   the same `tx_id`. Treat as "false alarm resolved", clear the
+   warning.
+2. Stays stuck 24h → `transaction.failed` fires. Treat as
+   definitively dead.
+3. Other resolution (admin manual reject, etc.) — only signal on
+   `/v1/*` is the eventual `transaction.failed`.
+
+Payload mirrors `broadcasted`/`failed` shape with `tx_hash: null`
+plus two uncertain-specific fields:
+
+* `stuck_seconds` — how long since the signature, useful for UI
+  timer rendering.
+* `next_check_in` — human-readable hint pointing at the 24h
+  failure sweep.
+
+### Tests
+
+`backend/tests/test_transaction_uncertain_sweep.py` — 8 cases:
+
+* SQL eligibility predicate (5 clauses + `FOR UPDATE SKIP LOCKED` +
+  no status mutation + correct params)
+* No-op when nothing stuck
+* Payload contract pinning (incl. stuck_seconds + next_check_in)
+* Per-row publish failure doesn't skip remaining rows
+* Env override (positive int)
+* Env override ignores garbage / zero / negative
+* Explicit timeout_minutes wins over env
+
+All 102 cumulative tests pass across Sprints 1-11.
+
+### Docs
+
+* `WEBHOOKS.md` — new event entry between `transaction.confirmed`
+  and `transaction.failed`, with full payload example + three-future
+  state diagram.
+* `ASYSTEM_INTEGRATION_PLAYBOOK.md` event table row + new §7
+  footgun "`transaction.uncertain` → `failed` → `broadcasted`
+  ordering" — ASCII diagram of the 0→10min→24h+ lifecycle and the
+  handler state-machine that consumes it.
+* `DEPLOYMENT.md` — new env-var row `TX_UNCERTAIN_TIMEOUT_MINUTES`.
+* CHANGELOG entry (this).
+
+### What's NOT in this wave
+
+* **Front-end** on Orgon side — none needed. This is a webhook
+  event consumed by asystem-core's `orgon-webhook` edge function;
+  the visible UX is in their dashboard, not ours.
+* **Proper "still pending" tracking** — when Safina has a real
+  pending-broadcast indicator (instead of "no tx_hash" = "stuck or
+  in flight, can't tell"), `uncertain` retires. The contract is
+  forward-compatible: consumers that treated it as informational
+  will just stop receiving it.
+
+---
+
+## Wave 36 — SAR email backend enrichments (compliance officer saves ~4h/mo) (2026-05-19)
+
+Closes the longest manual compliance workflow on the operator side.
+Before: compliance officer ran `manual_export` on every SAR, downloaded
+JSON + Markdown, manually filled the Финнадзор Excel template by
+copy-paste, uploaded to the regulator portal, kept a copy in his own
+inbox — ~5 min × ~50 alerts/month = ~4h/mo of pure clerical work.
+After: email backend auto-sends to the regulator with a CSV
+attachment ready for the form template, archives full payload as
+JSON, narrates the case in Markdown, CCs the officer's address for
+his own records, and tags every submission with a stable
+human-readable reference for inbox triage.
+
+### Email backend enrichments
+
+`_backend_email` in `regulators/finsupervisory/submission_backends.py`:
+
+* **Stable `external_reference`** — `ORGON-SAR-<8-hex>-<unix_ts>` per
+  submission. Returned even when SMTP fails, so the failed-row in
+  `sar_submissions` can still be correlated with retries / regulator
+  follow-ups by reference. Earlier behaviour was to leave the column
+  `NULL` until manual ack, which made cross-channel correspondence
+  awkward.
+* **CSV attachment** (`<ref>.csv`) — flat one-row table with the
+  load-bearing SAR columns (external_reference, alert_id, severity,
+  rule_name, tx_hash, value, token, addresses, org name+INN+address,
+  officer name+email+phone). Compliance officer pastes the row into
+  the Финнадзор form template in seconds instead of copying nested
+  JSON fields by hand. We chose CSV over xlsx to avoid adding the
+  `openpyxl` dep — every Excel since 2003 imports CSV natively.
+* **Markdown attachment** (`<ref>.md`) — the rendered narrative.
+  Already sent in the body, also attached for archival.
+* **JSON attachment** (`<ref>.json`) — unchanged, full payload for
+  machine-readable regulator-side archive.
+* **CC support** — new env `FINSUPERVISORY_SAR_CC` adds the
+  compliance officer's own address to every send. They keep their
+  own paper trail without setting up an inbox forwarder.
+* **Improved subject** — `[<ref>] SAR <SEVERITY> — <org> — alert <short>`.
+  Inbox-triage-friendly: the reference is searchable, severity is
+  loud, org disambiguates multi-tenant inboxes.
+* **`build_external_reference(payload)`** helper extracted —
+  unit-testable, reused for any future channel that needs the same
+  reference format.
+* **`_payload_to_csv_bytes(payload)`** helper — stable column order
+  by design, header row always present, NULLs render as empty
+  string (no `,None,` bleed-through).
+
+### Backend status indicator
+
+New endpoint `GET /api/v1/compliance/sar/config` returns:
+
+```json
+{
+  "backend":          "email",
+  "ready":            true,
+  "missing_env":      [],
+  "target_email":     "compliance@fiu.gov.kg",
+  "cc_email":         "officer@acme.kg",
+  "smtp_configured":  true,
+  "known_backends":   ["api_v1", "dryrun", "email", "manual_export"]
+}
+```
+
+Surfaced via `describe_active_config()` in
+`submission_backends.py` — pure env-read, no DB hit, no secrets in
+the response (SMTP creds reduced to a boolean).
+
+### Frontend: SAR backend status bar
+
+New `<SarBackendIndicator>` Card right under the stats grid on
+`/compliance`, polled every 60s via SWR:
+
+* Backend chip (green when `ready`, amber when env gaps)
+* "Готов" / "Требует настройки" status label
+* For email mode: target address + CC address + SMTP OK/нет chip
+* When `missing_env` non-empty: warning line listing the exact env
+  var names so the compliance officer knows what to ask infra for
+* Tooltip on the backend chip explaining each mode's behaviour
+
+This is the load-bearing UX deliverable — the compliance officer
+finally knows at a glance whether SAR submissions are flowing
+through the auto-channel or sitting in `manual_export` waiting for
+them to bring the files over personally.
+
+### Tests
+
+`backend/tests/test_sar_email_enrichments.py` — 13 cases:
+
+* `build_external_reference` format (`ORGON-SAR-<short>-<ts>`),
+  short prefix is 8 chars of stripped alert UUID, timestamp ≥ 10 digits.
+* `_payload_to_csv_bytes` stable header row, payload field
+  round-trip, NULL handling.
+* `describe_active_config` for all 4 backends + unknown garbage +
+  email-with-complete-env + email-with-missing-env.
+* Email backend SMTP integration via stubbed `smtplib.SMTP`:
+  - 3 attachments (CSV, JSON, MD) present with correct filenames
+  - Subject contains reference + severity
+  - CC header set when `FINSUPERVISORY_SAR_CC` env present, omitted otherwise
+  - SMTP failure still returns `external_reference` (correlation
+    survives the failure)
+
+All 19 pre-existing SAR tests in `test_sar_generator.py` still pass —
+the refactor is fully back-compat (api_v1 stays `NotImplementedError`,
+manual_export and dryrun unchanged, email's contract widened
+without breaking the existing fail-without-env cases).
+
+94 tests pass across Sprints 1-10.
+
+### Boot smoke
+
+214 routes; `/api/v1/compliance/sar/config` registered alongside
+the existing compliance routers.
+
+### Docs
+
+* `DEPLOYMENT.md` — three new env-var rows (`FINSUPERVISORY_SAR_BACKEND`,
+  `FINSUPERVISORY_SAR_EMAIL`, `FINSUPERVISORY_SAR_CC`).
+* CHANGELOG entry (this).
+
+### What's NOT in this wave
+
+* **xlsx attachment** — deferred. CSV is enough for the form-paste
+  workflow today, and adding `openpyxl` to the deployment surface
+  isn't worth it for one column.
+* **api_v1 backend** — remains a `NotImplementedError` stub.
+  Финнадзор has not published a SAR API spec. When they do, this is
+  the right place to wire it (same `submit` interface, no caller
+  changes).
+* **Auto-acknowledgement parsing** — when the regulator replies with
+  a reference number, we still update `sar_submissions.status` by
+  hand. Auto-parsing reply emails for the regulator's reference is
+  a separate epic (heuristic + regex + human review pipeline).
+
+---
+
+## Wave 35 — Deposit lookup by tx_hash (wrong-network rescue) (2026-05-19)
+
+Closes the highest-volume KG-crypto support ticket — "я отправил
+USDT, где деньги" — by giving support a single API + UI surface
+that turns a 30-minute explorer-decoding session into a 5-second
+lookup. Bottom-up motivation from the USM/CJM analysis: this is the
+most common cause of Айбек falling out of the funnel, and the most
+expensive support hour the operator pays for.
+
+### New endpoints
+
+```
+GET /v1/deposits/lookup?tx_hash=…&include_offchain=false
+GET /api/admin/merchants/{id}/deposits/lookup?tx_hash=…&include_offchain=false
+```
+
+Both routes return the same shape — admin UI and external
+orchestrator render from one contract. Body:
+
+```json
+{
+  "tx_hash":   "0xabc…",
+  "found":     true | false,
+  "deposits":  [ /* every matching row, sorted by log_index ASC */ ],
+  "hint":      null | "<structured explanation of likely failure mode>",
+  "offchain_lookup": {                    // present only when include_offchain=true
+    "supported": false,
+    "hint":      "<not yet implemented; check explorer manually>"
+  }
+}
+```
+
+Scope: only the caller's merchant. Cross-merchant `tx_hash`
+collisions never leak — the SQL filters on `merchant_id` first.
+Empty result is a 200 with `found: false`, NOT a 404 — the lookup
+itself succeeded.
+
+The most common path is `found: false`: user sent crypto to a
+wrong-network address. The `hint` field carries a multi-line
+explanation referencing tronscan / etherscan / mempool.space so
+support has UI text to render without prose-fishing.
+
+### Service
+
+New `backend/services/merchant_deposit_lookup_service.py`:
+
+* `lookup_by_tx_hash(pool, merchant_id, tx_hash)` — DB-only search
+  with `ORDER BY log_index ASC` for multi-transfer (ETH/ERC-20
+  batch) txs.
+* `build_lookup_response(tx_hash, deposits, include_offchain)` —
+  single source-of-truth for the response shape; both routes use it.
+* `_row_to_public` parallels `_deposit_to_public` in routes_public_v1
+  by repetition (not import) — keeps the listing endpoint's contract
+  independent so a refactor on one side doesn't narrow the other.
+
+### Migration 055
+
+`idx_deposits_merchant_tx_hash ON deposits (merchant_id, tx_hash)` —
+composite leading on `merchant_id` since every supported query path
+filters by it. Backwards-compatible: existing `(network, tx_hash,
+log_index)` UNIQUE and `idx_deposits_merchant` stay. Idempotent.
+
+### What's NOT in this wave (intentionally)
+
+**Cross-network (offchain) discovery** — when a user sent crypto to
+a Safina-owned address on the **wrong** network (USDT-TRC20 hitting
+your ETH wallet's watcher) — we never see those in `deposits`. The
+right fix is to integrate chain explorer APIs (tronscan / etherscan
+/ mempool.space / blockstream) and Safina's own balance-by-address
+lookup. That's a real epic (rate limit handling, API key
+management, retry semantics) — deferred to a future wave. The
+`include_offchain=true` parameter reserves the response slot so we
+can wire it without contract churn.
+
+Today `include_offchain=true` returns a structured "not yet
+supported" hint with a pointer to `support@orgon.asystem.kg` for
+manual recovery from Safina-side hot wallet balances on a
+case-by-case basis.
+
+### Frontend
+
+New `<DepositLookupSection>` card on `/admin/merchants/[id]`,
+between Treasury and Invoices. Full UX coverage:
+
+* Input + "Найти" button. Enter key triggers search.
+* Checkbox "Искать также вне наших wallet'ов" — UI surface for the
+  deferred offchain feature; today triggers the placeholder hint
+  rendering.
+* Loading state: "Ищу…" + disabled input.
+* Error state: red-bordered alert.
+* Empty state (no search yet): muted italic onboarding hint.
+* Result panel: green when found / amber when not, with structured
+  hint text under the badge.
+* Per-deposit row: amount + asset, status chip, network, count of
+  confirmations, from/to addresses (break-all for mobile), block
+  number + ISO timestamp formatted with `toLocaleString('ru-RU')`.
+* "Сбросить" clears all state.
+* `api.lookupMerchantDeposit(merchantId, txHash, includeOffchain)`
+  in `lib/api.ts`.
+
+### Tests
+
+`backend/tests/test_merchant_deposit_lookup.py` — 11 cases:
+
+* SQL scope verification — both `merchant_id` and `tx_hash` filters
+  present, ordering by `log_index ASC`.
+* Multi-transfer batch tx returns all rows.
+* Amount serialised as string (not float — Decimal precision
+  preservation across SDK boundaries).
+* block_timestamp serialised as ISO; null when missing.
+* Response shape: found=true, found=false with hint, offchain block
+  presence/absence, found+offchain combination.
+* `wrong-network` substring in the not-found hint — this is the
+  load-bearing UI text for support.
+
+62 tests pass across Sprints 1-9.
+
+### Boot smoke
+
+214 routes; both `/v1/deposits/lookup` and
+`/api/admin/merchants/{merchant_id}/deposits/lookup` registered.
+
+### Docs
+
+* `API.md` — endpoint catalog entry added under "Deposits".
+* `ASYSTEM_INTEGRATION_PLAYBOOK.md` §7 footgun — wrong-network
+  rescue paragraph with sample curl and links to explorers.
+* CHANGELOG entry (this).
+
+---
+
+## Wave 34 — `/v1/compliance/rules` CRUD (single pane of glass) (2026-05-19)
+
+Mirrors the JWT-side AML monitoring-rule CRUD onto the HMAC `/v1/*`
+surface so an external orchestrator — primarily asystem-core's
+admin — can manage AML config inside its own dashboard without
+operators jumping to a separate ORGON page. Bottom-up motivation:
+Эльдар's compliance officer was switching browser tabs every time
+they wanted to tweak a hold/block rule; cumulative time waste on a
+busy operator was ~hour/week.
+
+### New `/v1/*` endpoints
+
+```
+GET    /v1/compliance/rules                    list (merchant-scoped)
+POST   /v1/compliance/rules                    create, source='api'
+GET    /v1/compliance/rules/{rule_id}          read one
+PATCH  /v1/compliance/rules/{rule_id}          partial update
+DELETE /v1/compliance/rules/{rule_id}          hard delete (204)
+```
+
+Auth is the same HMAC layer as the rest of `/v1/*`. Scope is the
+caller's merchant only — **global rules** (`organization_id IS NULL`,
+ORGON-platform-wide policy) are never surfaced. A direct GET by a
+global rule's id returns `404`, not `200` — by design, an external
+orchestrator should not learn about platform-level policy through
+an enumeration channel.
+
+Cross-merchant `rule_id` lookups return `404` (never `403`) to
+prevent existence leaks.
+
+The `/v1/*` Pydantic models accept the full E-07 type vocabulary:
+`threshold` · `velocity` · `blacklist_address` · `velocity_amount_usd`
+· `recipient_whitelist` · `time_window` · `recipient_geo_block`, and
+all four actions (`alert` · `hold` · `block` · `request_approval`).
+The JWT route's legacy `Literal["threshold", "velocity",
+"blacklist_address"]` stays narrow for back-compat with old SDKs;
+new callers should use `/v1/*` to access the full set.
+
+Per-type config validation (`_validate_v1_rule_config`) mirrors the
+JWT route for the 3 legacy types; E-07 extensions accept opaque
+config — the rule engine validates at evaluation time, not at insert
+time. Match the existing JWT behavior, no harder.
+
+### Migration 054
+
+`transaction_monitoring_rules.source text NOT NULL DEFAULT 'ui'`.
+Free-text column (not enum) so future channels (CSV import,
+scheduled-template wizard, etc.) land without a schema bump.
+Historical rows backfill to `'ui'` via DEFAULT.
+
+### Service refactor (minimal, back-compat)
+
+* `ComplianceService.create_monitoring_rule` gains a `source: str =
+  "ui"` kwarg — existing call sites unchanged. New `/v1/*` route
+  passes `source="api"`.
+* `actor_user_id` widened from `int` to `Optional[int]` in
+  `create_monitoring_rule`, `update_monitoring_rule`,
+  `delete_monitoring_rule`, and `_write_rule_audit`. JWT route still
+  passes `int(user["id"])`; HMAC route passes `None` (machine actor,
+  audit_log row written with `user_id=NULL` — same pattern as
+  `merchant_self_provisioned` from Wave 33).
+* `MonitoringRule` Pydantic model (used by JWT route too) exposes
+  the new `source` field with a default of `"ui"` so the existing
+  dashboard renders it.
+
+### Frontend: "Источник" column on /compliance/rules
+
+* New column between "Скоуп" and the action buttons.
+* Shows pill `API` (primary-tone) with tooltip when `source='api'`;
+  shows muted `—` for the default `'ui'` channel — keeping the table
+  visually quiet for the common case.
+* `MonitoringRule` TS interface in `frontend/src/lib/amlRules.ts`
+  extended with `source?: 'ui' | 'api' | string` (optional for
+  forward-compat with future channels).
+
+### Tests
+
+`backend/tests/test_v1_compliance_rules.py` — 11 cases:
+
+* `create_monitoring_rule` writes `source='api'` and accepts
+  `actor_user_id=None`; INSERT params verified.
+* Default `source='ui'` for existing JWT call sites (back-compat).
+* `list_monitoring_rules` with `include_global=False` excludes the
+  `IS NULL` branch from WHERE — verified by SQL inspection.
+* Cross-merchant `get_monitoring_rule` returns None.
+* All 4 config validators: `threshold` requires `threshold_usd`;
+  `velocity` requires positive int `count`/`window_hours`;
+  `blacklist_address` requires non-empty string array;
+  4 E-07 types accept opaque config.
+* `_rule_to_public` shape pinned: includes `source`, excludes
+  `created_by` (no internal user_id leak to external orchestrators);
+  legacy rows with NULL `source` default to `'ui'`.
+
+51 tests pass across Sprints 1-8.
+
+### Boot smoke
+
+`backend.main` imports cleanly; 214 routes total; 5 new
+`/v1/compliance/rules*` routes registered alongside the 5 existing
+`/api/v1/compliance/rules*` JWT mirrors.
+
+### Docs
+
+* `API.md` — endpoint catalog updated with the 5 new entries.
+* `ASYSTEM_INTEGRATION_PLAYBOOK.md` — new §8 "AML rule management
+  (mirror compliance config)" with sample curl, response shape,
+  full type vocabulary, and what the surface deliberately doesn't
+  expose (global rules, other merchants, scope.wallet_ids).
+* CHANGELOG entry (this).
+
+### What's NOT in this wave
+
+* **Scope.wallet_ids** support in the Pydantic API. The engine
+  already honors `scope.wallet_ids` from migration 051; exposing it
+  through `/v1/*` requires wallet-id ownership validation (refuse to
+  apply a rule to a wallet of another merchant). Documented in the
+  playbook as "coming in a future wave".
+* **Scope.networks** — same reason, can ship without ownership
+  check, but better grouped with the wallet_ids work.
+
+---
+
+## Wave 33 — Self-service merchant onboarding via `/platform/*` (2026-05-19)
+
+Closes the bottleneck where every new asystem-core operator required
+a manual hand-off in Telegram to get Orgon credentials. asystem-core's
+edge layer can now provision Orgon merchants + first API-key pair in
+one call. New surface is a strictly isolated third auth-mechanism —
+different blast radius from JWT (`/api/*`) and HMAC (`/v1/*`).
+
+### New surface: `/platform/*` (master-key gated)
+
+* **`backend/api/middleware_platform_master.py`** —
+  `PlatformMasterAuthMiddleware`. Gates `/platform/*` behind a
+  `Authorization: Bearer <ORGON_PLATFORM_MASTER_KEY>`. Constant-time
+  comparison via `hmac.compare_digest`. Deliberate failure modes:
+  env unset → `503` with hint (opt-in surface, visible config
+  failure); header missing → `401 Bearer token required`; wrong
+  token → `401 Unauthorized` (no probe signal which side is wrong).
+  Non-`/platform/*` requests pass through untouched — middleware is a
+  no-op for `/api/*`, `/v1/*`, static, docs.
+* **`backend/api/routes_platform_admin.py`** —
+  `POST /platform/merchants`. Creates an `organizations` row +
+  generates a fresh per-merchant `safina_ec_private_key` + issues the
+  first API-key pair via `merchant_api_keys.issue_key`, all in one
+  request. Returns `secret_once` exactly once — caller MUST persist
+  immediately. Idempotency key is the `slug` (DB-enforced UNIQUE,
+  pre-checked for a clean `409` rather than ON CONFLICT noise).
+* **Wired in `backend/main.py`** with the middleware mounted in LIFO
+  order before HMAC + Request-ID, so `/platform/*` errors get the
+  Request-ID envelope too.
+
+### Migration 053 — `organizations.provisioning_source`
+
+* Adds `provisioning_source text NOT NULL DEFAULT 'manual'` to
+  `organizations`. Values today: `'manual'` (created via
+  `/api/admin/merchants`, JWT) or `'api'` (created via
+  `/platform/merchants`, master-key). Free-text so future channels
+  (CSV import, self-onboarding wizard) land without a schema bump.
+* Backfill is trivial — historical rows get `'manual'` via DEFAULT.
+* `MerchantSummary` Pydantic model + every SELECT in
+  `routes_merchant_admin` updated to return the field. `create_merchant`
+  via the JWT route now writes `provisioning_source='manual'`
+  explicitly.
+
+### Audit trail
+
+Every successful `/platform/merchants` call writes an `audit_log` row
+with `user_id=NULL`, `action='merchant_self_provisioned'`,
+`resource_type='organization'`, and `details.source='platform_api'`
+plus the slug/name/sandbox/kind/plan/key_pub for reviewer context.
+Audit failure is logged but does NOT roll back the merchant — the
+merchant + key are the load-bearing artifacts; audit is best-effort.
+
+### Frontend: "Источник" column
+
+* `/admin/merchants` table gains an **Источник** column between
+  Статус and API-keys. Two pill values:
+  * **Вручную** (muted) — tooltip "Создан через эту админку".
+  * **API** (primary) — tooltip "Создан через
+    POST /platform/merchants — обычно edge-функцией asystem-core при
+    подключении нового оператора".
+* `/admin/merchants/[id]` detail card gains an "Источник" Pair with
+  the same chip + tooltip in the basic-info grid.
+* Unknown source values fall back to the **Вручную** styling — the
+  table doesn't show `undefined` for legacy rows during the rollout
+  window.
+* `Merchant` TypeScript type extended with `provisioning_source`.
+
+### Tests
+
+`backend/tests/test_platform_master_auth.py` — 8 cases exercising
+`PlatformMasterAuthMiddleware.dispatch` directly with a
+SimpleNamespace stub Request:
+
+* env unset → 503 with env-var hint
+* no bearer header → 401
+* malformed bearer (`Basic ...`) → 401
+* empty bearer (`Bearer ` only) → 401
+* wrong token → 401 with `Unauthorized` only (no leak)
+* correct token → 200, `request.state.platform_master=True`
+* non-`/platform/*` paths → passthrough regardless of env/header
+* constant-time comparison: short vs 200-char wrong tokens get
+  identical responses (no length leak)
+
+All 8 pass against the project's venv (Python 3.11 + fastapi).
+
+### Boot smoke
+
+`backend.main` imports cleanly with the new middleware + router
+wired; FastAPI app now serves 209 routes, including `/platform/merchants`.
+No regressions in the 32 Wave 30/31/32 tests; cumulative suite is
+40 passing across all 6 emit-contract + middleware test files.
+
+### Docs
+
+* `API.md` — new "Platform master-key API" section with auth model,
+  failure modes, endpoint catalog, and example request/response.
+* `ASYSTEM_INTEGRATION_PLAYBOOK.md` §1 — restructured into
+  "Self-service provisioning" (the new path) + "Manual provisioning
+  (fallback)". Curl example included.
+* `DEPLOYMENT.md` — new env-var entry `ORGON_PLATFORM_MASTER_KEY`
+  with blast-radius + rotation procedure.
+
+---
+
+## Wave 32 — Treasury pull endpoints + `wallet.requested` event (2026-05-19)
+
+Closes O-3 from `ASYSTEM_CORE_INTEGRATION.md` and unblocks Phase 5
+admin UI on the asystem-core side. Adds a `t=0` UX-tier event for
+the wallet provisioning flow. Bottom-up motivation in
+`docs/CUSTODY_ROADMAP_2026Q3` (USM/CJM analysis):
+* **Эльдар** wants treasury balances inside his single pane of
+  glass instead of opening a separate ORGON dashboard tab.
+* **Эрмек** is blocked on a contract for Phase 5 — pull-model gives
+  him one without a schema migration.
+* **Айбек** waits 60–90s while ORGON activates his wallet; the
+  exchanger today shows a silent spinner because it has no signal to
+  hang an honest "generating address, ~90s" timer on.
+
+### `/v1/treasury` + `/v1/wallets/{id}/balance` — pull-model
+
+* `GET /v1/wallets/{id}/balance` — single-wallet snapshot with token
+  list, decimals, and honest `as_of` staleness timestamp.
+* `GET /v1/treasury` — every merchant-owned wallet (`purpose IN
+  treasury / fee / hot / cold`) with balances. `user_deposit`
+  wallets explicitly excluded — those are per-end-user deposit
+  addresses, not treasury inventory.
+* Read-path **never** calls Safina — reads cached `token_balances`
+  populated by the 5-min `sync_balances` worker. If Safina is down,
+  `as_of` ages but the endpoint keeps returning the last-known
+  snapshot. Strictly better than a 503 for the operator's UI.
+* Edge case `wallets.wallet_id IS NULL` (the Safina activation race
+  window): returns empty `balances` with `as_of=null` and
+  `status=pending` — no 500, no silent omission.
+* Scope: cross-merchant lookup gets the same 404 as a non-existent
+  wallet — never a 403, no existence leak.
+* No schema migration — `token_balances` already cached, only the
+  read surface is new.
+* New service `backend/services/merchant_balance_service.py`.
+
+### Admin-side mirror endpoint
+
+`GET /api/admin/merchants/{id}/treasury` (JWT, admin RBAC) reuses
+the same `merchant_balance_service.get_merchant_treasury` so the
+platform-admin dashboard renders the same data from the same source.
+Added to `frontend/src/lib/api.ts` as `getMerchantTreasury(id)`.
+
+### Frontend: TreasurySection on the merchant detail page
+
+New `<TreasurySection>` Card between `BillingSection` and
+`InvoicesSection` in `/admin/merchants/[id]`:
+
+* Each wallet rendered with purpose chip (color-coded), network,
+  status (active / pending), full address (or "адрес ещё не
+  активирован"), and staleness chip (`stalenessLabel(iso)` — "2 мин
+  назад") with the raw `as_of` ISO in `title=` tooltip.
+* Per-token balance list inside each wallet card; empty wallets show
+  "балансов пока нет" italic placeholder, not blank space.
+* Empty merchant → instructional hint pointing at `POST /v1/wallets`
+  with `purpose=treasury/fee/hot/cold` (not just "пусто").
+* Error state surfaces the error with `border-destructive` styling
+  rather than crashing the parent page.
+* "Обновить" button in card action — no full page reload, just the
+  one card's data.
+
+### `wallet.requested` event — live
+
+* New `EV_WALLET_REQUESTED = "wallet.requested"` symbol in
+  `webhook_publisher.py`.
+* Fires from `merchant_wallet_service.provision_user_wallet` and
+  `provision_treasury_wallet` immediately after a **fresh** INSERT
+  into `wallets`. ON CONFLICT race or existing-wallet reuse do NOT
+  re-fire — same idempotency contract as `user.created`.
+* Payload: `{wallet_id, end_user_id (null for treasury), network,
+  purpose, estimated_activation_seconds: 90}` — the `estimated_…`
+  hint is the load-bearing field for merchant-UX timers.
+* `_emit_wallet_requested` is a private helper so both provisioning
+  paths share one source of truth for payload shape.
+* `WEBHOOKS.md` entry added with idempotency contract.
+
+### Tests
+
+* `backend/tests/test_merchant_balance_service.py` — 9 cases pinning
+  full payload shape, scope check (SELECT `WHERE organization_id`),
+  empty `token_balances`, NULL `safina_wallet_id` (activation race),
+  treasury purpose whitelist in SQL (excluding `user_deposit`
+  explicitly verified), per-wallet balance assembly, and
+  per-wallet pending-no-balance edge.
+* `backend/tests/test_wallet_requested_event.py` — 4 cases:
+  user_deposit payload, treasury payload (null end_user_id), each of
+  the four treasury kinds flows through, publish failure is non-fatal.
+* 13 new tests; all green.
+
+### Compat fix
+
+`backend/safina/errors.py` now has `from __future__ import
+annotations` — PEP 604 `str | None` was failing test collection on
+Python < 3.10 (we target 3.12 in prod, but the test harness should
+work on the older system Python too).
+
+---
+
+## Wave 31 — `transaction.failed` timeout source-of-truth (2026-05-19)
+
+Closes O-4 from `ASYSTEM_CORE_INTEGRATION.md`. ORGON's only failure
+detector for an outbound payout is now a hourly scheduler sweep that
+flips long-stuck `signed` txs to `failed` and emits
+`transaction.failed`. Smallest honest implementation — no Safina-side
+rejection signal exists today and no chain watcher; either could
+replace this in a future wave.
+
+### Sweep mechanics
+
+* New `backend/services/transaction_failure_sweep.py:run_tick(pool, *,
+  timeout_hours)` — one atomic `UPDATE ... FOR UPDATE SKIP LOCKED ...
+  RETURNING` flips eligible rows to `failed` and surfaces the data
+  needed for the webhook payload. The lock + status transition in the
+  same statement makes the sweep at-most-once-per-row across parallel
+  ticks.
+* Eligibility: `status = 'signed' AND (tx_hash IS NULL OR tx_hash =
+  '') AND updated_at < now() - <timeout> AND organization_id IS NOT
+  NULL`. The org_id guard keeps internal/legacy rows out of the
+  merchant event stream.
+* Threshold: 24h default, `TX_FAILED_TIMEOUT_HOURS` env override.
+  Garbage values fall back to the default, never crash the scheduler.
+* Scheduler job `transaction_failure_sweep` in `tasks/scheduler.py`,
+  `IntervalTrigger(hours=1)`.
+
+### Public contract
+
+`transaction.failed` flipped from `defined (not wired)` to **live
+(timeout-based)** in `WEBHOOKS.md`. Payload mirrors the
+broadcasted/confirmed shape with `tx_hash: null` and adds `reason:
+'timeout_no_broadcast'`. The doc explicitly states the event is NOT
+terminal — a later real `tx_hash` (e.g. >24h slow Safina broadcast)
+will trigger `transaction.broadcasted`/`confirmed` for the same
+`tx_id`, and consumers should treat the latter as overriding the
+earlier failed.
+
+### Tests
+
+`backend/tests/test_transaction_failed_sweep.py` — 7 cases pinning
+SQL eligibility predicate, atomic-update shape, payload contract,
+env override (including garbage-input fallback), no-op on empty
+result, and per-row publish failure not aborting the sweep.
+
+### Not done
+
+Right-path source-of-truth (chain watcher or Safina-side `rejected`
+indicator) tracked in `ASYSTEM_CORE_INTEGRATION.md` as future work.
+Today's sweep is the only `transaction.failed` emitter; if a better
+signal lands later, the sweep retires without contract churn.
+
+---
+
+## Wave 30 — asystem-core Custody Core wires (2026-05-19)
+
+Three webhook events brought to live status + integration contract docs
+for the asystem-core platform, where ORGON is positioned as the Custody
+Core module. Phase 1–3 on the asystem-core side (`orgon-ping`,
+`orgon-provision-wallet`, `orgon-webhook`, `orgon-webhook-register`) was
+already shipped by Эрмек on 2026-05-18; this wave closes the
+corresponding ORGON-side gaps so production code on his side receives
+the events it was built to consume. No schema changes, no migrations —
+all symbols (`EV_USER_CREATED`, `EV_TX_CONFIRMED`) already existed in
+`webhook_publisher.py` since Wave 23.
+
+### Wires brought live
+
+* **`user.created`** — fires from `end_user_service.create_user` exactly
+  once, on the first INSERT only. Re-calls hitting `ON CONFLICT DO
+  UPDATE` do NOT re-fire — discriminated via Postgres `(xmax = 0) AS
+  inserted` returned in the same statement. Payload: `{id, external_id,
+  email, kyc_status}`. `request_id` threaded through from the
+  `POST /v1/users` route handler.
+
+* **`transaction.confirmed`** — co-emits with `transaction.broadcasted`
+  in `transaction_service.sync_transactions` on the tx_hash NULL→hex
+  transition. Same payload shape, identical trigger condition (single
+  shared `try/except`). Semantic caveat documented inline and in
+  `WEBHOOKS.md`: today both events describe the same moment because
+  there is no separate block-confirmation source wired into the polling
+  flow. Proper block-inclusion firing is deferred pending source-of-
+  truth decision (Safina-callback rewire vs chain watcher); tracked
+  as O-4 in `ASYSTEM_CORE_INTEGRATION.md`.
+
+* **`wallet.deposit.detected`** payload — `block_timestamp` (ISO8601)
+  was always emitted by `deposit_watcher._persist_deposit` but never
+  documented. Now in `WEBHOOKS.md` example block. No code change.
+
+### Deferred by design
+
+* **`transaction.failed`** — left un-wired. Polling flow does not
+  surface failure status from Safina, and the `routes_safina_integration`
+  callback path uses SQLite-era `db.execute(..., (..., ?))` against a
+  Postgres-only `transactions` table that lacks the `confirmations`
+  column the handler writes to — dead on arrival in prod. Wiring
+  this needs a source-of-truth decision; tracked as O-4.
+
+### Integration docs
+
+* **`docs/ASYSTEM_CORE_INTEGRATION.md`** — full rewrite. Old "draft /
+  answers pending" framing replaced with the current contract: 7
+  sections closed de-facto (authentication, policy ownership, event
+  bus, compliance, deployment), 7 remaining open items tracked
+  inline as O-1..O-7 with owners and the work each blocks.
+
+* **`docs/ASYSTEM_INTEGRATION_PLAYBOOK.md`** — new file. Step-by-step
+  for asystem-core integrators (Эрмек): credentials and environments,
+  HMAC sign recipe, Phase 1–5 walkthrough with sample bodies and
+  response shapes, known caveats and footguns, support contacts.
+
+* **`docs/INDEX.md`** — added "asystem-core integration" section
+  pointing at the two files above.
+
+* **`docs/WEBHOOKS.md`** — `transaction.confirmed` and `user.created`
+  flipped from `defined` to `live`; `transaction.failed` reworded
+  with explicit "not wired today" reasoning; `block_timestamp`
+  added to deposit example; legend updated.
+
+### Tests
+
+* `backend/tests/test_user_created_event.py` — 3 new tests:
+  fire-on-insert with payload + request_id contract pinned;
+  no-fire-on-conflict (ON CONFLICT DO UPDATE path); publish-failure-
+  is-non-fatal (a webhook queue blip never breaks user creation).
+* `transaction.confirmed` shares its trigger conditional with
+  `transaction.broadcasted`; pre-existing broadcasted coverage
+  applies to both.
+
+---
+
 ## Wave 29 — dfns-grade Phase 1 hardening (2026-05-19)
 
 Five additive epics derived from a competitive-research pass against

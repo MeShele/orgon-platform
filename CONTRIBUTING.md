@@ -65,8 +65,16 @@ See `README.md` for the quick start. Key points:
 # Frontend
 cd frontend && npx tsc --noEmit
 cd frontend && npm run build
+cd frontend && npm run audit:ux          # static route audit — no orphan links
 cd frontend && npx playwright test       # smoke E2E
 ```
+
+`audit:ux` (Wave 38 onwards) is a stand-alone Node script that walks
+the route tree and every `href="/…"` / `router.push("/…")` in `src/`
+and fails on any orphan link. Add new pages? Run it. Add new
+`router.push()` to a path? Run it. The script lives at
+`frontend/scripts/audit-routes.mjs` — pure Node, no deps, no
+TS-compile. Pre-commit-friendly.
 
 CI (GitHub Actions): every PR runs four jobs:
 1. `backend` — compileall + canonical schema apply against postgres:16 + 152 unit tests

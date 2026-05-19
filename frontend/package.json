@@ -9,7 +9,8 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "audit:ux": "node scripts/audit-routes.mjs"
   },
   "dependencies": {
     "@iconify-json/solar": "^1.2.5",

@@ -52,6 +52,12 @@ Pulled from Safina's wiki / examples site. These are the spec source.
 
 - [`PARTNER_ONBOARDING.md`](PARTNER_ONBOARDING.md) — partner go-live checklist (verify currency before sharing externally)
 
+### asystem-core integration (Custody Core)
+
+- [`ASYSTEM_CORE_INTEGRATION.md`](ASYSTEM_CORE_INTEGRATION.md) — integration contract, current state, open items
+- [`ASYSTEM_INTEGRATION_PLAYBOOK.md`](ASYSTEM_INTEGRATION_PLAYBOOK.md) — step-by-step guide for asystem-core integrators
+- [`PHASE5_TREASURY_FEASIBILITY.md`](PHASE5_TREASURY_FEASIBILITY.md) — pull-vs-push design memo for treasury balance (O-3 input)
+
 ---
 
 ## What lives here and is OUTDATED

@@ -234,9 +234,29 @@ export default function SendTransactionPage() {
                           <Icon icon="solar:arrow-right-up-linear" className="text-sm" />
                         </a>
                       ) : null}
-                      <div className="pt-2 flex gap-2">
-                        <Button variant="secondary" size="sm" onClick={() => router.push(`/wallets/${walletName}`)}>
+                      <div className="pt-2 flex flex-wrap gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => router.push(`/wallets/${walletName}`)}
+                        >
                           К кошельку
+                        </Button>
+                        {txUnid ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => router.push(`/transactions/${txUnid}`)}
+                          >
+                            К транзакции
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => router.push("/transactions")}
+                        >
+                          Все транзакции
                         </Button>
                         <Button
                           variant="primary"

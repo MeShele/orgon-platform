@@ -13,6 +13,18 @@ import { api } from "@/lib/api";
 import { Icon } from "@/lib/icons";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { helpContent } from "@/lib/help-content";
+import { explorerTxUrl, getNetworkConfig } from "@/lib/networkConfig";
+
+/** Extract Safina network id (e.g. "5010") from a token string of the
+ *  form "<network>:::<SYMBOL>###<wallet_name>". Returns null when the
+ *  token field is missing or shaped differently. */
+function networkFromToken(token: unknown): number | null {
+  if (typeof token !== "string") return null;
+  const head = token.split(":::")[0];
+  if (!head) return null;
+  const n = Number(head);
+  return Number.isFinite(n) ? n : null;
+}
 
 export default function TransactionDetailPage() {
   const params = useParams();
@@ -113,9 +125,25 @@ export default function TransactionDetailPage() {
               {tx.tx_hash ? (
                 <div className="col-span-full">
                   <p className="text-xs font-medium text-muted-foreground mb-1.5">Хэш транзакции</p>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-mono text-xs text-foreground break-all">{String(tx.tx_hash)}</p>
                     <CopyButton text={String(tx.tx_hash)} />
+                    {(() => {
+                      const net = networkFromToken(tx.token);
+                      const url = explorerTxUrl(net, String(tx.tx_hash));
+                      const name = getNetworkConfig(net)?.explorerName ?? "explorer";
+                      return url ? (
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                        >
+                          Открыть в {name}
+                          <Icon icon="solar:arrow-right-up-linear" className="text-sm" />
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               ) : null}

@@ -7,6 +7,119 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Wave 29 — dfns-grade Phase 1 hardening (2026-05-19)
+
+Five additive epics derived from a competitive-research pass against
+dfns.co. Each closes an institutional-trust gap or DevEx friction
+point that surfaced during B2B integration with the asystem-core
+ecosystem. All five migrations (047–051) are idempotent; no breaking
+changes for existing callers.
+
+### E-01 — Idempotency-Key on /v1/* mutating calls
+
+* `X-ORGON-Idempotency-Key` (optional, ≤128 chars, opaque) on every
+  `POST`/`PATCH`/`PUT`/`DELETE` — first successful response (2xx) is
+  frozen for 24h keyed by `(merchant_id, idem_key)`; retry within TTL
+  replays it byte-for-byte. 4xx/5xx are not cached, so the caller
+  retries cleanly after either side recovers.
+* dfns-style on body drift: if the retried call's body hash mismatches
+  the original's, we log a warning and replay the original anyway —
+  punishing legitimate retries with a 409 defeats the purpose.
+* HMAC signature + nonce remain mandatory on every call, including
+  idempotent retries.
+* Migration 047, `services/idempotency_service.py`, middleware hook
+  in `middleware_merchant_hmac.py`, hourly cleanup job in
+  `tasks/scheduler.py`. Public spec in `API.md`.
+
+### E-02 — X-Request-Id correlation across the pipeline
+
+* `RequestIdAndErrorMiddleware` (already present) writes
+  `request.state.request_id` for every request; we now thread it
+  through to `webhook_deliveries.originating_request_id` and
+  `signature_history.request_id`.
+* `SafinaPayClient._request` accepts `origin_request_id` kwarg and
+  forwards it as `X-Origin-Request-Id` on outbound calls (Safina
+  trace prep — currently ignored on their side; the kwarg is in
+  place so callers can be wired without a second deploy).
+* Migration 048 (partial indexes on both new columns).
+
+### E-03 — Webhook v2 spec freeze
+
+* Retry schedule v1 (default): 30s/2m/10m/1h/6h. Production stays on
+  v1 until explicitly flipped — no in-flight surprises.
+* Retry schedule v2 (env `WEBHOOK_RETRY_V2=1`): 1m/12m/2h/8h/24h —
+  matches dfns's "5 retries over ~34h" envelope while keeping
+  `GIVE_UP_ATTEMPTS=6` so existing in-flight rows aren't dropped.
+* New `X-ORGON-Webhook-Event-Id` header (alias of legacy
+  `X-ORGON-Webhook-Id`, same UUID) — stable across retries for
+  consumer-side exactly-once dedup.
+* 90-day retention via daily scheduler sweep; **never touches
+  pending rows** (`delivered_at IS NULL AND attempts < 6`). Partial
+  index from migration 049 keeps the sweep cheap.
+* Public contract: new `docs/WEBHOOKS.md` (delivery headers, body
+  shape, signing recipe, both retry schedules, full event catalog
+  with `live` / `defined` per-type status).
+
+### E-04 — Audit log keyset query API
+
+* `GET /api/audit/events?cursor=&limit=&action=&resource_type=&resource_id=&actor_user_id=&since=&until=`
+  — keyset pagination, `next_cursor` opaque-but-readable
+  `created_at|id` pair, tie-broken by `id DESC` for determinism on
+  same-millisecond rows.
+* `GET /api/audit/events.csv` — streaming export via `asyncpg`
+  server-side cursor; 100k-row cap per request, larger exports
+  split by date range.
+* Migration 050 adds composite `(action, created_at DESC, id DESC)`
+  and partial `(user_id, created_at DESC, id DESC)` indexes.
+* Existing `/api/audit/logs` (offset-based) kept untouched for
+  UI back-compat.
+* Multi-tenant isolation by RBAC only — `audit_log` lacks
+  `organization_id`. Backfill blocked by append-only trigger;
+  documented in `routes_audit.py` module docstring and `TECH_DEBT.md`.
+
+### E-07 — Policy engine extend (no parallel `policies` table)
+
+* `transaction_monitoring_rules.scope jsonb` (migration 051) — per-
+  wallet / per-network rule targeting. Empty scope = applies to
+  every tx in the org (back-compat with rules created before 051).
+* 4 new rule kinds in `compliance_service.py`:
+  `velocity_amount_usd` (sum-of-value over window — counterpart to
+  count-based `velocity`), `recipient_whitelist` (fires when
+  `to_address` NOT in allowlist), `time_window` (UTC-hour block
+  list), `recipient_geo_block` (honest stub until E-09 wires a geo
+  provider).
+* New action `request_approval` — sits at the `hold` strictness
+  rung for verdict resolution (tx → `on_hold`) but carries a
+  distinct label so the future approval engine (E-08) can pick
+  rows out without grabbing manual-hold rows.
+* New webhook event `policy.triggered` — emitted only for non-`alert`
+  actions (`hold` / `block` / `request_approval`) to keep
+  informational alerts off the wire.
+* Legacy `threshold` / `velocity` / `blacklist_address` rules
+  untouched; existing AML admin UI works without changes.
+
+### Tests
+
+* 77 new unit tests across the five epics. Fast-running, pure-Python
+  (no Postgres dependency) — they pin contracts (signing recipes,
+  cursor codecs, where-builder parameter discipline, scope matcher
+  fall-closed semantics).
+* Full backend suite: 441 passing, 39 pre-existing failures (live-DB-
+  or JWT-dependent, identical to main). Zero regressions.
+
+### Deploy
+
+* Migrations 047–051 land via `entrypoint.sh` on
+  `ORGON_AUTO_MIGRATE=1` boot; numeric overlay order is preserved.
+* Retry v2 is opt-in (`WEBHOOK_RETRY_V2`) — production stays on
+  v1 until explicitly flipped.
+* No changes to startup ordering. Two new scheduler jobs
+  (idempotency cache cleanup hourly, webhook retention sweep
+  daily) are best-effort; pre-migration installs skip them
+  silently.
+
+---
+
 ## Wave 28 — B2B Merchant Platform (2026-05-14 → 2026-05-15)
 
 Pivoted ORGON from "operator-only dashboard" to "platform-as-a-service".

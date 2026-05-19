@@ -104,6 +104,9 @@ export default function CompliancePage() {
           </Card>
         </div>
 
+        {/* SAR backend status */}
+        <SarBackendIndicator />
+
         {/* Табы */}
         <div className="flex gap-1 overflow-x-auto border-b border-border items-end">
           {tabs.map((tab) => (
@@ -321,5 +324,140 @@ export default function CompliancePage() {
         )}
       </div>
     </>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// SAR backend indicator — shows compliance officer at a glance which
+// channel SAR submissions are flowing through (manual_export / email /
+// api_v1 / dryrun) and whether it's correctly configured.
+// ────────────────────────────────────────────────────────────────────
+
+type SarConfig = {
+  backend: "manual_export" | "email" | "api_v1" | "dryrun" | string;
+  ready: boolean;
+  missing_env: string[];
+  target_email: string | null;
+  cc_email: string | null;
+  smtp_configured: boolean;
+  known_backends: string[];
+};
+
+const BACKEND_LABEL: Record<string, { label: string; description: string }> = {
+  manual_export: {
+    label: "Ручная выгрузка",
+    description:
+      "SAR файлы (JSON + Markdown) сохраняются в sar_submissions. Сотрудник скачивает их и подаёт через портал Финнадзора руками.",
+  },
+  email: {
+    label: "Email",
+    description:
+      "SAR автоматически уходит на FINSUPERVISORY_SAR_EMAIL с прикреплёнными CSV (для копипасты в форму) + JSON + Markdown.",
+  },
+  api_v1: {
+    label: "API v1",
+    description:
+      "Резерв на будущее: прямая подача через Финнадзор API. Сейчас не реализовано — Финнадзор не опубликовал спецификацию.",
+  },
+  dryrun: {
+    label: "Тестовый (dryrun)",
+    description: "Только логирует, ничего не отправляет. Для тестов и shadow-валидации.",
+  },
+};
+
+function SarBackendIndicator() {
+  const { data, error, isLoading } = useSWR<SarConfig>(
+    "/api/v1/compliance/sar/config",
+    () => api.get("/api/v1/compliance/sar/config"),
+    { refreshInterval: 60_000 },
+  );
+
+  if (isLoading) {
+    return (
+      <Card>
+        <div className="p-3 text-xs text-muted-foreground">Загрузка конфигурации SAR…</div>
+      </Card>
+    );
+  }
+  if (error || !data) {
+    return (
+      <Card>
+        <div className="p-3 text-xs text-destructive">
+          Не удалось загрузить конфигурацию SAR backend.
+        </div>
+      </Card>
+    );
+  }
+
+  const info = BACKEND_LABEL[data.backend] ?? {
+    label: data.backend,
+    description: "Неизвестный backend",
+  };
+
+  return (
+    <Card>
+      <div className="p-3 sm:p-4 flex flex-wrap items-center gap-3 text-xs">
+        <Icon icon="solar:letter-linear" className="text-base text-muted-foreground" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-muted-foreground">Режим подачи SAR:</span>
+          <span
+            className={
+              data.ready
+                ? "rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px]"
+                : "rounded-full bg-warning/15 text-warning px-2 py-0.5 text-[10px]"
+            }
+            title={info.description}
+          >
+            {info.label}
+          </span>
+          {data.ready ? (
+            <span className="text-success text-[10px]">готов</span>
+          ) : (
+            <span className="text-warning text-[10px]">требует настройки</span>
+          )}
+        </div>
+
+        {data.backend === "email" && (
+          <div className="flex items-center gap-2 text-muted-foreground ml-auto">
+            {data.target_email ? (
+              <span className="font-mono text-[11px]" title="Куда уходит SAR">
+                → {data.target_email}
+              </span>
+            ) : null}
+            {data.cc_email ? (
+              <span className="font-mono text-[11px]" title="Кому копия (compliance officer)">
+                cc: {data.cc_email}
+              </span>
+            ) : null}
+            <span
+              className={
+                data.smtp_configured
+                  ? "rounded-full bg-success/15 text-success px-2 py-0.5 text-[10px]"
+                  : "rounded-full bg-warning/15 text-warning px-2 py-0.5 text-[10px]"
+              }
+              title={
+                data.smtp_configured
+                  ? "SMTP_HOST env var задан"
+                  : "SMTP_HOST не задан — настройте в Coolify env"
+              }
+            >
+              SMTP {data.smtp_configured ? "OK" : "нет"}
+            </span>
+          </div>
+        )}
+
+        {!data.ready && data.missing_env.length > 0 && (
+          <div className="w-full mt-1 text-warning text-[11px]">
+            Не хватает:{" "}
+            {data.missing_env.map((m, i) => (
+              <span key={m}>
+                {i > 0 ? ", " : ""}
+                <code className="font-mono">{m}</code>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }

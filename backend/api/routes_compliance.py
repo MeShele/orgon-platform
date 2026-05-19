@@ -49,6 +49,23 @@ async def _summarise_submissions(service: ComplianceService, kind: str) -> dict:
     }
 
 
+@router.get("/sar/config")
+async def get_sar_config(
+    user: dict = Depends(require_roles("company_admin", "company_auditor", "platform_admin", "super_admin")),
+):
+    """Active SAR submission backend snapshot.
+
+    Renders into the `/compliance` overview as a "current SAR mode"
+    indicator so the compliance officer sees at a glance whether
+    submissions go via email, manual export, or a stub. Pulls
+    config from env vars; no DB read, no secrets in the response.
+    """
+    from backend.regulators.finsupervisory.submission_backends import (
+        describe_active_config,
+    )
+    return describe_active_config()
+
+
 @router.get("/kyc")
 async def get_kyc_summary(
     user: dict = Depends(get_current_user),
@@ -591,6 +608,10 @@ class MonitoringRule(BaseModel):
     created_at: datetime
     updated_at: datetime
     created_by: Optional[int] = None
+    # 'ui' for /api/v1/compliance/rules (dashboard, JWT).
+    # 'api' for /v1/compliance/rules (HMAC, mirrored from external orchestrator).
+    # Defaults to 'ui' for legacy rows (migration 054 set DEFAULT 'ui').
+    source: str = "ui"
 
 
 class MonitoringRuleCreate(BaseModel):

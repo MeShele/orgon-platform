@@ -514,7 +514,9 @@ from backend.api.routes_safina_integration import router as safina_integration_r
 from backend.api.routes_webhooks_sumsub import router as webhooks_sumsub_router
 from backend.api.routes_merchant_admin import router as merchant_admin_router  # B2B API key admin
 from backend.api.routes_public_v1 import router as public_v1_router  # B2B public API (HMAC-signed)
+from backend.api.routes_platform_admin import router as platform_admin_router  # /platform/* master-key gated
 from backend.api.middleware_merchant_hmac import MerchantHMACAuthMiddleware
+from backend.api.middleware_platform_master import PlatformMasterAuthMiddleware
 from backend.api.middleware_request_id import RequestIdAndErrorMiddleware
 
 app.include_router(health_router)
@@ -538,6 +540,7 @@ app.include_router(kyc_kyb_router)  # KYC/KYB Verification Flow
 app.include_router(monitoring_router)  # Monitoring & Prometheus metrics
 app.include_router(merchant_admin_router)  # B2B merchant API-key admin
 app.include_router(public_v1_router)       # /v1/* public, HMAC-signed merchant API
+app.include_router(platform_admin_router)  # /platform/* — platform master-key only
 app.include_router(documents_router)  # OnlyOffice document tokens
 app.include_router(reports_router)  # Reports
 app.include_router(support_router)  # Support tickets
@@ -555,6 +558,11 @@ app.add_middleware(JwtAuditMiddleware)
 
 # General-API rate limit (login brute-force, 100 req/min/IP).
 app.add_middleware(LoginRateLimitMiddleware)
+
+# Platform master-key auth for /platform/* (control-plane provisioning
+# by asystem-core's edge layer, etc.). Runs only on that prefix — other
+# routes pass through. Strictly separate blast-radius from HMAC and JWT.
+app.add_middleware(PlatformMasterAuthMiddleware)
 
 # HMAC auth for /v1/* (B2B public). Runs only on that prefix — other
 # routes pass through. Verify -> attach merchant_id to request.state.

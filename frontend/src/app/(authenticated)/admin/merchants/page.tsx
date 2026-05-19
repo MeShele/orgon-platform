@@ -28,6 +28,9 @@ type Merchant = {
   api_keys_active: number;
   end_users_count: number;
   created_at: string;
+  /** 'manual' = onboarded via /api/admin/merchants (this UI).
+   *  'api'    = self-provisioned via /platform/merchants (e.g. asystem-core). */
+  provisioning_source: "manual" | "api" | string;
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -35,6 +38,20 @@ const KIND_LABEL: Record<string, string> = {
   bank: "Банк",
   exchange: "Биржа",
   internal: "Внутренний",
+};
+
+const SOURCE_LABEL: Record<string, { label: string; tone: string; tooltip: string }> = {
+  manual: {
+    label: "Вручную",
+    tone: "bg-muted text-muted-foreground",
+    tooltip: "Создан через эту админку (POST /api/admin/merchants).",
+  },
+  api: {
+    label: "API",
+    tone: "bg-primary/15 text-primary",
+    tooltip:
+      "Создан через POST /platform/merchants — обычно edge-функцией asystem-core при подключении нового оператора.",
+  },
 };
 
 export default function AdminMerchantsPage() {
@@ -124,6 +141,12 @@ export default function AdminMerchantsPage() {
                     <th className="px-3 py-3 font-medium">План</th>
                     <th className="px-3 py-3 font-medium">Среда</th>
                     <th className="px-3 py-3 font-medium">Статус</th>
+                    <th
+                      className="px-3 py-3 font-medium"
+                      title="Откуда мерчант появился в системе"
+                    >
+                      Источник
+                    </th>
                     <th className="px-3 py-3 font-medium text-right">API-keys</th>
                     <th className="px-3 py-3 font-medium text-right">Юзеры</th>
                     <th className="px-3 py-3 font-medium">Webhook</th>
@@ -180,6 +203,19 @@ export default function AdminMerchantsPage() {
                         >
                           {m.status}
                         </span>
+                      </td>
+                      <td className="px-3 py-3">
+                        {(() => {
+                          const src = SOURCE_LABEL[m.provisioning_source] ?? SOURCE_LABEL.manual;
+                          return (
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] ${src.tone}`}
+                              title={src.tooltip}
+                            >
+                              {src.label}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-3 text-right font-mono">{m.api_keys_active}</td>
                       <td className="px-3 py-3 text-right font-mono">{m.end_users_count}</td>

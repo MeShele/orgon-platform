@@ -618,10 +618,18 @@ class TransactionService:
                  status, wallet_name, now, now),
             )
 
-            # Webhook: transaction.broadcasted fires exactly once, when
-            # tx_hash flips from NULL/empty to a real hex string. We
-            # gate on prev_row being present (we only ever broadcast a
-            # tx we created) AND the existing row being tenant-attached.
+            # Webhook: transaction.broadcasted + transaction.confirmed both
+            # fire exactly once, when tx_hash flips from NULL/empty to a real
+            # hex string. We gate on prev_row being present (we only ever
+            # broadcast a tx we created) AND the existing row being
+            # tenant-attached.
+            #
+            # Today Orgon's only signal that a tx made it to chain is Safina
+            # returning a tx_hash via `get_transactions`. There is no separate
+            # block-confirmation source wired into the polling flow, so
+            # `confirmed` necessarily co-emits with `broadcasted`. This is
+            # documented in WEBHOOKS.md; proper block-confirmation tracking
+            # is a Phase 4 concern (Safina-callback rewire or chain watcher).
             if (
                 prev_row is not None
                 and not (prev_row.get("tx_hash") or "").strip()
@@ -632,24 +640,32 @@ class TransactionService:
                     from backend.services.webhook_publisher import (
                         publish_event,
                         EV_TX_BROADCASTED,
+                        EV_TX_CONFIRMED,
                     )
+                    tx_payload = {
+                        "tx_id": str(prev_row["id"]),
+                        "tx_unid": tx.unid,
+                        "tx_hash": tx.tx,
+                        "wallet_name": wallet_name,
+                        "to_address": tx.to_addr,
+                        "amount": str(tx.value),
+                        "token": tx.token,
+                    }
                     await publish_event(
                         self._db.pool,
                         merchant_id=str(prev_row["organization_id"]),
                         event_type=EV_TX_BROADCASTED,
-                        payload={
-                            "tx_id": str(prev_row["id"]),
-                            "tx_unid": tx.unid,
-                            "tx_hash": tx.tx,
-                            "wallet_name": wallet_name,
-                            "to_address": tx.to_addr,
-                            "amount": str(tx.value),
-                            "token": tx.token,
-                        },
+                        payload=tx_payload,
+                    )
+                    await publish_event(
+                        self._db.pool,
+                        merchant_id=str(prev_row["organization_id"]),
+                        event_type=EV_TX_CONFIRMED,
+                        payload=tx_payload,
                     )
                 except Exception as e:
                     logger.warning(
-                        "transaction.broadcasted publish failed for %s: %s",
+                        "transaction.broadcasted/confirmed publish failed for %s: %s",
                         tx.unid, e,
                     )
 

@@ -29,12 +29,18 @@ async def create_user(
     email: str,
     kyc_status: Optional[str] = None,
     metadata: Optional[dict] = None,
+    request_id: Optional[str] = None,
 ) -> dict:
     """Idempotent on (merchant_id, external_id).
 
     A repeat call with the same external_id refreshes mutable fields
     (email, kyc_status, metadata) — merchants do this to push KYC
     transitions through us — and returns the existing row.
+
+    Emits the `user.created` webhook exactly once, on the very first
+    INSERT — re-calls that hit ON CONFLICT DO UPDATE do NOT re-fire.
+    The discriminator is Postgres's `xmax = 0` on the returned tuple
+    (zero means a freshly inserted row; nonzero means an updated one).
     """
     import json
     md_json = json.dumps(metadata or {})
@@ -50,7 +56,8 @@ async def create_user(
                   updated_at = now()
             RETURNING id::text, merchant_id::text, external_id, email,
                       kyc_status, metadata,
-                      created_at, updated_at
+                      created_at, updated_at,
+                      (xmax = 0) AS inserted
             """,
             UUID(merchant_id),
             external_id,
@@ -59,11 +66,36 @@ async def create_user(
             md_json,
         )
     out = dict(row)
+    inserted = bool(out.pop("inserted", False))
     if isinstance(out.get("metadata"), str):
         try:
             out["metadata"] = json.loads(out["metadata"])
         except Exception:
             out["metadata"] = {}
+
+    if inserted:
+        try:
+            from backend.services.webhook_publisher import (
+                publish_event,
+                EV_USER_CREATED,
+            )
+            await publish_event(
+                pool,
+                merchant_id=merchant_id,
+                event_type=EV_USER_CREATED,
+                payload={
+                    "id": out["id"],
+                    "external_id": out["external_id"],
+                    "email": out["email"],
+                    "kyc_status": out.get("kyc_status"),
+                },
+                request_id=request_id,
+            )
+        except Exception as e:
+            logger.warning(
+                "user.created publish failed merchant=%s external_id=%s err=%s",
+                merchant_id, external_id, e,
+            )
     return out
 
 

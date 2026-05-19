@@ -27,15 +27,22 @@ Based on `docs/orgon_analysis/03_api_gap_analysis.md`, the following gaps were i
 | 1 | `/api/transactions/estimate-fee` | GET | Fee estimation with tariff A/B/C, priority levels, network fees |
 | 2 | `/api/addresses/validate` | POST | Crypto address format validation (BTC, ETH, TRX, BSC, LTC) |
 | 3 | `/api/wallets/reconciliation` | GET | Balance reconciliation: local DB vs Safina API |
-| 4 | `/api/webhooks/safina/callback` | POST | Incoming webhook handler from Safina (tx confirmed/failed, balance updates, compliance alerts) |
-| 5 | `/api/rates` | GET | Real-time crypto exchange rates via PriceFeedService |
-| 6 | `/api/transactions/by-ec` | GET | Transactions requiring signing by current EC entity |
+| 4 | `/api/rates` | GET | Real-time crypto exchange rates via PriceFeedService |
+| 5 | `/api/transactions/by-ec` | GET | Transactions requiring signing by current EC entity |
+
+> An earlier draft of this report also listed `/api/webhooks/safina/callback`
+> as a Safina-side inbound webhook receiver. That endpoint was implemented
+> against a SQLite-era `db.execute(..., ?)` path and a non-existent
+> `transactions.confirmations` column — broken on arrival in the Postgres
+> production setup — so it was removed in Wave 30. Transaction status
+> transitions are owned by `transaction_service.sync_transactions` polling
+> today (see `ASYSTEM_CORE_INTEGRATION.md` O-4 for the right-path roadmap).
 
 ### Implementation Details
 
 **File created:** `backend/api/routes_safina_integration.py`  
 **Router registered in:** `backend/main.py`  
-**Total new endpoints:** 6
+**Total new endpoints:** 5
 
 #### 1. Fee Estimation
 - Supports tariff plans A (0.5%), B (0.3%), C (0.1%)
@@ -54,18 +61,12 @@ Based on `docs/orgon_analysis/03_api_gap_analysis.md`, the following gaps were i
 - Reports: match/mismatch/error per token
 - RBAC: company_admin, platform_admin only
 
-#### 4. Safina Webhook Callback
-- HMAC-SHA256 signature verification (optional, configurable)
-- Handles: transaction.confirmed, transaction.failed, wallet.balance_updated, compliance.alert
-- Auto-updates local DB and broadcasts via WebSocket
-- Returns 200 even on processing errors (prevents Safina retries)
-
-#### 5. Exchange Rates
+#### 4. Exchange Rates
 - Uses existing PriceFeedService (CoinGecko)
 - Multi-token query support
 - Cached (5-min TTL)
 
-#### 6. Transactions by EC
+#### 5. Transactions by EC
 - Maps to Safina `GET /ece/tx_by_ec`
 - Uses pending signatures filtered by current signer
 
@@ -89,7 +90,7 @@ Based on `docs/orgon_analysis/03_api_gap_analysis.md`, the following gaps were i
 
 ## Testing
 
-All 6 endpoints verified:
+All 5 endpoints verified:
 - ✅ Module imports successfully
 - ✅ Routes registered in FastAPI app (201 total routes)
 - ✅ RBAC decorators applied correctly
@@ -102,7 +103,4 @@ curl "http://localhost:8000/api/transactions/estimate-fee?network=tron&token=USD
 
 # Address validation
 curl -X POST "http://localhost:8000/api/addresses/validate" -H "Content-Type: application/json" -d '{"address":"TJYs5RqnFMEXsfLFm4Eo5bgBaAjhBEmmA7","network":"tron"}'
-
-# Safina webhook (no auth)
-curl -X POST "http://localhost:8000/api/webhooks/safina/callback" -H "Content-Type: application/json" -d '{"event":"transaction.confirmed","data":{"tx_unid":"test","confirmations":6}}'
 ```

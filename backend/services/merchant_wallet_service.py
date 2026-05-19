@@ -169,9 +169,22 @@ async def provision_user_wallet(
             UUID(end_user_id),
             now,
         )
+        fresh = row is not None
         if row is None:
-            # ON CONFLICT race — fetch the surviving row.
+            # ON CONFLICT race — fetch the surviving row. The OTHER caller
+            # will have fired wallet.requested for it; we don't re-fire.
             row = await conn.fetchrow("SELECT * FROM wallets WHERE name = $1", unid)
+
+    if fresh and row is not None:
+        await _emit_wallet_requested(
+            pool,
+            merchant_id=merchant_id,
+            wallet_id=str(row["id"]),
+            end_user_id=str(end_user_id),
+            network=int(network),
+            purpose="user_deposit",
+        )
+
     logger.info(
         "user wallet provisioned merchant=%s user=%s network=%s unid=%s",
         merchant_id, end_user_id, network, unid,
@@ -230,13 +243,66 @@ async def provision_treasury_wallet(
             purpose,
             now,
         )
+        fresh = row is not None
         if row is None:
             row = await conn.fetchrow("SELECT * FROM wallets WHERE name = $1", unid)
+
+    if fresh and row is not None:
+        await _emit_wallet_requested(
+            pool,
+            merchant_id=merchant_id,
+            wallet_id=str(row["id"]),
+            end_user_id=None,  # treasury wallets are merchant-owned
+            network=int(network),
+            purpose=purpose,
+        )
+
     logger.info(
         "treasury wallet provisioned merchant=%s purpose=%s network=%s unid=%s",
         merchant_id, purpose, network, unid,
     )
     return _row_to_public(row, purpose=purpose)
+
+
+async def _emit_wallet_requested(
+    pool,
+    *,
+    merchant_id: str,
+    wallet_id: str,
+    end_user_id: Optional[str],
+    network: int,
+    purpose: str,
+) -> None:
+    """Fire `wallet.requested` immediately after creating a fresh wallet.
+
+    Best-effort: a publish hiccup must NOT break provisioning. The point
+    of this event is to give the merchant a `t=0` signal so their UI can
+    show an honest "generating address, usually 60-90s" timer instead of
+    a silent spinner. `wallet.activated` follows when Safina actually
+    fills `addr`.
+    """
+    try:
+        from backend.services.webhook_publisher import (
+            publish_event,
+            EV_WALLET_REQUESTED,
+        )
+        await publish_event(
+            pool,
+            merchant_id=merchant_id,
+            event_type=EV_WALLET_REQUESTED,
+            payload={
+                "wallet_id": wallet_id,
+                "end_user_id": end_user_id,
+                "network": network,
+                "purpose": purpose,
+                "estimated_activation_seconds": 90,
+            },
+        )
+    except Exception as e:
+        logger.warning(
+            "wallet.requested publish failed merchant=%s wallet=%s err=%s",
+            merchant_id, wallet_id, e,
+        )
 
 
 def _row_to_public(row, *, purpose: str) -> dict:

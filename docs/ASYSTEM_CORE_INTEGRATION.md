@@ -1,307 +1,190 @@
-# ORGON ↔ asystem-core integration — open questions
+# ORGON ↔ asystem-core integration — current contract
 
-> Discovery document. ORGON is being positioned as the **custody
-> module** for the asystem-core ecosystem (mesh hermes nodes,
-> LightRAG, asystem.kg/asystem.ai). Before we plan Phase 2 of the
-> dfns-grade hardening, we need a contract with asystem-core
-> defining who owns what.
->
-> If asystem-core already has half the things we'd otherwise build
-> (auth, policy, event bus), our Phase 2 risks duplicating their
-> control plane. If they don't, we ship — but at least we shipped
-> with intent, not by default.
+> ORGON is the **Custody Core** module of the asystem-core platform.
+> This document records the contract as it actually runs today,
+> verified against both sides of the wire on 2026-05-19. For the
+> public webhook + endpoint catalog see `WEBHOOKS.md` and `API.md`;
+> for the step-by-step integrator's guide see
+> `ASYSTEM_INTEGRATION_PLAYBOOK.md`.
 
-Owner: caesarclown (operator + asystem-core architecture).
-Status: **draft / answers pending**.
+Owner (ORGON-side): caesarclown (`Suimonkul` in asystem-core handover).
+asystem-core counterpart: Эрмек.
+
+History note — earlier revisions of this file framed every section as
+an open question awaiting an answer. Those answers have since landed
+de-facto in the production code on the asystem-core side (Phase 1–3
+already shipped: `orgon-ping`, `orgon-provision-wallet`, `orgon-webhook`,
+`orgon-webhook-register`). The text below records what is true today;
+the remaining genuinely-open items live at the bottom.
 
 ---
 
-## 1. Authentication boundary — whose identity, whose token?
+## 1. Authentication boundary
 
-### Q1.1 — How does asystem-core identify itself to ORGON?
+### asystem-core → ORGON `/v1/*` — HMAC
 
-Today's `/v1/*` surface accepts one credential shape: HMAC-signed
-requests with `X-ORGON-Key` + secret. Every B2B integrator looks
-the same.
+asystem-core calls ORGON's `/v1/*` surface with our standard HMAC
+contract — no Ed25519, no mesh signing, no Bearer. Per-operator
+credentials (`ORGON_KEY` / `ORGON_SECRET` / `ORGON_BASE_URL` /
+`ORGON_ENV`) live in their `operator_api_keys` vault, decrypted on
+each call.
 
-asystem-core nodes already speak Ed25519-signed control plane
-(see `https://mesh.asystem.kg/api/lightrag/query` — every request
-is signed with a node's Ed25519 key, verified by the mesh router).
+* canonical: `${ts_ms}\n${nonce}\n${METHOD}\n${path}\n${rawBody}`
+* signature: `hex(HMAC-SHA256(secret, canonical))`
+* headers: `X-ORGON-Key`, `X-ORGON-Timestamp` (ms), `X-ORGON-Nonce`
+  (UUIDv4), `X-ORGON-Signature`; ±60s drift; nonce uniqueness enforced
+  via `merchant_request_nonces` PK.
 
-**Options:**
+Verified line-for-line against
+`asystem-core/supabase/functions/_shared/orgon-client.ts:65` and
+`backend/api/middleware_merchant_hmac.py:234`. They match.
 
-| Option | Implication |
-|---|---|
-| A. asystem-core treats ORGON as just another HMAC B2B integrator | Simplest. We issue them `okl_…` / `oksl_…` like any merchant. They drop their Ed25519 layer when talking to us. |
-| B. ORGON accepts asystem-core's Ed25519 signatures natively | We add Ed25519 verification path in `MerchantHMACAuthMiddleware` (or a parallel middleware). One mesh-issued key replaces our key issuance for asystem-core. |
-| C. Both, gated by configuration per merchant | `organizations.auth_kind = 'hmac' | 'mesh_ed25519'`. Compatible with future identity sources (OIDC, SPIFFE…). |
+### End-user identity
 
-**Open question for asystem-core team:**
+asystem-core's `auth.users.id` (uuid) flows through to ORGON as
+`external_id` on `POST /v1/users`. Email is the user's auth email, or
+`${uuid}@asystem.local` when headless. ORGON's `end_users` table is
+the merchant-scoped mirror, keyed by `(merchant_id, external_id)`.
+KYC documents are NOT mirrored to ORGON — they stay on the operator's
+asystem-core instance, governed by their `kyc-*` provider stack.
 
-> Should ORGON treat the mesh as one tenant with one HMAC key, or
-> should every mesh node have its own identity at the ORGON
-> boundary? Are you willing to drop Ed25519 at our edge, or do you
-> want it carried end-to-end?
+### Operator identity
 
-### Q1.2 — End-user identity
+Two layers run side-by-side without federation:
 
-Who is the **end-user** when an asystem.kg consumer initiates a
-crypto operation?
+* ORGON operators authenticate against ORGON's own `/api/*` surface
+  (JWT, RBAC, operator dashboard at `orgon.asystem.ai`).
+* asystem-core operators authenticate against their Supabase auth on
+  `*.asystem.ai`.
 
-* If asystem-core has its own user DB → ORGON's `end_users` is
-  just a mirror keyed by `external_id`. No KYC duplication.
-* If asystem-core delegates user-management to ORGON → we have
-  to surface our `POST /v1/users` to their UI directly.
-* If asystem-core wants embedded wallet UX (passkey signing at
-  the user's browser) → that's E-13 territory and depends on Q1.1.
-
-**Open question:**
-
-> Where does the end-user live? Whose DB is authoritative for
-> KYC status, email, metadata? Whose UI mints the user → wallet
-> association?
-
-### Q1.3 — Operator identity inside ORGON
-
-Distinct from Q1.1/1.2: ORGON has its own operator dashboard
-(`/api/*` surface, JWT-auth, RBAC roles `super_admin /
-platform_admin / company_admin / company_operator / company_auditor`).
-This is a **separate** identity layer from anything asystem-core
-sends us.
-
-If we ship E-05 (multi-credential model — passkey for operators,
-plus recovery codes), that's a parallel WebAuthn implementation
-to whatever mesh is doing for its nodes.
-
-**Open question:**
-
-> Should ORGON operators federate against asystem-core SSO
-> (if one exists), or keep a separate identity (JWT + passkey)?
-> The latter is the current default — it's the safer assumption
-> while we wait for an answer.
+A given individual may be an operator on both sides; their identities
+do not federate, and there is no SSO bridge. This is by design — it
+keeps the M-of-N signing audit trail honest on the ORGON side.
 
 ---
 
 ## 2. Policy engine ownership
 
-### Q2.1 — Is there an asystem-core policy layer above ORGON?
+ORGON's in-house rule engine (`compliance_service.evaluate_transaction_rules`,
+Wave 23+29) is the only policy layer on the wire. asystem-core does
+**not** pre-authorize ORGON transactions through a separate policy
+plane; their AML pipeline (`runAmlChainOnPaid` in their
+`_shared/aml-on-paid.ts`) runs **after** ORGON tells them a deposit
+landed, against their own data, on their own infra.
 
-E-07 just extended `transaction_monitoring_rules` to support
-scope, new rule kinds, `request_approval` action, and
-`policy.triggered` webhook. This is **a policy engine inside
-ORGON**.
+Practical consequences:
 
-If asystem-core has its own policy layer (e.g. mesh-wide rules
-like "no withdrawals from a node flagged by Урmat as compromised"),
-the two have to coexist without contradiction.
-
-| Option | Implication |
-|---|---|
-| A. ORGON's engine is the only one | Mesh writes rules into ORGON via `/api/v1/compliance/rules` (admin-gated, JWT). asystem-core treats ORGON's rule DB as a service. |
-| B. asystem-core has its own engine, ORGON enforces nothing | We rip out E-07's `compliance_service.evaluate_transaction_rules` and trust an inbound `X-ORGON-Policy-Decision` header from asystem-core. Risky — defense-in-depth gone. |
-| C. Both engines run, ORGON's enforces a subset | ORGON enforces local invariants (thresholds, replay, blacklists) regardless of asystem-core verdict; asystem-core overlays mesh-wide policy. |
-
-**Open question:**
-
-> Does asystem-core run its own policy/rule engine? If so, what's
-> the contract — does it pre-approve tx-sends, post-validate, or
-> only emit alerts?
-
-### Q2.2 — Approval workflow ownership
-
-E-07 added `request_approval` action as a forward-compat marker.
-E-08 (planned) would wire it to an approval-groups workflow
-inside ORGON.
-
-If asystem-core has approval workflows (e.g. mesh maintainers
-approve high-value moves), E-08 might just be a webhook-out plus
-a status-in surface, not a self-contained engine.
-
-**Open question:**
-
-> Should ORGON own M-of-N approval state machines, or should we
-> emit a `policy.triggered` event with `action=request_approval`
-> and trust asystem-core to call us back with an approve/reject
-> decision?
+* ORGON enforces threshold/velocity/blacklist/recipient_whitelist/etc.
+  on outbound `/v1/transactions` calls regardless of what asystem-core
+  thinks. Defense-in-depth.
+* `policy.triggered` webhook fires when ORGON's rule action is
+  `hold` | `block` | `request_approval` (not `alert`). asystem-core
+  consumes that the same way any merchant would — they pause / surface
+  the operator manually.
+* Approval workflow (M-of-N for non-trivial moves) lives on ORGON's
+  side. asystem-core does not have its own approval engine on the
+  custody path. E-08 is parked but unblocked from asystem-core's
+  perspective.
 
 ---
 
-## 3. Event bus shape
+## 3. Event bus
 
-### Q3.1 — Inbound: what events does asystem-core send ORGON?
+### Inbound (asystem-core → ORGON) — none
 
-Right now ORGON has zero inbound event subscriptions from
-asystem-core. Hypothetically useful events:
-* User suspended in mesh → freeze that user's wallets in ORGON
-* Node flagged as compromised → block tx from wallets created on it
-* Mesh-wide AML alert → tighten thresholds organization-wide
-* Operator promoted/demoted in mesh → mirror RBAC role in ORGON
+There is no `/v1/asystem-events` endpoint and there is no need for
+one on the current contract. AML, user-suspension and mesh-policy
+state live entirely on asystem-core's side; ORGON does not subscribe
+to anything from them. The mesh-wide policy fan-out hypothesized in
+earlier revisions of this document never materialized as an actual
+asystem-core capability.
 
-**Option:**
-* Webhook-out from asystem-core to ORGON: `POST /v1/asystem-events`
-  with mesh's Ed25519 signature.
-* Or pull-based: ORGON polls mesh's `/api/events?since=…` periodically.
+If a real use-case emerges (e.g. "freeze custody on this user when
+asystem-core's compliance team flags them"), the right shape is
+`PATCH /v1/users/{id}` with a custom `kyc_status` or metadata
+transition — already a live `/v1/*` endpoint.
 
-**Open question:**
+### Outbound (ORGON → asystem-core) — standard webhook
 
-> Does asystem-core have an event bus we can subscribe to? If
-> not, is webhook-out viable on your side? What's the menu of
-> events you'd publish to a custody module?
+asystem-core registers a webhook URL through `PUT /v1/webhooks/config`
+exactly like any other merchant. ORGON signs deliveries with
+HMAC-SHA256 over `${ts_ms}\n` + body (compact, sort_keys=true JSON);
+delivery worker handles retries (`30s..6h` or `1m..24h` env-flagged).
 
-### Q3.2 — Outbound: what events does ORGON send asystem-core?
+Receiver: `asystem-core/supabase/functions/orgon-webhook/index.ts`.
+Verified contract match line-for-line on 2026-05-19; see
+`WEBHOOKS.md` for the canonical contract.
 
-ORGON's webhook publisher (`webhook_publisher.py`) today emits:
-`wallet.activated`, `wallet.deposit.detected`,
-`transaction.broadcasted`, `policy.triggered` (Wave 29 live).
-Defined-but-not-wired: `transaction.confirmed`, `transaction.failed`,
-`user.created`.
-
-Question is whether asystem-core wants to be one consumer of this
-stream (just point a URL at us) or whether they want a richer
-contract — e.g. SSE feed, or push into their mesh-internal bus.
-
-**Open question:**
-
-> Does asystem-core consume webhooks the standard way (configured
-> URL + HMAC verification), or do you want a different transport?
+Currently consumed by asystem-core: `wallet.deposit.detected`
+(transitions their order to `paid`, triggers their AML chain) and
+`wallet.activated` (refreshes deposit address when ORGON activates
+asynchronously). Other live events (`transaction.broadcasted`,
+`transaction.confirmed`, `user.created`, `policy.triggered`) are
+emitted by ORGON; their consumers are Phase 4–5 work on the
+asystem-core side.
 
 ---
 
 ## 4. Compliance and regulatory ownership
 
-ORGON ships KYC/KYB (Sumsub-WebSDK), AML alerts, SAR submission,
-and per-rule audit. KG/KZ/RU regulatory perimeter applies.
+**The licensee is the operator.** Neither ORGON nor asystem-core
+holds the KG VASP license itself — both are technology vendors to the
+licensed entity that owns each `operator` row on asystem-core's side.
+This is stated explicitly in `asystem-core/docs/COMPLIANCE.md` for
+their own services and matches how ORGON is positioned in their
+architecture (custody-as-a-service, not custodian-of-record).
 
-### Q4.1 — Who handles the regulator-facing side?
+Practical consequences:
 
-* SAR submission to **Финнадзор КР**: ORGON's `sar_submissions` table.
-* KYC/KYB document custody: currently `placeholder://` in ORGON.
-* Travel Rule (FATF): data model only on ORGON side; no provider wired.
-
-If asystem-core is the regulated entity (licensed VASP), ORGON
-is its compliance arm. Then everything we ship (Sumsub
-integration, SAR pipeline) feeds asystem-core's regulatory reports.
-
-If ORGON is the licensed entity, asystem-core is just a customer
-and we surface compliance status to them via API.
-
-**Open question:**
-
-> Which legal entity holds the KG VASP license — ОсОО АСИСТЕМ
-> directly, or a sister entity that runs asystem-core? Does ORGON
-> sit under that license as a module, or is it a separate licensee?
-
-### Q4.2 — Travel Rule
-
-Planned E-09 (Notabene or Sumsub Travel Rule integration). The
-choice matters for cost and for who counts as the originator
-VASP on outbound transfers.
-
-**Open question:**
-
-> When asystem-core users send crypto out via ORGON, does the
-> Travel Rule originator field carry asystem-core's VASP id, or
-> ORGON's, or do we have a shared one?
+* SAR submission to Финнадзор КР: ORGON has the data plane
+  (`sar_submissions`, four submission backends: `manual_export | email
+  | api_v1 | dryrun`), but the submitter-of-record is the operator's
+  compliance officer using the operator's GSFR credentials. ORGON
+  produces the file; the operator submits it.
+* Sumsub-WebSDK is platform-shared today (single Sumsub account
+  across all merchants). For asystem-core operators with distinct KG
+  VASP licenses, this is wrong long-term — every operator should have
+  their own Sumsub workspace. Tech debt; not blocking for the current
+  asystem-core integration because they aren't using ORGON's KYC.
+* Travel Rule (FATF): unresolved. See §6.
 
 ---
 
 ## 5. Deployment topology
 
-### Q5.1 — Where does ORGON live in the mesh?
+Single shared ORGON instance for the entire asystem-core platform.
+Per-operator separation is enforced by `merchant_id` scoping (one
+ORGON merchant = one asystem-core operator, with its own
+`okl_…`/`oksl_…` keys living in the operator's
+`operator_api_keys` vault).
 
-Today: prod on `orgon.asystem.ai` (Coolify on hetzner-ax41 →
-`asystem-proxmox` 10.30.30.132). One Postgres, one
-backend, one frontend.
+Production endpoint: `https://orgon.asystem.ai` (Coolify, single
+Postgres, single backend, single frontend). asystem-core's
+self-hosted operators (`install.sh` path) still call this same shared
+ORGON URL — they don't get their own ORGON deploy. They just have
+their own keys in their own self-hosted Supabase vault.
 
-If asystem-core wants ORGON deployable per-tenant or per-mesh-node:
-* Containerization is already there (`Dockerfile`, `docker-compose.yml`).
-* Migrations are deterministic (single canonical + 25+ overlays).
-* What's missing: configuration story for **multi-instance**
-  (every instance points at its own Safina account? At its own
-  AML rule set? At its own webhook URLs?).
-
-**Open question:**
-
-> Is ORGON a single-instance shared service for the whole mesh,
-> or do you want a deployment-per-tenant model? If the latter,
-> what configuration parameters change between instances?
-
-### Q5.2 — Data residency
-
-KG/KZ regulators are tightening on data residency. If a mesh tenant
-in RU has different storage requirements than a KZ tenant, we
-need per-instance Postgres at different DCs.
-
-**Open question:**
-
-> Do we need per-tenant data residency separation? If so, which
-> jurisdictions and what's the customer mix?
+Per-tenant ORGON instances (one Postgres per VASP license, KG vs RU
+data residency, etc.) are an unsolved problem and not blocking the
+current integration. See §6.
 
 ---
 
-## 6. SLA + observability
+## 6. Genuinely-open questions
 
-### Q6.1 — What SLOs does asystem-core need from ORGON?
+These are the only items in the integration contract that are still
+unresolved. Everything else above is fixed.
 
-* Availability: 99.9% / 99.95% / 99.99%?
-* Webhook delivery latency: p50 / p99?
-* Deposit detection lag: max acceptable seconds from on-chain
-  confirmation to webhook out?
+| # | Question | Owner | Blocks |
+|---|---|---|---|
+| O-1 | **Mainnet chain_id mapping.** asystem-core's `NETWORK_SLUG_TO_CHAIN_ID` is sandbox-only (`tron-nile=5010, eth-sepolia=3040, orgon-testnet=5810`). Mainnet ints not yet shared. | ORGON-side | Phase 4 going live |
+| O-2 | **Phase 4 contract: outgoing payouts.** ORGON has `POST /v1/transactions` + `POST /v1/transactions/{id}/sign` (two-step flow). asystem-core hasn't built the consumer side. Need confirmation that two-step is acceptable, or spec a single-shot variant. | Эрмек | Phase 4 |
+| ~~O-3~~ | ~~**Phase 5 contract: treasury balance.**~~ — **CLOSED 2026-05-19**. Pull-model shipped: `GET /v1/wallets/{id}/balance` + `GET /v1/treasury` return cached `token_balances` with honest `as_of` staleness (Wave 32). Excludes `user_deposit` purpose. No migration. Push variant (`treasury.balance.updated` webhook) intentionally deferred — added only if 5-min staleness becomes a real UX problem; design in `PHASE5_TREASURY_FEASIBILITY.md`. | — | — |
+| ~~O-4~~ | ~~**`transaction.failed` source-of-truth.**~~ — **CLOSED 2026-05-19**. Wired via timeout sweep (`backend/services/transaction_failure_sweep.py` + hourly scheduler job): tx in `signed` without `tx_hash` for >24h (env-tunable `TX_FAILED_TIMEOUT_HOURS`) → flipped to `failed`, emit `transaction.failed` with `reason: 'timeout_no_broadcast'`. Not terminal — see `WEBHOOKS.md` caveat. Proper Safina-side `rejected` indicator or chain watcher is the right-path future replacement. | — | — |
+| O-5 | **Travel Rule.** When asystem-core users send crypto out via ORGON, who carries the originator-VASP id — asystem-core's operator-level VASP, or a shared one? Implementation deferred to Phase 4 anyway, but answer needed before E-09. | Legal first, then both | E-09 |
+| O-6 | **Pricing plan for asystem-core operators.** ORGON's `organizations.pricing_plan` drives `/v1/*` quota. What plan do we put new asystem-core operator merchants on — `sandbox`, a custom enterprise tier, something else? | caesarclown | Onboarding flow |
+| O-7 | **Per-tenant ORGON instances + data residency.** If a KG VASP operator and a RU VASP operator on asystem-core must keep their custody data in separate jurisdictions, we need per-region ORGON deploys. Not blocking today; flag for the moment somebody asks. | Defer | Future |
 
-Without a contract here, we can't size infrastructure or write
-runbooks.
-
-**Open question:**
-
-> What numbers does ORGON need to hit? Today we have JSON logs
-> (`ORGON_JSON_LOGS=1`) + Sentry (`SENTRY_DSN=…`) + Prometheus
-> counters. We do not have alert rules. What's the on-call
-> chain — ORGON team, mesh on-call, or both?
-
-### Q6.2 — Audit trail consumer
-
-E-04 added `/api/audit/events` + `.csv` export. If asystem-core
-wants real-time audit feed (not pull-based), we'd add another
-webhook type or a server-sent events endpoint.
-
-**Open question:**
-
-> Does asystem-core need a live audit feed, or is daily/weekly
-> CSV pull-based sufficient?
-
----
-
-## 7. Roadmap interactions
-
-These are tactical questions that depend on the above answers.
-
-| Phase 2/3 epic | Blocks on |
-|---|---|
-| E-05 multi-credential (passkey/recovery) | Q1.3 (operator identity boundary) |
-| E-06 user-action signing | Q1.1, Q1.3 (whose tokens count as user-action) |
-| E-08 approval workflow | Q2.2 (where M-of-N state lives) |
-| E-09 Travel Rule | Q4.2 (originator VASP id) |
-| E-13 embedded wallet SDK | Q1.2, Q1.3 (end-user vs operator identity) |
-
-If asystem-core has its own auth + policy + approval, **E-05 /
-E-06 / E-08 may collapse to "webhook bridge"** — much smaller
-scope. We need answers before committing engineering hours to
-the larger versions.
-
----
-
-## How to use this document
-
-1. **Answer questions inline.** As decisions land, write the answer
-   under the relevant Q in the same file, in the same PR. No Slack,
-   no email — they decay.
-2. **For each question, the answer should be one of:**
-   * "Yes, asystem-core does this → ORGON adapts to call us."
-   * "No, asystem-core does NOT do this → ORGON owns this layer."
-   * "Both, here's the split: …"
-   * "Not decided yet — let's revisit by 2026-MM-DD."
-3. **Once answers land**, rewrite Phase 2 roadmap. Some epics
-   collapse, some grow, some get cancelled.
-4. **This file stays version-controlled** — when an answer
-   changes, we see the diff. Avoid Slack/email for these
-   decisions; they decay.
+When one of these closes, replace it inline with the answer.
+This file is the single PR-able source-of-truth for the integration
+contract — no Slack, no email, those decay.

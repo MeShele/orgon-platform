@@ -1,4 +1,5 @@
 """Safina API error handling."""
+from __future__ import annotations
 
 
 class SafinaError(Exception):

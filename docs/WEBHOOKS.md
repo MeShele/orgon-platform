@@ -134,9 +134,31 @@ months for incident post-mortems.
 
 > Status legend:
 > **live** — fires from production code today.
-> **defined** — symbol exists in `webhook_publisher.py` but no
-> publisher wires it yet; we will not silently start firing — there
-> will be a CHANGELOG entry when it goes live.
+> **defined (not wired)** — symbol exists in `webhook_publisher.py`
+> but no publisher wires it yet; we will not silently start firing —
+> there will be a CHANGELOG entry when it goes live.
+
+### `wallet.requested` — live
+
+Fires once, **immediately** after `POST /v1/wallets` enqueues a new
+wallet provisioning request — long before Safina returns an address.
+Purpose: give merchants a `t=0` signal so their UI can show an honest
+"generating address, usually ~90s" timer instead of a silent spinner.
+`wallet.activated` follows when Safina actually fills `addr`.
+
+Idempotency: fires only on a **fresh** INSERT into `wallets`. A
+re-call to `POST /v1/wallets` that hits the existing-row early return
+does NOT re-fire — same semantics as `user.created`.
+
+```json
+"data": {
+  "wallet_id":                    "…",
+  "end_user_id":                  "…",        // null for treasury wallets
+  "network":                       5010,
+  "purpose":                      "user_deposit",  // or treasury|fee|hot|cold
+  "estimated_activation_seconds":  90
+}
+```
 
 ### `wallet.activated` — live
 
@@ -160,18 +182,20 @@ transfer on a merchant's wallet (native or token).
 
 ```json
 "data": {
-  "deposit_id":   "…",
-  "wallet_id":    "…",
-  "end_user_id":  "…",       // null for treasury wallets
-  "network":      5010,
-  "asset":        "USDT",     // "" for native
-  "amount":       "100.000000",
-  "tx_hash":      "0x…",
-  "log_index":    0,
-  "from_address": "T…",
-  "to_address":   "T…",
-  "block_number": 12345678,
-  "confirmations": 0          // bumped by subsequent re-detection
+  "deposit_id":     "…",
+  "wallet_id":      "…",
+  "end_user_id":    "…",        // null for treasury wallets
+  "network":        5010,
+  "asset":          "USDT",      // "" for native
+  "amount":         "100.000000",
+  "tx_hash":        "0x…",
+  "log_index":      0,
+  "from_address":   "T…",
+  "to_address":     "T…",
+  "block_number":   12345678,
+  "block_timestamp": "2026-05-19T10:21:43.012345+00:00",  // ISO8601, may be null on chains
+                                                          // that don't surface block ts
+  "confirmations":  0             // bumped by subsequent re-detection
 }
 ```
 
@@ -226,20 +250,129 @@ approval engine ships, rows tagged `request_approval` will be routed
 to the approval queue automatically instead of waiting on manual
 release.
 
-### `transaction.confirmed` — defined
+### `transaction.confirmed` — live (co-emits with `transaction.broadcasted`)
 
-Will fire on first network confirmation (block inclusion). Currently
-not wired — `EV_TX_CONFIRMED` exists in code but no publisher.
+Fires alongside `transaction.broadcasted` on the same transition —
+Safina returning a `tx_hash` for our submitted tx. Same payload shape.
 
-### `transaction.failed` — defined
+> **Semantic caveat.** Today Orgon has no separate block-confirmation
+> source wired into the polling flow: the only on-chain signal it
+> sees is Safina exposing a `tx_hash`, which it does once the network
+> has accepted the broadcast. So `transaction.confirmed` and
+> `transaction.broadcasted` describe the **same moment** today.
+>
+> If you want to distinguish "submitted" from "mined", treat
+> `broadcasted` as authoritative for now and ignore `confirmed`;
+> dedupe `confirmed` aggressively in your handler. A future revision
+> will move `confirmed` to fire on real block inclusion (Safina
+> webhook re-wire or a chain watcher); when that ships, the contract
+> will get a `confirmations` field in the payload and this caveat
+> will be removed.
 
-Will fire on terminal failure (rejection by Safina, dropped from
-mempool, signer-mismatch detection). Currently not wired.
+```json
+"data": {
+  "tx_id":       "…",
+  "tx_unid":     "…",
+  "tx_hash":     "0x…",
+  "wallet_name": "…",
+  "to_address":  "T…",
+  "amount":      "100.0",
+  "token":       "USDT"
+}
+```
 
-### `user.created` — defined
+### `transaction.uncertain` — live (10-min preview signal)
 
-Will fire when `POST /v1/users` (or its idempotent re-call) inserts a
-new `end_users` row. Currently not wired.
+Fires once per tx, ~10 minutes after Safina accepts the signature
+(env-tunable `TX_UNCERTAIN_TIMEOUT_MINUTES`, default 10). Tells the
+merchant: "this payout is taking longer than expected, but it might
+still land — show your end-user a 'checking, please wait' UI and a
+contact-support CTA, don't declare it dead yet."
+
+This event is **non-terminal** by design. Three possible futures
+after `uncertain`:
+
+1. Safina catches up — next polling sync emits
+   `transaction.broadcasted` + `transaction.confirmed` for the same
+   `tx_id`. Treat that as "false alarm resolved" and clear the
+   warning in your UI.
+2. Stays stuck for 24h — `transaction.failed` fires (separate
+   sweep). Treat as "definitively dead", surface in compliance
+   queue.
+3. Some other resolution (admin manual reject, etc.) — handled by
+   the JWT-side workflows; the only signal you'll see on `/v1/*` is
+   the eventual `transaction.failed`.
+
+```json
+"data": {
+  "tx_id":          "…",
+  "tx_unid":        "…",
+  "tx_hash":        null,                // not broadcast yet
+  "wallet_name":    "…",
+  "to_address":     "T…",
+  "amount":         "100.0",
+  "token":          "USDT",
+  "stuck_seconds":  720,                 // how long since signature
+  "next_check_in":  "transaction.failed will fire at the 24h mark if not broadcast by then"
+}
+```
+
+Fires **at most once per tx**, gated on a per-row
+`uncertain_emitted_at` timestamp set in the same atomic UPDATE that
+selects rows for the sweep. A retry-tick caused by webhook queue
+hiccup won't re-fire.
+
+### `transaction.failed` — live (timeout-based)
+
+Fires when a transaction has been in `status='signed'` without a
+`tx_hash` for longer than the timeout window (default 24h, tunable
+via `TX_FAILED_TIMEOUT_HOURS`). The interpretation: Safina would
+have broadcast within seconds in the success case, so anything stuck
+this long is overwhelmingly dead — rejected at submission, gas-
+priced-out, or otherwise abandoned.
+
+```json
+"data": {
+  "tx_id":       "…",
+  "tx_unid":     "…",
+  "tx_hash":     null,                    // always null — broadcast never happened
+  "wallet_name": "…",
+  "to_address":  "T…",
+  "amount":      "100.0",
+  "token":       "USDT",
+  "reason":      "timeout_no_broadcast"   // only failure mode wired today
+}
+```
+
+> **`failed` is NOT terminal.** Today it's a timeout heuristic, not a
+> Safina-confirmed rejection. If Safina later returns a real `tx_hash`
+> for the same tx (e.g. an unusually slow >24h broadcast), the polling
+> sync will flip status back to `confirmed` and re-emit
+> `transaction.broadcasted` + `transaction.confirmed` for the same
+> `tx_id`. Treat `broadcasted` / `confirmed` as overriding any earlier
+> `failed` event for the same `tx_id`.
+>
+> Other failure modes (Safina-side rejection, signer-mismatch, mempool
+> drops) are not detected by this sweep — they'd surface either as
+> "stuck forever and eventually time out" or "broadcast confirmed,
+> later reorganized" (the latter we don't track at all). Proper Safina-
+> side `rejected` signal or chain-watcher integration is the long-term
+> right-path.
+
+### `user.created` — live
+
+Fires when `POST /v1/users` inserts a new `end_users` row. Idempotent
+re-calls (same `external_id`, going through `ON CONFLICT DO UPDATE`)
+do NOT re-fire this event — only the original creation does.
+
+```json
+"data": {
+  "id":          "…",      // our UUID for the user
+  "external_id": "…",      // your id, as you passed it
+  "email":       "…",
+  "kyc_status":  null       // or 'pending' | 'approved' | 'rejected'
+}
+```
 
 ---
 

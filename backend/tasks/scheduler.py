@@ -231,6 +231,63 @@ def setup_scheduler(
         name="Sweep webhook_deliveries past 90-day retention",
     )
 
+    # Transaction-failure timeout sweep — flips stuck `signed` txs to
+    # `failed` and emits `transaction.failed`. Source-of-truth for the
+    # `transaction.failed` webhook today; supersedes the deleted
+    # Safina-callback path (Wave 30). Threshold is conservative (24h
+    # default, env-tunable via `TX_FAILED_TIMEOUT_HOURS`) so genuinely
+    # slow Safina broadcasts don't surface as false positives.
+    async def transaction_failure_sweep_job():
+        from backend.main import get_database
+        from backend.services.transaction_failure_sweep import run_tick as tx_fail_run_tick
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            stats = await tx_fail_run_tick(db.pool)
+            if stats.get("candidates_swept"):
+                logger.info("tx_failure_sweep: %s", stats)
+        except Exception as e:
+            logger.error("tx_failure_sweep job failed: %s", e)
+
+    scheduler.add_job(
+        transaction_failure_sweep_job,
+        IntervalTrigger(hours=1),
+        id="transaction_failure_sweep",
+        name="Mark stuck-signed transactions as failed",
+    )
+    logger.info("Transaction-failure timeout sweep added (hourly)")
+
+    # Transaction-uncertain preview signal (Wave 37) — fires once per
+    # stuck-signed tx at the ~10-minute mark (env: TX_UNCERTAIN_TIMEOUT_MINUTES).
+    # Pairs with the 24h `transaction.failed` sweep: uncertain is a
+    # non-terminal "we're checking" preview; failed is the eventual
+    # 24h conclusion. Both emit through the same webhook queue;
+    # consumers dedupe on `tx_id` and treat later `broadcasted` as
+    # superseding any earlier uncertain/failed for the same tx.
+    # Interval 5 min so the 10-min threshold has at most ~5 min of
+    # additional latency before the warning fires.
+    async def transaction_uncertain_sweep_job():
+        from backend.main import get_database
+        from backend.services.transaction_uncertain_sweep import run_tick as tx_uncertain_run_tick
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            stats = await tx_uncertain_run_tick(db.pool)
+            if stats.get("candidates_swept"):
+                logger.info("tx_uncertain_sweep: %s", stats)
+        except Exception as e:
+            logger.error("tx_uncertain_sweep job failed: %s", e)
+
+    scheduler.add_job(
+        transaction_uncertain_sweep_job,
+        IntervalTrigger(minutes=5),
+        id="transaction_uncertain_sweep",
+        name="Emit transaction.uncertain for stuck-signed txs ≥ 10min",
+    )
+    logger.info("Transaction-uncertain preview sweep added (every 5 min)")
+
     # Monthly invoice generator. Runs every day at 02:00 UTC and
     # idempotently generates invoices for the PREVIOUS month — so on
     # the 1st of every month all merchants get their invoice within

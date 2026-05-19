@@ -22,10 +22,12 @@ logger = logging.getLogger("orgon.webhook_publisher")
 
 # Canonical event type strings — keep stable, merchants build
 # subscriptions on these. New types append; never rename.
+EV_WALLET_REQUESTED = "wallet.requested"
 EV_WALLET_ACTIVATED = "wallet.activated"
 EV_WALLET_DEPOSIT = "wallet.deposit.detected"
 EV_TX_BROADCASTED = "transaction.broadcasted"
 EV_TX_CONFIRMED = "transaction.confirmed"
+EV_TX_UNCERTAIN = "transaction.uncertain"  # 10-min stuck-signed preview signal (Wave 37)
 EV_TX_FAILED = "transaction.failed"
 EV_USER_CREATED = "user.created"
 EV_POLICY_TRIGGERED = "policy.triggered"   # rule engine hit with action != 'alert'

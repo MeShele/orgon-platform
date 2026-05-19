@@ -45,6 +45,77 @@ same API the operator sees.
 
 ---
 
+## /platform/* — Platform master-key API
+
+A third, deliberately isolated surface for control-plane automation
+(asystem-core's edge layer, internal CI, etc.). The auth model is a
+single env-var-issued shared secret, NOT HMAC and NOT JWT.
+
+### Why a separate surface
+
+* **Blast radius isolation.** Merchant HMAC compromise affects one
+  merchant. JWT compromise affects one operator session. Platform-
+  master compromise affects the ability to **create** merchants —
+  recoverable by rotating one env var, no in-flight money at risk.
+* **Audit separation.** Mutations log to `audit_log` with
+  `user_id=NULL` and `details.source='platform_api'` so reviewers see
+  machine-driven provisioning as a distinct class from human flows.
+* **Rotation procedure separation.** Rotate by flipping
+  `ORGON_PLATFORM_MASTER_KEY` in Coolify env and reissuing to the
+  caller. No DB migration, no merchant downtime.
+
+### Authentication
+
+```http
+Authorization: Bearer <ORGON_PLATFORM_MASTER_KEY>
+```
+
+Failure modes:
+* env unset → `503` with hint pointing at `ORGON_PLATFORM_MASTER_KEY`
+* Header missing/malformed → `401 Bearer token required`
+* Wrong token → `401 Unauthorized` (deliberately vague — no probe
+  signal which side is misconfigured)
+
+### Endpoint catalog
+
+```
+Merchant provisioning
+  POST   /platform/merchants                    # create merchant + first key pair atomically
+```
+
+`POST /platform/merchants` body:
+
+```json
+{
+  "name":          "ACME Exchange Ltd",
+  "slug":          "acme-exchange",            // stable per-tenant; idempotency key
+  "merchant_kind": "exchanger",                 // default 'exchanger'
+  "pricing_plan":  "sandbox",                   // default 'sandbox'
+  "sandbox":       true,                         // default true; controls key prefix (okt_/okl_)
+  "label":         "asystem-core acme-exchange"  // optional, attached to issued key
+}
+```
+
+Response (201):
+
+```json
+{
+  "merchant": { "id": "…", "slug": "acme-exchange", "provisioning_source": "api", … },
+  "api_key": {
+    "id":          "…",
+    "key_pub":     "okt_…",
+    "secret_once": "okst_…",                   // shown ONCE — caller MUST persist immediately
+    "label":       "asystem-core acme-exchange"
+  }
+}
+```
+
+Retry semantics: same slug → `409 Slug 'acme-exchange' already taken`
+with the existing `merchant_id` in the message. Callers should treat
+that as success-by-prior-call and look up via their own records.
+
+---
+
 ## /v1/* — B2B Merchant API
 
 For external integrators (an exchanger's backend, a bank's payments
@@ -121,6 +192,8 @@ Wallets (lazy provisioning)
   POST   /v1/wallets                            # body picks owner: end_user_id OR treasury
   GET    /v1/wallets/{wallet_id}
   GET    /v1/users/{user_id}/wallets
+  GET    /v1/wallets/{wallet_id}/balance        # cached token balances + as_of staleness
+  GET    /v1/treasury                           # merchant-owned wallets (treasury/fee/hot/cold)
 
 Transactions (outbound)
   POST   /v1/transactions
@@ -131,12 +204,20 @@ Transactions (outbound)
 Deposits (inbound, on-chain)
   GET    /v1/wallets/{wallet_id}/deposits
   GET    /v1/users/{user_id}/deposits
+  GET    /v1/deposits/lookup?tx_hash=…       # support tool: find by tx_hash, returns {found, deposits[], hint}
 
 Webhooks
   GET    /v1/webhooks/config
   PUT    /v1/webhooks/config
   POST   /v1/webhooks/test                      # queue a synthetic event
   GET    /v1/webhooks/deliveries
+
+Compliance (AML monitoring rules)
+  GET    /v1/compliance/rules                   # list merchant-scoped rules (global rules hidden)
+  POST   /v1/compliance/rules                   # create rule, source='api'
+  GET    /v1/compliance/rules/{rule_id}
+  PATCH  /v1/compliance/rules/{rule_id}
+  DELETE /v1/compliance/rules/{rule_id}
 
 Usage & billing
   GET    /v1/usage                              # today's counters + plan limits + 30-day history

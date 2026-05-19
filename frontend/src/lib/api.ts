@@ -531,6 +531,22 @@ export const api = {
   getMerchantUsage: (merchantId: string, days = 30) =>
     fetchAPI(`/api/admin/merchants/${merchantId}/usage?days=${days}`),
 
+  /** Treasury wallets snapshot for a merchant — merchant-owned wallets
+   *  (treasury / fee / hot / cold), excludes per-user-deposit. Same
+   *  shape as the public `/v1/treasury` endpoint. Reads cached balances;
+   *  no live Safina call. */
+  getMerchantTreasury: (merchantId: string) =>
+    fetchAPI(`/api/admin/merchants/${merchantId}/treasury`),
+
+  /** Find deposits by tx_hash within a merchant's wallets. Support tool
+   *  for "where is my crypto" tickets. Returns {found, deposits[], hint}.
+   *  Empty `deposits` with `found: false` is the most common path — the
+   *  `hint` field carries the structured wrong-network explanation. */
+  lookupMerchantDeposit: (merchantId: string, txHash: string, includeOffchain = false) =>
+    fetchAPI(
+      `/api/admin/merchants/${merchantId}/deposits/lookup?tx_hash=${encodeURIComponent(txHash)}&include_offchain=${includeOffchain}`,
+    ),
+
   /** Past invoices for a merchant (admin view). */
   listMerchantInvoices: (merchantId: string, limit = 24) =>
     fetchAPI(`/api/admin/merchants/${merchantId}/invoices?limit=${limit}`),

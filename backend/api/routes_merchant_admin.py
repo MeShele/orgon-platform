@@ -45,6 +45,9 @@ class MerchantSummary(BaseModel):
     api_keys_active: int
     end_users_count: int
     created_at: str
+    # 'manual' for /api/admin/merchants (UI), 'api' for /platform/merchants.
+    # Defaults to 'manual' for legacy rows (per migration 053 default).
+    provisioning_source: str = "manual"
 
 
 class CreateMerchantBody(BaseModel):
@@ -88,6 +91,7 @@ async def list_merchants(
             """
             SELECT o.id::text, o.name, o.slug, o.merchant_kind, o.pricing_plan,
                    o.sandbox, o.status, o.webhook_url, o.created_at,
+                   COALESCE(o.provisioning_source, 'manual') AS provisioning_source,
                    (SELECT count(*) FROM merchant_api_keys k
                      WHERE k.merchant_id = o.id AND k.revoked_at IS NULL) AS api_keys_active,
                    (SELECT count(*) FROM end_users u WHERE u.merchant_id = o.id) AS end_users_count
@@ -108,6 +112,7 @@ async def list_merchants(
             api_keys_active=int(r["api_keys_active"]),
             end_users_count=int(r["end_users_count"]),
             created_at=r["created_at"].isoformat(),
+            provisioning_source=r["provisioning_source"],
         )
         for r in rows
     ]
@@ -146,10 +151,10 @@ async def create_merchant(
             INSERT INTO organizations
               (name, slug, merchant_kind, pricing_plan, sandbox, webhook_url,
                safina_ec_private_key,
-               license_type, status, created_by)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, 'free', 'active', $8)
+               license_type, status, created_by, provisioning_source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'free', 'active', $8, 'manual')
             RETURNING id::text, name, slug, merchant_kind, pricing_plan, sandbox,
-                      status, webhook_url, created_at
+                      status, webhook_url, created_at, provisioning_source
             """,
             body.name,
             body.slug,
@@ -172,6 +177,7 @@ async def create_merchant(
         api_keys_active=0,
         end_users_count=0,
         created_at=row["created_at"].isoformat(),
+        provisioning_source=row["provisioning_source"],
     )
 
 
@@ -192,6 +198,7 @@ async def get_merchant(
             """
             SELECT o.id::text, o.name, o.slug, o.merchant_kind, o.pricing_plan,
                    o.sandbox, o.status, o.webhook_url, o.created_at,
+                   COALESCE(o.provisioning_source, 'manual') AS provisioning_source,
                    (SELECT count(*) FROM merchant_api_keys k
                      WHERE k.merchant_id = o.id AND k.revoked_at IS NULL) AS api_keys_active,
                    (SELECT count(*) FROM end_users u WHERE u.merchant_id = o.id) AS end_users_count
@@ -214,6 +221,7 @@ async def get_merchant(
         api_keys_active=int(r["api_keys_active"]),
         end_users_count=int(r["end_users_count"]),
         created_at=r["created_at"].isoformat(),
+        provisioning_source=r["provisioning_source"],
     )
 
 
@@ -380,6 +388,57 @@ async def get_merchant_usage(
         "today": today,
         "history": hist,
     }
+
+
+@router.get("/{merchant_id}/deposits/lookup")
+async def lookup_merchant_deposit(
+    merchant_id: str,
+    http_request: Request,
+    tx_hash: str,
+    include_offchain: bool = False,
+    user: dict = Depends(require_roles("company_admin", "company_auditor", "super_admin", "platform_admin", "admin")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    """Find deposits by tx_hash within this merchant's wallets.
+
+    Same shape as `/v1/deposits/lookup` so the admin UI and the
+    external orchestrator render from one contract. Used by support
+    operators when a user reports "I sent crypto, where is it" — we
+    surface either the deposit row(s) or a structured hint about
+    likely wrong-network transfers.
+    """
+    _ensure_caller_can_admin(merchant_id, user, org_ids)
+    try:
+        UUID(merchant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="merchant_id must be uuid")
+    from backend.services import merchant_deposit_lookup_service as dlookup
+    pool = get_db_pool(http_request)
+    rows = await dlookup.lookup_by_tx_hash(
+        pool, merchant_id=merchant_id, tx_hash=tx_hash,
+    )
+    return dlookup.build_lookup_response(
+        tx_hash=tx_hash, deposits=rows, include_offchain=include_offchain,
+    )
+
+
+@router.get("/{merchant_id}/treasury")
+async def get_merchant_treasury_admin(
+    merchant_id: str,
+    http_request: Request,
+    user: dict = Depends(require_roles("company_admin", "company_auditor", "super_admin", "platform_admin", "admin")),
+    org_ids: list = Depends(get_user_org_ids),
+):
+    """Treasury wallets snapshot (merchant-owned, excludes user_deposit).
+
+    Same shape as `/v1/treasury` so the admin panel can render from
+    either endpoint. Read-only — does not call Safina; reads the
+    locally-cached `token_balances` populated by sync_balances.
+    """
+    _ensure_caller_can_admin(merchant_id, user, org_ids)
+    from backend.services import merchant_balance_service as bal
+    pool = get_db_pool(http_request)
+    return await bal.get_merchant_treasury(pool, merchant_id=merchant_id)
 
 
 @router.get("/{merchant_id}/invoices")

@@ -13,7 +13,8 @@ client-supplied tenant ids.
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Path, Query, Request
 from pydantic import BaseModel, Field
@@ -150,6 +151,7 @@ async def upsert_user(body: UserUpsertBody, request: Request) -> dict:
         email=body.email,
         kyc_status=body.kyc_status,
         metadata=body.metadata,
+        request_id=getattr(request.state, "request_id", None),
     )
     return _user_to_public(row)
 
@@ -274,6 +276,37 @@ async def list_user_wallets(user_id: str, request: Request) -> dict:
         pool, merchant_id=_merchant_id_of(request), end_user_id=user_id,
     )
     return {"wallets": rows}
+
+
+# ---------------------------------------------------------------------
+# Balance & treasury — read-only snapshots of locally-cached `token_balances`.
+# The sync worker is the only path that talks to Safina; this read-path
+# never does. `as_of` reflects when the cache was last refreshed (~5 min
+# typical, longer if Safina is down).
+# ---------------------------------------------------------------------
+
+@router.get("/wallets/{wallet_id}/balance")
+async def get_wallet_balance_endpoint(wallet_id: str, request: Request) -> dict:
+    from backend.services import merchant_balance_service as bal
+    pool = get_db_pool(request)
+    out = await bal.get_wallet_balance(
+        pool, merchant_id=_merchant_id_of(request), wallet_id=wallet_id,
+    )
+    if out is None:
+        raise HTTPException(status_code=404, detail="wallet not found")
+    return out
+
+
+@router.get("/treasury")
+async def get_merchant_treasury_endpoint(request: Request) -> dict:
+    """Merchant-owned wallets only (`treasury` / `fee` / `hot` / `cold`).
+    `user_deposit` wallets are intentionally excluded — those are
+    per-end-user addresses, not treasury inventory."""
+    from backend.services import merchant_balance_service as bal
+    pool = get_db_pool(request)
+    return await bal.get_merchant_treasury(
+        pool, merchant_id=_merchant_id_of(request),
+    )
 
 
 # ---------------------------------------------------------------------
@@ -625,6 +658,277 @@ async def list_transactions_endpoint(
         cursor=cursor,
         limit=limit,
     )
+
+
+# ---------------------------------------------------------------------
+# Deposit lookup — support / debug tool. Returns every `deposits` row
+# matching a tx_hash, scoped to the caller's merchant. Handles the
+# most common KG-crypto support ticket ("я отправил, где деньги")
+# without making support hand-decode explorers.
+#
+# Deliberately stops at our DB: cross-network discovery (when a user
+# sent USDT-TRC20 to your Ethereum wallet — those never land in our
+# `deposits` table) is a separate epic. The `include_offchain=true`
+# param reserves the response slot for it.
+# ---------------------------------------------------------------------
+
+@router.get("/deposits/lookup")
+async def v1_deposit_lookup(
+    request: Request,
+    tx_hash: str = Query(..., min_length=1, max_length=200, description="Exact tx_hash to look up. No partial matches."),
+    include_offchain: bool = Query(
+        False,
+        description="Reserved for future cross-network discovery via "
+        "Safina / chain explorers. Today returns a structured "
+        "'not yet supported' hint when true; the lookup itself only "
+        "ever searches the local `deposits` cache.",
+    ),
+) -> dict:
+    from backend.services import merchant_deposit_lookup_service as dlookup
+    pool = get_db_pool(request)
+    merchant_id = _merchant_id_of(request)
+    rows = await dlookup.lookup_by_tx_hash(
+        pool, merchant_id=merchant_id, tx_hash=tx_hash,
+    )
+    return dlookup.build_lookup_response(
+        tx_hash=tx_hash, deposits=rows, include_offchain=include_offchain,
+    )
+
+
+# ---------------------------------------------------------------------
+# Compliance rules — AML monitoring rule CRUD, scoped to the caller's
+# merchant. Mirrors the JWT `/api/v1/compliance/rules` surface so an
+# external orchestrator (e.g. asystem-core's admin) can manage AML
+# config without round-tripping users through the Orgon dashboard.
+#
+# Rules created here get `source='api'` so the Orgon dashboard can
+# show "API-managed" badges and operators understand the channel.
+# ---------------------------------------------------------------------
+
+# Full set including E-07 extensions — same vocabulary as
+# `ComplianceService.SUPPORTED_RULE_TYPES`. The JWT route's Literal
+# is narrower (3 legacy types) for back-compat with old clients; here
+# we expose everything the engine actually evaluates because external
+# orchestrators have no UI-side restraint to keep them on the legacy
+# subset.
+_V1_RULE_TYPES = Literal[
+    "threshold",
+    "velocity",
+    "blacklist_address",
+    "velocity_amount_usd",
+    "recipient_whitelist",
+    "time_window",
+    "recipient_geo_block",
+]
+_V1_RULE_ACTIONS = Literal["alert", "hold", "block", "request_approval"]
+_V1_RULE_SEVERITIES = Literal["low", "medium", "high", "critical"]
+
+
+class V1MonitoringRuleCreate(BaseModel):
+    rule_name: str = Field(..., min_length=1, max_length=255)
+    rule_type: _V1_RULE_TYPES
+    description: Optional[str] = Field(default=None, max_length=2000)
+    rule_config: dict
+    action: _V1_RULE_ACTIONS = "alert"
+    severity: _V1_RULE_SEVERITIES = "medium"
+    is_active: bool = True
+
+
+class V1MonitoringRuleUpdate(BaseModel):
+    rule_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    rule_type: Optional[_V1_RULE_TYPES] = None
+    description: Optional[str] = Field(default=None, max_length=2000)
+    rule_config: Optional[dict] = None
+    action: Optional[_V1_RULE_ACTIONS] = None
+    severity: Optional[_V1_RULE_SEVERITIES] = None
+    is_active: Optional[bool] = None
+
+
+def _rule_to_public(row: dict) -> dict:
+    """Same shape as the JWT-side `MonitoringRule` model, minus
+    `created_by` (an internal int the merchant can't act on)."""
+    return {
+        "id": str(row["id"]),
+        "organization_id": str(row["organization_id"]) if row.get("organization_id") else None,
+        "rule_name": row["rule_name"],
+        "rule_type": row["rule_type"],
+        "description": row.get("description"),
+        "rule_config": row.get("rule_config") or {},
+        "action": row["action"],
+        "severity": row["severity"],
+        "is_active": row["is_active"],
+        "source": row.get("source") or "ui",
+        "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+        "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
+    }
+
+
+def _compliance_service(request: Request):
+    """Cheap inline service factory. Avoids dragging the JWT-side
+    `get_compliance_service` (which depends on FastAPI's `Depends`
+    machinery) into the HMAC-route world."""
+    from backend.services.compliance_service import ComplianceService
+    return ComplianceService(get_db_pool(request))
+
+
+@router.get("/compliance/rules")
+async def v1_list_rules(request: Request) -> dict:
+    """List rules belonging to this merchant. Global rules
+    (`organization_id IS NULL`) are NOT visible on the `/v1/*`
+    surface — those are platform-wide policies set by the ORGON team
+    and shouldn't appear in an external orchestrator's admin UI."""
+    svc = _compliance_service(request)
+    merchant_id = UUID(_merchant_id_of(request))
+    rows = await svc.list_monitoring_rules(
+        org_ids=[merchant_id],
+        include_global=False,
+    )
+    return {"rules": [_rule_to_public(r) for r in rows]}
+
+
+@router.get("/compliance/rules/{rule_id}")
+async def v1_get_rule(rule_id: str, request: Request) -> dict:
+    svc = _compliance_service(request)
+    merchant_id = UUID(_merchant_id_of(request))
+    try:
+        rid = UUID(rule_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="rule_id must be uuid")
+    row = await svc.get_monitoring_rule(rid, org_ids=[merchant_id])
+    # Hide global rules: even if the merchant happens to know a global
+    # rule's id, /v1/* shouldn't surface it.
+    if row is None or row.get("organization_id") is None:
+        raise HTTPException(status_code=404, detail="rule not found")
+    return _rule_to_public(row)
+
+
+@router.post("/compliance/rules", status_code=201)
+async def v1_create_rule(body: V1MonitoringRuleCreate, request: Request) -> dict:
+    svc = _compliance_service(request)
+    merchant_id = UUID(_merchant_id_of(request))
+    _validate_v1_rule_config(body.rule_type, body.rule_config)
+    row = await svc.create_monitoring_rule(
+        organization_id=merchant_id,
+        rule_name=body.rule_name,
+        rule_type=body.rule_type,
+        description=body.description,
+        rule_config=body.rule_config,
+        action=body.action,
+        severity=body.severity,
+        is_active=body.is_active,
+        actor_user_id=None,  # HMAC route — no human user
+        source="api",
+    )
+    return _rule_to_public(row)
+
+
+@router.patch("/compliance/rules/{rule_id}")
+async def v1_update_rule(
+    rule_id: str, body: V1MonitoringRuleUpdate, request: Request,
+) -> dict:
+    svc = _compliance_service(request)
+    merchant_id = UUID(_merchant_id_of(request))
+    try:
+        rid = UUID(rule_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="rule_id must be uuid")
+
+    # Pre-check existence + scope so the validation error below
+    # doesn't leak "rule of another merchant exists at this id".
+    existing = await svc.get_monitoring_rule(rid, org_ids=[merchant_id])
+    if existing is None or existing.get("organization_id") is None:
+        raise HTTPException(status_code=404, detail="rule not found")
+
+    # Validate config against the resulting `rule_type` (caller's new
+    # type if passed, otherwise the existing one).
+    if body.rule_config is not None:
+        effective_type = body.rule_type or existing["rule_type"]
+        _validate_v1_rule_config(effective_type, body.rule_config)
+
+    row = await svc.update_monitoring_rule(
+        rid,
+        org_ids=[merchant_id],
+        actor_user_id=None,
+        rule_name=body.rule_name,
+        rule_type=body.rule_type,
+        description=body.description,
+        rule_config=body.rule_config,
+        action=body.action,
+        severity=body.severity,
+        is_active=body.is_active,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="rule not found")
+    return _rule_to_public(row)
+
+
+@router.delete("/compliance/rules/{rule_id}", status_code=204)
+async def v1_delete_rule(rule_id: str, request: Request):
+    svc = _compliance_service(request)
+    merchant_id = UUID(_merchant_id_of(request))
+    try:
+        rid = UUID(rule_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="rule_id must be uuid")
+
+    existing = await svc.get_monitoring_rule(rid, org_ids=[merchant_id])
+    if existing is None or existing.get("organization_id") is None:
+        raise HTTPException(status_code=404, detail="rule not found")
+
+    deleted = await svc.delete_monitoring_rule(
+        rid, org_ids=[merchant_id], actor_user_id=None,
+    )
+    if not deleted:
+        raise HTTPException(status_code=404, detail="rule not found")
+    # FastAPI auto-converts None to 204 with empty body
+
+
+def _validate_v1_rule_config(rule_type: str, config: dict) -> None:
+    """Per-type config schema. Mirrors `_validate_rule_config` in
+    `routes_compliance.py` for the 3 legacy types; accepts opaque
+    config for the E-07 extensions (the engine validates them at
+    evaluation time, not insert time)."""
+    if rule_type == "threshold":
+        if "threshold_usd" not in config and "threshold" not in config:
+            raise HTTPException(
+                status_code=422,
+                detail="threshold rules require rule_config.threshold_usd",
+            )
+        try:
+            float(str(config.get("threshold_usd", config.get("threshold"))))
+        except (TypeError, ValueError):
+            raise HTTPException(
+                status_code=422,
+                detail="threshold_usd must be a number",
+            )
+    elif rule_type == "velocity":
+        for k in ("count", "window_hours"):
+            if k not in config:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"velocity rules require rule_config.{k}",
+                )
+            if not isinstance(config[k], int) or config[k] <= 0:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"velocity rule_config.{k} must be a positive integer",
+                )
+    elif rule_type == "blacklist_address":
+        addrs = config.get("addresses")
+        if not isinstance(addrs, list) or not addrs:
+            raise HTTPException(
+                status_code=422,
+                detail="blacklist_address rules require non-empty rule_config.addresses[]",
+            )
+        for a in addrs:
+            if not isinstance(a, str):
+                raise HTTPException(
+                    status_code=422,
+                    detail="blacklist_address rule_config.addresses must contain strings",
+                )
+    # E-07 types (`velocity_amount_usd`, `recipient_whitelist`,
+    # `time_window`, `recipient_geo_block`): opaque config — Pydantic
+    # only enforces dict shape, engine validates at evaluation time.
 
 
 # ---------------------------------------------------------------------

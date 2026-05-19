@@ -11,8 +11,8 @@
 > control plane. If they don't, we ship — but at least we shipped
 > with intent, not by default.
 
-Authors: ORGON team. Review: Urmat (mesh), caesarclown (operator).
-Status: **draft / awaiting answers**.
+Owner: caesarclown (operator + asystem-core architecture).
+Status: **draft / answers pending**.
 
 ---
 
@@ -292,8 +292,9 @@ the larger versions.
 
 ## How to use this document
 
-1. **Send this to Urmat / asystem-core lead.** Add answers inline
-   under each section as comments or in a follow-up PR.
+1. **Answer questions inline.** As decisions land, write the answer
+   under the relevant Q in the same file, in the same PR. No Slack,
+   no email — they decay.
 2. **For each question, the answer should be one of:**
    * "Yes, asystem-core does this → ORGON adapts to call us."
    * "No, asystem-core does NOT do this → ORGON owns this layer."

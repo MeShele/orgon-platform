@@ -7,6 +7,60 @@ contributors know what was deliberately punted vs. forgotten.
 
 ---
 
+## Deploy 2026-05-20 — Waves 30-38 + hot-fixes live on prod
+
+`orgon.asystem.ai` deployed Waves 30-38 in five Coolify deploys (one
+hung in pip-install limbo and was force-cancelled; the rest landed
+clean):
+
+1. `xyj19tvsif4ap8daeztbezza` — initial Wave 30-38 (sha `9955f06`).
+2. `wflcc1bl3nzjnosyl2tnmc6a` — middleware hot-fix: Next.js was
+   307-redirecting `/platform/*`, `/privacy`, `/terms` to `/login`
+   because the new pages weren't in `publicRoutes` and `/platform`
+   wasn't in the auth-redirect matcher exclusion. Fixed in
+   `frontend/src/middleware.ts`.
+3. `wx9hdr7dutumv54dfj3zrdd6` — next.config rewrites hot-fix:
+   middleware no longer blocked `/platform/*` but Next.js still
+   returned its 404 HTML page because the proxy rewrites table only
+   forwarded `/api/*` and `/v1/*` to backend. Added `/platform/*` to
+   the rewrites in `frontend/next.config.ts`.
+4. `nl3r16m5xi6yfwls1bh6e6d9` — env-var pickup deploy (cancelled
+   after hanging in pip-install layer for 60+ min; Coolify's deploy
+   record stalled but the runner appears to have died silently).
+5. `mrpoid3d7mvcjs8ym95lbjqp` — force-rebuild that finally landed
+   `ORGON_PLATFORM_MASTER_KEY` env-var into the running container.
+   ~6.5 min. Status verified by end-to-end smoke (real merchant
+   created via POST `/platform/merchants`).
+
+Production smoke verified all Wave 30-38 endpoints:
+
+* HMAC `/v1/*` surface — `/v1/health`, `/v1/treasury`,
+  `/v1/wallets/{id}/balance`, `/v1/compliance/rules`,
+  `/v1/deposits/lookup`, `/v1/ping` — all 401 without auth (auth
+  enforced), live.
+* JWT `/api/v1/compliance/sar/config` — 403 without session, live.
+* Platform-master `/platform/merchants` — 401 without token, 401
+  with wrong token (no probe-leak), 422 with right token + empty
+  body (Pydantic validation), 201 with valid body (merchant + key
+  pair returned atomically). Idempotency on slug verified: retry
+  with same slug returns 409 with existing merchant_id in message.
+* Wave 38 public pages — `/pricing`, `/privacy`, `/terms` all 200.
+* Existing endpoints (`/api/health`, `/`, `/features`, `/about`,
+  `/login`, etc.) unchanged.
+
+Test merchant `smoke-1779266544` (`eb829e62-3068-4ce3-a2a2-
+f6a4625dda39`) left in place — sandbox-only (`okt_*` key prefix), no
+mainnet exposure. Can be suspended via `/admin/merchants/<id>` UI
+when convenient; no business reason to rush.
+
+ORGON_PLATFORM_MASTER_KEY in Coolify env (uuid
+`m1065anf11ax5ucowqs4nqto`, runtime-only, 64-hex literal). Token
+locally at `~/.config/orgon/platform-master-key` (mode 600). Needs
+to be shared with asystem-core's operator out-of-band so their edge
+layer can self-provision Orgon merchants.
+
+---
+
 ## Wave 38 — UX-audit script + dead-link sweep (2026-05-20)
 
 Defensive safety net for everything shipped in Waves 30-37. The

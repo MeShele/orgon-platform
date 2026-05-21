@@ -7,7 +7,6 @@ import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
 import { Eyebrow, BigNum, Mono, StatusPill } from "@/components/ui/primitives";
 import { Sparkline } from "@/components/ui/Sparkline";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { HelpTooltip } from "@/components/common/HelpTooltip";
 import { api } from "@/lib/api";
@@ -110,6 +109,21 @@ export default function DashboardPage() {
     { refreshInterval: 60000 },
   );
 
+  // Real balance history for the «Баланс · 30Д» sparkline. Previously
+  // the chart rendered a hardcoded `[6,7,5,8,...]` array — visually
+  // showing growth regardless of actual account state. That's a
+  // trust-breaking lie: a customer with $0 saw a thriving chart.
+  //
+  // Endpoint returns daily aggregate rows; we extract `total_value`
+  // for the line. When the array is empty (fresh account, no
+  // history yet) — sparkline hides and we just show the BigNum,
+  // which is honest.
+  const { data: balanceHistory } = useSWR<Array<{ date?: string; total_value?: number | string }>>(
+    "/api/analytics/balance-history?days=30",
+    () => api.getBalanceHistory(30) as Promise<Array<{ date?: string; total_value?: number | string }>>,
+    { refreshInterval: 5 * 60 * 1000 },
+  );
+
   useEffect(() => {
     if (!lastEvent) return;
     const t = lastEvent.type as string;
@@ -130,6 +144,17 @@ export default function DashboardPage() {
   const recentList: RecentItem[] = Array.isArray(recent) ? recent : [];
   const alertList: AlertItem[] = Array.isArray(alerts) ? alerts : [];
   const balanceUsd = stats?.total_balance_usd ?? "0.00";
+  const pendingSigs = stats?.pending_signatures ?? 0;
+  // Convert balance-history rows into a numeric series for Sparkline.
+  // Filter out NaN early so an unparseable row doesn't break the
+  // canvas plot. Series shorter than 2 points is meaningless on a
+  // line chart — render nothing instead of a single dot.
+  const balanceSeries = Array.isArray(balanceHistory)
+    ? balanceHistory
+        .map((r) => Number(r?.total_value))
+        .filter((n) => Number.isFinite(n))
+    : [];
+  const hasBalanceSeries = balanceSeries.length >= 2;
 
   return (
     <>
@@ -160,7 +185,17 @@ export default function DashboardPage() {
             <KpiTile label="Общий баланс" value={`$ ${formatNumber(balanceUsd, 2)}`} sub="USD эквивалент" big />
             <KpiTile label="Кошельки" value={String(stats?.total_wallets ?? "—")} sub="всего" />
             <KpiTile label="Транзакции, 24ч" value={String(stats?.transactions_24h ?? "—")} sub="за последние 24 часа" />
-            <KpiTile label="Ожидают подписи" value={String(stats?.pending_signatures ?? "—")} sub="требуют действия" accent />
+            {/* «Ожидают подписи» — clickable and red ONLY when there's
+                something to action. Red on `0` used to scream "danger"
+                for a calm empty state — wrong signal. HelpTooltip
+                promised this KPI was clickable; now it actually is. */}
+            <KpiTile
+              label="Ожидают подписи"
+              value={String(stats?.pending_signatures ?? "—")}
+              sub="требуют действия"
+              accent={Number(pendingSigs) > 0}
+              href="/signatures"
+            />
             <KpiTile label="Сети" value={String(stats?.networks_active ?? "—")} sub="активные" />
           </div>
         </section>
@@ -243,7 +278,7 @@ export default function DashboardPage() {
                                 : tx.title /* backend pre-formatted "Sent 1.01 TRX" */ ?? "—"}
                             </span>
                           </td>
-                          <td className="px-3 py-3 text-right tabular text-foreground">
+                          <td className="px-3 py-3 text-right tabular-nums text-foreground">
                             {String(amount)}{" "}
                             <span className="text-muted-foreground">{tokenSym}</span>
                           </td>
@@ -264,9 +299,20 @@ export default function DashboardPage() {
               <Eyebrow>Баланс · 30Д</Eyebrow>
               <BigNum size="xl" className="mt-2">$ {formatNumber(balanceUsd, 0)}</BigNum>
               <Mono size="xs" className="mt-1 text-muted-foreground block">Авто-обновление каждые 30с</Mono>
-              <div className="mt-4 text-primary">
-                <Sparkline points={[6, 7, 5, 8, 7, 9, 8, 10, 9, 11, 10, 12, 11, 13, 12, 14, 13, 15]} width={300} height={64} />
-              </div>
+              {/* Real series from /api/analytics/balance-history?days=30.
+                  Hardcoded placeholder used to show a thriving line
+                  on an empty $0 account — misleading. With <2 data
+                  points the line is meaningless, render nothing. */}
+              {hasBalanceSeries ? (
+                <div className="mt-4 text-primary">
+                  <Sparkline points={balanceSeries} width={300} height={64} />
+                </div>
+              ) : (
+                <div className="mt-4 flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+                  <Icon icon="solar:chart-2-linear" className="text-base shrink-0" />
+                  <span>График появится после 2+ дней активности.</span>
+                </div>
+              )}
             </div>
 
             <div className="border border-border bg-card">
@@ -329,18 +375,36 @@ function KpiTile({
   sub,
   big = false,
   accent = false,
+  href,
 }: {
   label: string;
   value: string;
   sub?: string;
   big?: boolean;
+  /** When true, the value is rendered in `text-primary` — use for
+   *  KPIs that signal "needs action" (e.g. pending signatures > 0).
+   *  Avoid colouring `0` red — empty state is calm, not danger. */
   accent?: boolean;
+  /** When set, the whole tile becomes a Next.js `<Link>` to this
+   *  route. Used to make actionable KPIs clickable instead of just
+   *  decorative — keeps the HelpTooltip's promise that clicking a
+   *  KPI navigates to its detail view. */
+  href?: string;
 }) {
-  return (
-    <div className="bg-card p-5 lg:p-6">
+  const body = (
+    <>
       <Eyebrow>{label}</Eyebrow>
       <BigNum size={big ? "xl" : "lg"} className={cn("mt-2", accent && "text-primary")}>{value}</BigNum>
       {sub && <Mono size="xs" className="mt-2 text-muted-foreground block">{sub}</Mono>}
-    </div>
+    </>
   );
+  const baseClass = "block bg-card p-5 lg:p-6";
+  if (href) {
+    return (
+      <Link href={href} className={cn(baseClass, "transition-colors hover:bg-muted/40 focus:outline-none focus:ring-2 focus:ring-primary/30")}>
+        {body}
+      </Link>
+    );
+  }
+  return <div className={baseClass}>{body}</div>;
 }

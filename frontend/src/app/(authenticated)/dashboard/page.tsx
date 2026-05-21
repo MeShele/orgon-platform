@@ -3,6 +3,7 @@
 import useSWR from "swr";
 import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
 import { Eyebrow, BigNum, Mono, StatusPill } from "@/components/ui/primitives";
@@ -92,6 +93,7 @@ function formatNumber(n?: string | number, fractionDigits = 0): string {
 export default function DashboardPage() {
   const t = useTranslations("dashboard");
   const { lastEvent } = useWebSocket();
+  const router = useRouter();
 
   const { data: stats, error: statsError, mutate: mutateStats } = useSWR<Stats>(
     "/api/dashboard/stats",
@@ -264,8 +266,41 @@ export default function DashboardPage() {
                       const walletName = d.wallet_name ?? tx.wallet_name ?? null;
                       const ts = tx.timestamp ?? tx.created_at;
                       const txUnid = d.tx_unid ?? tx.tx_unid ?? "";
+                      // Make the row a navigation target — drill-down
+                      // to the canonical tx-detail page when a unid is
+                      // available. Without this the row's hover state
+                      // was decorative and the user had no path back to
+                      // an in-flight transfer once they navigated away
+                      // from /wallets/[name]/send?tx=<unid>.
+                      const goDetail = txUnid
+                        ? () => router.push(`/transactions/${encodeURIComponent(txUnid)}`)
+                        : undefined;
                       return (
-                        <tr key={txUnid || tx.id || i} className="border-t border-border hover:bg-muted/40">
+                        <tr
+                          key={txUnid || tx.id || i}
+                          className={
+                            "border-t border-border " +
+                            (goDetail
+                              ? "hover:bg-muted/40 cursor-pointer focus-within:bg-muted/40"
+                              : "hover:bg-muted/40")
+                          }
+                          onClick={goDetail}
+                          // Keyboard parity for non-mouse users — Enter
+                          // and Space behave like a click. Without
+                          // these, the row was unreachable by tab nav.
+                          tabIndex={goDetail ? 0 : -1}
+                          role={goDetail ? "link" : undefined}
+                          onKeyDown={
+                            goDetail
+                              ? (e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    goDetail();
+                                  }
+                                }
+                              : undefined
+                          }
+                        >
                           <td className="px-5 py-3"><StatusPill kind={kind as any} label={status} /></td>
                           <td className="px-3 py-3 text-foreground">
                             <span className="text-[12px] font-mono" title={walletName ?? txUnid ?? undefined}>

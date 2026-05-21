@@ -39,6 +39,32 @@ export default function TransactionDetailPage() {
 
   useEffect(loadTx, [unid]);
 
+  // Auto-refresh while the tx is in-flight (pending / signed without
+  // tx_hash). Sync is the same primitive the dashboard + send-page
+  // poll on; we just close the loop here so a user landing via
+  // drill-down doesn't have to manually reload. Polling halts on
+  // terminal status — both branches handled by `shouldPoll`.
+  useEffect(() => {
+    if (!tx) return;
+    const status = String(tx.status ?? "").toLowerCase();
+    const hashStr = (tx.tx_hash ? String(tx.tx_hash) : "").trim();
+    const isSentinel =
+      hashStr.toLowerCase().includes("canceled") ||
+      hashStr.toLowerCase().includes("limit");
+    const shouldPoll =
+      !hashStr || isSentinel
+        ? !(
+            status === "rejected" ||
+            status === "failed" ||
+            status === "rejected_signer_mismatch" ||
+            isSentinel
+          )
+        : false;
+    if (!shouldPoll) return;
+    const id = setInterval(loadTx, 6000);
+    return () => clearInterval(id);
+  }, [tx, unid]);
+
   const handleSign = async () => {
     setActionLoading(true);
     try {
@@ -150,6 +176,89 @@ export default function TransactionDetailPage() {
             </div>
           </div>
         </Card>
+
+        {/* In-flight progress widget — same 3-step ladder as on
+            /wallets/[name]/send?tx=<unid>, mirrored here so a user
+            who drills in from /dashboard sees current status without
+            jumping back to the send form. Renders only when the tx is
+            actually in motion (signed, awaiting broadcast, or pending
+            without on-chain confirmation yet). Auto-refreshes every
+            6s via the parent `loadTx` interval — see useEffect below. */}
+        {(() => {
+          const status = String(tx.status ?? "").toLowerCase();
+          const hashStr = (tx.tx_hash ? String(tx.tx_hash) : "").trim();
+          const isSentinel =
+            hashStr.toLowerCase().includes("canceled") ||
+            hashStr.toLowerCase().includes("limit");
+          const hasRealHash = !!hashStr && !isSentinel;
+          // Step cursor:
+          //   pending / signed / sent without hash → broadcasting (cursor=2)
+          //   real tx_hash present → done (cursor=4, all 3 ticked)
+          //   rejected/failed/sentinel → error (cursor=-1, list hidden)
+          const isErrorTerm =
+            status === "rejected" ||
+            status === "failed" ||
+            status === "rejected_signer_mismatch" ||
+            isSentinel;
+          const isInFlight = !hasRealHash && !isErrorTerm && status !== "on_hold";
+          if (!isInFlight && !hasRealHash) return null;
+          const steps = [
+            { label: "Подписание", sublabel: "Подписали нашим EC ключом" },
+            { label: "Отправка в сеть", sublabel: "Safina передаёт транзакцию в блокчейн" },
+            { label: "Подтверждение", sublabel: "Транзакция принята сетью" },
+          ];
+          // For drilled-in view we always know sign happened (the row
+          // wouldn't exist otherwise). With hash → all done. Without
+          // → step 2 active.
+          const cursor = hasRealHash ? 4 : 2;
+          return (
+            <Card>
+              <CardHeader
+                title="Прогресс"
+                subtitle={
+                  hasRealHash
+                    ? "Транзакция в сети"
+                    : "Ждём, пока Safina передаст транзакцию в блокчейн. Автообновление каждые 6 секунд."
+                }
+              />
+              <ol className="space-y-2 p-4">
+                {steps.map((s, i) => {
+                  const idx = i + 1;
+                  const done = cursor > idx;
+                  const active = cursor === idx;
+                  return (
+                    <li
+                      key={s.label}
+                      className={
+                        done
+                          ? "rounded-lg border border-success/30 bg-success/5 px-3 py-2"
+                          : active
+                          ? "rounded-lg border border-primary/30 bg-primary/5 px-3 py-2"
+                          : "rounded-lg border border-border bg-muted/30 px-3 py-2"
+                      }
+                    >
+                      <div className="flex items-center gap-3">
+                        {done ? (
+                          <Icon icon="solar:check-circle-bold" className="text-success text-lg" />
+                        ) : active ? (
+                          <Icon icon="solar:refresh-bold" className="text-primary text-lg animate-spin" />
+                        ) : (
+                          <Icon icon="solar:clock-circle-linear" className="text-muted-foreground text-lg" />
+                        )}
+                        <div>
+                          <p className={done || active ? "text-xs font-medium text-foreground" : "text-xs font-medium text-muted-foreground"}>
+                            {s.label}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">{s.sublabel}</p>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </Card>
+          );
+        })()}
 
         {/* Wave 23 / Story 2.8 — if an in-house AML rule held this tx,
             surface it prominently with a deep-link to the AML triage queue. */}

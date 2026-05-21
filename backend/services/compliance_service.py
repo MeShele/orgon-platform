@@ -409,6 +409,7 @@ class ComplianceService:
                         "new_status": "investigating",
                         "previous_assignee": pre_row["assigned_to"],
                     },
+                    organization_id=pre_row.get("organization_id"),
                 )
                 return dict(row)
 
@@ -485,6 +486,7 @@ class ComplianceService:
                         "resolution": resolution,
                         "report_reference": report_reference,
                     },
+                    organization_id=pre_row.get("organization_id"),
                 )
                 return dict(row)
 
@@ -534,6 +536,7 @@ class ComplianceService:
                     action="aml.alert.note",
                     alert_id=alert_id,
                     details={"note_preview": note.strip()[:120]},
+                    organization_id=pre_row.get("organization_id"),
                 )
                 return dict(row)
 
@@ -622,17 +625,25 @@ class ComplianceService:
         action: str,
         alert_id: UUID,
         details: Dict[str, Any],
+        organization_id: Optional[Any] = None,
     ) -> None:
-        """Single source of truth for AML audit-log writes."""
+        """Single source of truth for AML audit-log writes.
+
+        `organization_id` (TD-1 Phase A): pass the alert's owning org so
+        the new tenant-scoping column gets populated. Callers that don't
+        yet thread it through can omit — the row still lands, just
+        untagged (NULL). Phase B will backfill those.
+        """
         await conn.execute(
             """
-            INSERT INTO audit_log (user_id, action, resource_type, resource_id, details)
-            VALUES ($1, $2, 'aml_alert', $3, $4::jsonb)
+            INSERT INTO audit_log (user_id, action, resource_type, resource_id, details, organization_id)
+            VALUES ($1, $2, 'aml_alert', $3, $4::jsonb, $5)
             """,
             user_id,
             action,
             str(alert_id),
             json.dumps(details, default=str),
+            organization_id,
         )
 
     # ==================== Rule engine (Wave 23, Story 2.8) ====================
@@ -1115,6 +1126,7 @@ class ComplianceService:
                         "new_tx_status": "pending",
                         "reason": reason.strip(),
                     },
+                    organization_id=pre_alert.get("organization_id"),
                 )
 
                 return {
@@ -1249,6 +1261,7 @@ class ComplianceService:
                 await self._write_rule_audit(
                     conn, actor_user_id, "rule.create", row["id"],
                     {"after": _serialise_rule(row), "source": source},
+                    organization_id=row.get("organization_id"),
                 )
                 return dict(row)
 
@@ -1306,6 +1319,7 @@ class ComplianceService:
                 await self._write_rule_audit(
                     conn, actor_user_id, "rule.update", rule_id,
                     {"before": _serialise_rule(pre), "after": _serialise_rule(row)},
+                    organization_id=(row or pre).get("organization_id"),
                 )
                 return dict(row) if row else None
 
@@ -1329,6 +1343,7 @@ class ComplianceService:
                 await self._write_rule_audit(
                     conn, actor_user_id, "rule.delete", rule_id,
                     {"before": _serialise_rule(pre)},
+                    organization_id=pre.get("organization_id"),
                 )
                 return True
 
@@ -1356,16 +1371,21 @@ class ComplianceService:
         action: str,
         rule_id: UUID,
         details: Dict[str, Any],
+        organization_id: Optional[Any] = None,
     ) -> None:
+        """`organization_id` (TD-1 Phase A): owning org of the rule.
+        Global rules (org IS NULL) stay NULL — that's the correct
+        semantic for cross-tenant rules visible to every org."""
         await conn.execute(
             """
-            INSERT INTO audit_log (user_id, action, resource_type, resource_id, details)
-            VALUES ($1, $2, 'monitoring_rule', $3, $4::jsonb)
+            INSERT INTO audit_log (user_id, action, resource_type, resource_id, details, organization_id)
+            VALUES ($1, $2, 'monitoring_rule', $3, $4::jsonb, $5)
             """,
             actor_user_id,
             action,
             str(rule_id),
             json.dumps(details, default=str),
+            organization_id,
         )
 
     # ==================== SAR submissions (Wave 24, Story 2.9) ====================

@@ -241,7 +241,7 @@ export default function DocsPage() {
             От первого звонка до live — 6 этапов
           </h2>
           <p className="mt-4 max-w-3xl text-[15px] leading-[1.7] text-muted-foreground">
-            Полный цикл занимает 1-2 недели. Технический setup tenant'а — 30 минут.
+            Полный цикл занимает 1-2 недели. Технический setup tenant&apos;а — 30 минут.
             Если у клиента есть свой разработчик — добавьте 1-2 дня на интеграцию API.
           </p>
           <div className="mt-12 grid md:grid-cols-2 lg:grid-cols-3 gap-px bg-border">

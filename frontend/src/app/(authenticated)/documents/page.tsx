@@ -2,8 +2,6 @@
 import { useState, useCallback } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Button } from '@/components/ui/Button';
 import { Icon } from '@/lib/icons';
 import { pageLayout, buttonStyles } from '@/lib/page-layout';
 import { DocumentViewer } from '@/components/DocumentViewer';
@@ -18,11 +16,6 @@ export default function DocumentsPage() {
   const [showViewer, setShowViewer] = useState(false);
   const [editable, setEditable] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [recentDocs] = useState([
-    { name: 'Политика безопасности.docx', type: 'docx', date: '2026-02-15' },
-    { name: 'Отчёт Q4.xlsx', type: 'xlsx', date: '2026-02-10' },
-    { name: 'Договор поставки.pdf', type: 'pdf', date: '2026-02-08' },
-  ]);
 
   const openDocument = useCallback(async () => {
     if (!fileUrl || !fileName) return;
@@ -67,7 +60,24 @@ export default function DocumentsPage() {
     <>
       <Header title="Документы" />
       <div className={pageLayout.container}>
-        
+        {/* Roadmap banner — sidebar marks this route as `roadmap: true`
+            (`sidebar-nav.ts`); the page is intentionally a viewer-only
+            utility today. Document library + upload + sharing flows
+            are scoped for Sprint 8. Removing this banner is gated on
+            that ship — until then, set honest expectations up-front so
+            the user doesn't dig for a "my documents" list that
+            doesn't exist yet. */}
+        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-4 text-[13px]">
+          <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0 text-base" />
+          <div className="text-foreground">
+            <div className="font-medium">Документы — превью по URL</div>
+            <div className="mt-1 text-muted-foreground">
+              Полноценное хранилище (загрузка, история версий, обмен ссылками между пользователями) — в разработке.
+              Сейчас доступен только предпросмотр документа по прямой ссылке в OnlyOffice.
+            </div>
+          </div>
+        </div>
+
         {/* Открыть документ */}
         <Card>
           <div className="p-4 sm:p-6">
@@ -131,32 +141,6 @@ export default function DocumentsPage() {
                   Открыть
                 </button>
               </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Недавние документы */}
-        <Card>
-          <div className="p-4 sm:p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <Icon icon="solar:history-linear" className="text-muted-foreground" />
-              Недавние документы
-            </h2>
-            <div className="space-y-2">
-              {recentDocs.map((doc, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-muted dark:hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <Icon icon={getFileIcon(doc.type)} className="text-xl text-primary" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{doc.name}</p>
-                      <p className="text-xs text-muted-foreground">{doc.date}</p>
-                    </div>
-                  </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground uppercase font-medium">
-                    {doc.type}
-                  </span>
-                </div>
-              ))}
             </div>
           </div>
         </Card>

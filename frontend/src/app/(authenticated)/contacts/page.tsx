@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { useTranslations } from '@/hooks/useTranslations';
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/Button";
@@ -77,7 +78,7 @@ export default function ContactsPage() {
       await loadContacts();
     } catch (error) {
       console.error("Failed to delete contact:", error);
-      alert(t('deleteContact'));
+      toast.error(t('deleteContact'));
     }
   };
 

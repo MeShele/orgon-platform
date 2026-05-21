@@ -18,6 +18,60 @@ class DuplicateSignatureError(Exception):
     """Raised when a signer tries to sign or reject the same tx twice."""
 
 
+async def record_signature_history(
+    db_or_conn,
+    *,
+    tx_unid: str,
+    signer_address: str,
+    action: str,
+    request_id: Optional[str] = None,
+    reason: Optional[str] = None,
+) -> None:
+    """Append-only audit row in `signature_history`.
+
+    Shared by every sign / reject code-path so multi-sig actions get one
+    canonical audit trail (closes TD-2 — `/v1/transactions/{id}/sign` and
+    `/api/transactions/batch-sign` previously skipped this write).
+
+    Accepts either an `AsyncDatabase` wrapper (with `.execute()`) or a
+    raw `asyncpg` connection so callers in `merchant_tx_service`
+    (which only have a connection from the pool) don't have to round-
+    trip through the higher-level wrapper.
+
+    UNIQUE on `(tx_unid, signer_address, action)` is left to surface as
+    `asyncpg.UniqueViolationError` to the caller — they decide whether
+    that's a 409 (live API path) or a no-op (scheduler retry).
+
+    Args:
+        action: 'signed' or 'rejected'. Other values accepted at DB
+            level (column is varchar) but only those two have a unique
+            index — anything else won't be replay-protected.
+        request_id: X-Request-Id of the API call producing the sign.
+            None for system-driven actions (scheduler retries, batch
+            jobs without a per-row request id).
+    """
+    sql = (
+        "INSERT INTO signature_history "
+        "(tx_unid, signer_address, action, reason, signed_at, request_id) "
+        "VALUES ($1, $2, $3, $4, $5, $6)"
+    )
+    args = (
+        tx_unid, signer_address, action, reason,
+        datetime.now(timezone.utc), request_id,
+    )
+    # AsyncDatabase wrapper has a different execute() signature
+    # (`(sql, params=...)`) from asyncpg.Connection.execute (`(sql, *args)`).
+    # Detect which we got by looking for the wrapper's hallmark method.
+    if hasattr(db_or_conn, "fetchrow") and hasattr(db_or_conn, "execute"):
+        # Could be either — try wrapper's keyword-args calling first.
+        try:
+            await db_or_conn.execute(sql, params=args)
+            return
+        except TypeError:
+            pass  # asyncpg.Connection — fall through to *args call
+    await db_or_conn.execute(sql, *args)
+
+
 class SignatureService:
     """
     Multi-signature transaction management.
@@ -39,6 +93,37 @@ class SignatureService:
         self._client = client
         self._db = db
         self._telegram = telegram_notifier
+
+    async def _load_tx_payload(self, tx_unid: str) -> Optional[dict]:
+        """Fetch (network, value, to_address) for the canonical-variant
+        scaffold. Returns None when the row is missing — the caller treats
+        that as "skip the scaffold, fall back to empty-body sign". Any
+        failure here MUST be non-fatal so the legacy sign path keeps
+        working even when our cache is cold or `transactions.to_addr`
+        was populated post-broadcast only."""
+        try:
+            row = await self._db.fetchrow(
+                """SELECT network, value, to_addr
+                     FROM transactions
+                    WHERE unid = $1""",
+                params=(tx_unid,),
+            )
+        except Exception as exc:  # noqa: BLE001 — defensive on cold cache
+            logger.debug(
+                "tx_payload lookup failed for %s (%s) — scaffold disabled "
+                "for this call",
+                tx_unid, exc,
+            )
+            return None
+        if not row:
+            return None
+        if row.get("network") is None or row.get("to_addr") is None:
+            return None
+        return {
+            "network": row["network"],
+            "value": row.get("value") or "0",
+            "to_address": row["to_addr"],
+        }
 
     async def get_pending_signatures(
         self,
@@ -112,17 +197,26 @@ class SignatureService:
             )
 
         try:
-            result = await self._client.sign_transaction(tx_unid)
+            # Wave-22-aligned scaffold: when SAFINA_CANONICAL_VARIANT is
+            # set, pass tx fields so the client builds an `ec_sign` body.
+            # When unset, the client falls back to its legacy empty body
+            # and these extra fields are ignored — no behavioural change.
+            tx_payload = await self._load_tx_payload(tx_unid)
+            result = await self._client.sign_transaction(
+                tx_unid, tx_payload=tx_payload,
+            )
 
             # Record signature — UNIQUE index on (tx_unid, signer, action)
             # is the second line of defense against a race-condition replay.
+            # Use the shared helper (TD-2) so this code-path stays in
+            # sync with the merchant-API and batch-sign callers.
             try:
-                await self._db.execute(
-                    """INSERT INTO signature_history
-                       (tx_unid, signer_address, action, signed_at, request_id)
-                       VALUES ($1, $2, $3, $4, $5)""",
-                    (tx_unid, user_address, "signed",
-                     datetime.now(timezone.utc), request_id)
+                await record_signature_history(
+                    self._db,
+                    tx_unid=tx_unid,
+                    signer_address=user_address,
+                    action="signed",
+                    request_id=request_id,
                 )
             except asyncpg.UniqueViolationError as exc:
                 raise DuplicateSignatureError(
@@ -194,18 +288,13 @@ class SignatureService:
             result = await self._client.reject_transaction(tx_unid, reason)
 
             try:
-                await self._db.execute(
-                    """INSERT INTO signature_history
-                       (tx_unid, signer_address, action, reason, signed_at, request_id)
-                       VALUES ($1, $2, $3, $4, $5, $6)""",
-                    (
-                        tx_unid,
-                        user_address,
-                        "rejected",
-                        reason,
-                        datetime.now(timezone.utc),
-                        request_id,
-                    )
+                await record_signature_history(
+                    self._db,
+                    tx_unid=tx_unid,
+                    signer_address=user_address,
+                    action="rejected",
+                    reason=reason or None,
+                    request_id=request_id,
                 )
             except asyncpg.UniqueViolationError as exc:
                 raise DuplicateSignatureError(

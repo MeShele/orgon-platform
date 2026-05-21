@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Icon } from "@/lib/icons";
 import { useTranslations } from "@/hooks/useTranslations";
 import { api } from "@/lib/api";
@@ -150,14 +151,14 @@ export function OrganizationSwitcher() {
               </div>
               
               <div className="mt-2 pt-2 border-t border-border">
-                <a
+                <Link
                   href="/organizations"
                   className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted dark:text-muted-foreground dark:hover:bg-muted/50 transition-colors"
                   onClick={() => setIsOpen(false)}
                 >
                   <Icon icon="solar:settings-linear" className="text-base" />
                   Manage Organizations
-                </a>
+                </Link>
               </div>
             </div>
           </div>

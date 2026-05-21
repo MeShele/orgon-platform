@@ -312,9 +312,15 @@ def _row_to_public(row, *, purpose: str) -> dict:
     wallet_id from Safina, sync timestamps).
     """
     addr = (row.get("addr") or "").strip() if row else ""
+    # `info` is a duplicate of `name` to satisfy the asystem-core
+    # consumer (`orgon-provision-wallet` reads `info`, persists to
+    # `orgon_wallets.info`). Keeping `name` for backward compat with
+    # any other merchant integration that already reads that key.
+    name_val = row.get("name")
     return {
         "id": str(row["id"]) if row.get("id") else None,
-        "name": row.get("name"),
+        "name": name_val,
+        "info": name_val,
         "network": row.get("network"),
         "address": addr or None,
         "status": "active" if addr else "pending",

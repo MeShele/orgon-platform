@@ -280,23 +280,33 @@ async def create_batch_transactions(
 @router.post("/batch-sign")
 async def batch_sign_transactions(
     request: BatchSignRequest,
+    fastapi_request: Request,
     user: dict = Depends(require_roles("company_admin", "company_operator"))
 ):
     """
     Sign multiple transactions at once.
-    
+
     Returns results and errors for each transaction.
     """
     if len(request.transaction_ids) > 50:
         raise HTTPException(status_code=400, detail="Maximum 50 transactions per batch")
-    
+
     service = _get_service()
     results = []
     errors = []
-    
+
+    # One request_id across the whole batch — lets compliance correlate
+    # the audit rows in signature_history with the single triggering
+    # API call. Per-row IDs would be misleading; this was one human
+    # action against N transactions.
+    rid = (
+        getattr(fastapi_request.state, "request_id", None)
+        or fastapi_request.headers.get("x-request-id")
+    )
+
     for i, tx_id in enumerate(request.transaction_ids):
         try:
-            result = await service.sign_transaction(tx_id)
+            result = await service.sign_transaction(tx_id, request_id=rid)
             results.append({"index": i, "tx_id": tx_id, "status": "success", "result": result})
         except Exception as e:
             errors.append({"index": i, "tx_id": tx_id, "status": "error", "message": str(e)})

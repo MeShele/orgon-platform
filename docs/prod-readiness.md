@@ -317,6 +317,53 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 **Почему ранее был блокер (теперь решён):** без локальной верификации compromised Safina принял бы forged co-signers как валидные на multi-sig. Wave 22 даёт independent ECDSA-recovery — приватный ключ Safina не нужен, recovery работает offline.
 
+### ❷.bis Outgoing `ec_sign` body scaffold — **ADDED 2026-05-21**
+
+Открытый вопрос O-8 из fire-test 2026-05-11 — Safina `POST /tx_sign/{tx_unid}`
+возвращает 200 OK, но `wait[]` не очищается. Гипотеза: их API требует body
+вида `{"ec_sign": "0x<signature>"}` где signature = ECDSA над
+canonical-payload транзакции. Подтвердить эту гипотезу можем только
+обменом sample-tx со Safina-командой.
+
+**Что подложено в коде** (2026-05-21, scaffold-mode):
+
+* `SafinaSigner.sign_tx_canonical_hex()` — строит 65-байтовую hex-подпись
+  над digest'ом любого из 6 канонических variants (тот же registry что
+  и Wave 22 верификация).
+* `SafinaPayClient.sign_transaction(tx_unid, tx_payload=...)` — при
+  выставленном `SAFINA_CANONICAL_VARIANT` шлёт `{"ec_sign": "0x..."}` в
+  body; без env-флага сохраняет legacy empty-body call (zero behavioural
+  change).
+* Все три внутренних caller'а (`SignatureService.sign_transaction`,
+  `TransactionService.sign_transaction`, `merchant_tx_service.sign_transaction`)
+  теперь подтягивают `(network, value, to_address)` из локальной
+  `transactions` таблицы и передают в client. Промахи lookup'а
+  безопасно фолбэкаются на legacy путь.
+
+**Bring-up (когда Safina отдаст sample-tx ИЛИ когда захотим попробовать
+вслепую):**
+
+1. Получить sample signed-tx со Safina (см. ❷ runbook выше) — для
+   pinning'а variant'а через `safina_discover_canonical.py`.
+2. **ИЛИ** вслепую: проставить `SAFINA_CANONICAL_VARIANT=v1_pipe_unid_to_value`
+   (самый правдоподобный кандидат), сделать один tx, проверить что
+   `wait[]` ужался / `signed[]` появился. Если нет — циклом перебрать
+   остальные 5 (v2, v3, v4, v5, v6) per Coolify env-redeploy. Безопасно
+   потому что для каждого варианта Safina либо принимает (signed),
+   либо игнорирует (тот же 200 OK + wait — то есть текущее состояние).
+3. После нахождения работающего variant'а — оставить в env, далее
+   sign-flow заработает end-to-end без правок кода.
+
+**Тесты:** `backend/tests/test_tx_sign_canonical_scaffold.py` (12 шт):
+покрывают legacy path (no env → empty body), happy path (variant set →
+ec_sign в body), graceful fallback (unknown variant → empty body, no
+exception), и round-trip recover для всех 6 variants.
+
+**Почему scaffold а не полный фикс:** без подтверждения от Safina
+(имя поля + variant) мы стреляем по 6×N возможностей. Scaffold даёт
+быстрый цикл проверки (1 env-flip + 1 tx) без новых деплоев и без
+риска регрессии для текущих clients.
+
 ### ❸ AML rule engine — **DONE 2026-05-02** (Wave 19+21, Sumsub bridge + triage UI)
 
 **Wave 19 — write path (Sumsub bridge):**

@@ -115,3 +115,68 @@ class SafinaSigner:
             keccak(b"\x19Ethereum Signed Message:\n" + str(len(message)).encode() + message)
         )
         return recovered.to_checksum_address() == self._address
+
+    def sign_tx_canonical_hex(
+        self,
+        *,
+        tx_unid: str,
+        network: int,
+        value: str,
+        to_address: str,
+        variant: Optional[str] = None,
+    ) -> str:
+        """Build the `ec_sign` value Safina is presumed to want in the body
+        of `POST /tx_sign/{tx_unid}`.
+
+        The 6 candidate canonical formats live in
+        `signature_verifier._CANONICAL_VARIANTS`. This method:
+
+          1. Resolves the variant (arg → `SAFINA_CANONICAL_VARIANT` env →
+             error).
+          2. Computes the 32-byte digest the variant prescribes.
+          3. Signs the digest via the configured backend (env / KMS /
+             vault — same path as request-auth headers).
+          4. Returns the 65-byte hex signature
+             `0x<r:32><s:32><v:1>` ready to drop into a JSON body.
+
+        Speculative scaffolding (Wave-22-aligned). Until Safina confirms
+        which variant + body field name match, the caller should leave
+        `SAFINA_CANONICAL_VARIANT` unset — then `SafinaPayClient.sign_transaction`
+        falls back to its legacy empty-body behaviour and this method is
+        never invoked.
+        """
+        # Local import keeps the verifier optional at module load (some
+        # unit tests instantiate SafinaSigner without the verifier path).
+        from .signature_verifier import _CANONICAL_VARIANTS, _digest_for_variant
+        import os
+
+        name = variant or os.getenv("SAFINA_CANONICAL_VARIANT", "").strip()
+        if not name:
+            raise RuntimeError(
+                "sign_tx_canonical_hex requires SAFINA_CANONICAL_VARIANT "
+                "to be set (or `variant=` explicitly). See "
+                "backend/safina/signature_verifier.py."
+            )
+        spec = _CANONICAL_VARIANTS.get(name)
+        if spec is None:
+            raise ValueError(
+                f"unknown canonical variant {name!r}; "
+                f"available: {sorted(_CANONICAL_VARIANTS)}"
+            )
+        digest = _digest_for_variant(spec, {
+            "tx_unid": tx_unid,
+            "network": network,
+            "value": str(value),
+            "to_address": to_address,
+        })
+        sig = self._backend.sign_msg_hash(digest)
+        # Safina-side recovery expects `v ∈ {27, 28}` (Ethereum personal-sign
+        # convention) per the same convention SafinaSigner uses for the
+        # request-auth headers (`x-app-ec-sign-v`).
+        v = sig.v + 27 if sig.v in (0, 1) else sig.v
+        return (
+            "0x"
+            + sig.r.to_bytes(32, "big").hex()
+            + sig.s.to_bytes(32, "big").hex()
+            + v.to_bytes(1, "big").hex()
+        )

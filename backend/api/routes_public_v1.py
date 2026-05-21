@@ -297,6 +297,23 @@ async def get_wallet_balance_endpoint(wallet_id: str, request: Request) -> dict:
     return out
 
 
+@router.get("/wallets/{wallet_id}/assets")
+async def get_wallet_assets_endpoint(wallet_id: str, request: Request) -> dict:
+    """DFNS-shape balance projection — `{assets:[{kind,symbol,decimals,
+    balance,contract,verified}]}`. Same data as `/balance` but in the
+    shape asystem-core's `PoolBalanceTile` already speaks. Lets the
+    asystem-core edge function `orgon-wallet-balance` be a thin pipe
+    instead of an adapter."""
+    from backend.services import merchant_balance_service as bal
+    pool = get_db_pool(request)
+    out = await bal.get_wallet_assets(
+        pool, merchant_id=_merchant_id_of(request), wallet_id=wallet_id,
+    )
+    if out is None:
+        raise HTTPException(status_code=404, detail="wallet not found")
+    return out
+
+
 @router.get("/treasury")
 async def get_merchant_treasury_endpoint(request: Request) -> dict:
     """Merchant-owned wallets only (`treasury` / `fee` / `hot` / `cold`).
@@ -624,8 +641,15 @@ async def send_transaction(body: SendTxBody, request: Request) -> dict:
 @router.post("/transactions/{tx_id}/sign")
 async def sign_transaction_endpoint(tx_id: str, request: Request) -> dict:
     pool = get_db_pool(request)
+    # Thread X-Request-Id into signature_history (TD-2). Falls back to
+    # whatever the middleware put on request.state, then to a header
+    # the caller passed, then None (system retry).
+    rid = (
+        getattr(request.state, "request_id", None)
+        or request.headers.get("x-request-id")
+    )
     out = await txs.sign_transaction(
-        pool, merchant_id=_merchant_id_of(request), tx_id=tx_id,
+        pool, merchant_id=_merchant_id_of(request), tx_id=tx_id, request_id=rid,
     )
     if not out:
         raise HTTPException(status_code=404, detail="transaction not found")

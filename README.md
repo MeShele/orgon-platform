@@ -168,11 +168,37 @@ config/orgon.yaml                       backend runtime config
 
 ## Documentation
 
+### Integrating ORGON as a sub-system?
+
+If you're embedding ORGON as a custody backend inside your own platform
+(as `asystem-core` does), start here in order:
+
+1. [`docs/ASYSTEM_INTEGRATION_PLAYBOOK.md`](docs/ASYSTEM_INTEGRATION_PLAYBOOK.md) — step-by-step Phase 1-5 with HMAC, endpoints, webhooks
+2. [`docs/ASYSTEM_CORE_INTEGRATION.md`](docs/ASYSTEM_CORE_INTEGRATION.md) — current contract state, open items, dual-custody architecture
+3. [`docs/PLATFORM_API_GUIDE.md`](docs/PLATFORM_API_GUIDE.md) — self-service merchant provisioning via `/platform/*`
+4. [`docs/ASYSTEM_CORE_PHASE4_SPEC.md`](docs/ASYSTEM_CORE_PHASE4_SPEC.md) — Phase 4 outgoing-payouts contract with drop-in Deno snippet
+5. [`docs/ORGON_FOR_EXCHANGES.md`](docs/ORGON_FOR_EXCHANGES.md) — operator-facing guide your end-customers will read
+
+**Before writing any HMAC code**, run the byte-for-byte reference smoke:
+
+```bash
+ORGON_KEY=okt_… ORGON_SECRET=okst_… \
+  deno run --allow-net --allow-env \
+  sdks/typescript/examples/asystem-smoke/smoke.ts
+```
+
+It exercises every Phase 1-3 endpoint with Web Crypto (Deno-native, no
+npm install). All green = the contract works on your keys before you
+touch your own code.
+
+### Reference docs
+
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — actual stack, auth flow, multi-sig flow, B2B platform layout
 - [`API.md`](API.md) — both `/api/*` and `/v1/*` surfaces; HMAC spec; error catalog; SDK pointers
 - [`DEPLOYMENT.md`](DEPLOYMENT.md) — Coolify procedures, env vars table, fresh DB apply, backups, rollback
 - [`CI-CD.md`](CI-CD.md) — GitHub Actions pipelines (backend + frontend + SDK publish)
-- [`CHANGELOG.md`](CHANGELOG.md) — what shipped, wave-by-wave
+- [`CHANGELOG.md`](CHANGELOG.md) — what shipped, wave-by-wave (full)
+- [`docs/INTEGRATION_CHANGELOG.md`](docs/INTEGRATION_CHANGELOG.md) — **only** breaking + additive changes for integrators (skip the noise)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — branch strategy, PR process, tests
 - [`AGENTS.md`](AGENTS.md) — guidance for AI assistants working on the repo
 - [`sdks/typescript/README.md`](sdks/typescript/README.md) — TS SDK install + usage + release flow

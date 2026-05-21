@@ -498,26 +498,79 @@ class TransactionService:
         
         return tx_unid
 
-    async def sign_transaction(self, tx_unid: str) -> dict:
-        """Sign (approve) a transaction."""
+    async def sign_transaction(
+        self,
+        tx_unid: str,
+        *,
+        request_id: Optional[str] = None,
+    ) -> dict:
+        """Sign (approve) a transaction.
+
+        `request_id` — X-Request-Id of the API call producing the sign,
+        threaded into signature_history (TD-2). None for scheduler /
+        batch retries.
+        """
         if self._client is None:
             raise RuntimeError("Safina client is not configured")
-        result = await self._client.sign_transaction(tx_unid)
+
+        # Wave-22 ec_sign scaffold: load tx fields so the client can
+        # build the canonical-payload signature body when
+        # SAFINA_CANONICAL_VARIANT is set. Lookup failure → tx_payload=None
+        # → client falls back to legacy empty body (no regression).
+        tx_payload: Optional[dict] = None
+        try:
+            row = await self._db.fetchrow(
+                "SELECT network, value, to_addr FROM transactions WHERE unid = $1",
+                params=(tx_unid,),
+            )
+            if row and row.get("network") is not None and row.get("to_addr"):
+                tx_payload = {
+                    "network": row["network"],
+                    "value": row.get("value") or "0",
+                    "to_address": row["to_addr"],
+                }
+        except Exception as exc:  # noqa: BLE001 — defensive
+            logger.debug(
+                "tx_payload lookup failed for %s (%s) — scaffold disabled",
+                tx_unid, exc,
+            )
+
+        result = await self._client.sign_transaction(tx_unid, tx_payload=tx_payload)
 
         await self._db.execute(
             "UPDATE transactions SET status = 'signed', updated_at = $1 WHERE unid = $2",
             (datetime.now(timezone.utc), tx_unid),
         )
 
+        # TD-2: audit through the canonical signature_history table so
+        # /api/transactions/batch-sign no longer skips this write.
+        # Signer identity = the client's own EC (platform default).
+        try:
+            from backend.services.signature_service import record_signature_history
+            await record_signature_history(
+                self._db,
+                tx_unid=tx_unid,
+                signer_address=self._client._signer.address,
+                action="signed",
+                request_id=request_id,
+            )
+        except Exception as exc:  # noqa: BLE001 — audit must not break sign
+            import asyncpg
+            if not isinstance(exc, asyncpg.UniqueViolationError):
+                logger.warning(
+                    "signature_history insert failed tx=%s err=%s",
+                    tx_unid, exc,
+                )
+
         logger.info("Transaction signed: %s", tx_unid)
-        
+
         # Emit signature approved event
         event_manager = get_event_manager()
         await event_manager.emit(EventType.SIGNATURE_APPROVED, {
             "tx_unid": tx_unid,
             "status": "signed"
         })
-        
+
         return result
 
     async def reject_transaction(self, tx_unid: str, reason: str = "") -> dict:

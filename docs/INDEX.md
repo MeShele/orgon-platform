@@ -54,9 +54,26 @@ Pulled from Safina's wiki / examples site. These are the spec source.
 
 ### asystem-core integration (Custody Core)
 
-- [`ASYSTEM_CORE_INTEGRATION.md`](ASYSTEM_CORE_INTEGRATION.md) — integration contract, current state, open items
-- [`ASYSTEM_INTEGRATION_PLAYBOOK.md`](ASYSTEM_INTEGRATION_PLAYBOOK.md) — step-by-step guide for asystem-core integrators
+**Reading order for a new integrator:**
+
+1. [`ASYSTEM_INTEGRATION_PLAYBOOK.md`](ASYSTEM_INTEGRATION_PLAYBOOK.md) — step-by-step Phase 1-5 guide; §0 points to the smoke harness — start there
+2. [`ASYSTEM_CORE_INTEGRATION.md`](ASYSTEM_CORE_INTEGRATION.md) — integration contract, current state, dual-custody architecture, open items
+3. [`PLATFORM_API_GUIDE.md`](PLATFORM_API_GUIDE.md) — self-service merchant provisioning via `/platform/merchants`
+4. [`ASYSTEM_CORE_PHASE4_SPEC.md`](ASYSTEM_CORE_PHASE4_SPEC.md) — outgoing-payouts contract + drop-in `orgon-create-transfer` Deno snippet
+5. [`ORGON_FOR_EXCHANGES.md`](ORGON_FOR_EXCHANGES.md) — operator-facing guide your end-customers will read
+6. [`INTEGRATION_CHANGELOG.md`](INTEGRATION_CHANGELOG.md) — integrator-only changelog (skip the main `CHANGELOG.md` noise)
+
+**Design memos:**
+
 - [`PHASE5_TREASURY_FEASIBILITY.md`](PHASE5_TREASURY_FEASIBILITY.md) — pull-vs-push design memo for treasury balance (O-3 input)
+- [`CUSTDEV_OPERATOR_END_USER.md`](CUSTDEV_OPERATOR_END_USER.md) — role-walkthrough findings for exchange operators + end users
+- [`CUSTDEV_DEVELOPER.md`](CUSTDEV_DEVELOPER.md) — role-walkthrough findings for asystem-core developers integrating us
+
+**Webhook + endpoint reference (root-level):**
+
+- [`../WEBHOOKS.md`](../WEBHOOKS.md) — full webhook event catalog with payload shapes
+- [`../API.md`](../API.md) — both `/api/*` and `/v1/*` surfaces; HMAC spec; error catalog
+- [`../sdks/typescript/`](../sdks/typescript/) — TS SDK + Deno-native smoke harness at `examples/asystem-smoke/`
 
 ---
 
@@ -77,4 +94,4 @@ patching the phase doc.
 
 ---
 
-_Index last updated: 2026-04-29 (end of Wave 16 doc alignment)._
+_Index last updated: 2026-05-21 (dual-custody + custdev role walkthroughs)._

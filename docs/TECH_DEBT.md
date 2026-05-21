@@ -17,57 +17,93 @@ while working on something else — add it here in the same PR.
 
 ## L1 — silent prod risk
 
-### TD-1. `audit_log` has no `organization_id`
+### TD-1. `audit_log` has no `organization_id` — **PHASE A FIXED 2026-05-21, PHASE B PENDING**
 
-Discovered while wiring E-04 (`/api/audit/events`). The canonical
-`audit_log` table predates multi-tenancy and has no `organization_id`
-column — every tenant's audit rows live in one undifferentiated
-heap. Today this is masked by RBAC: only `platform_admin` /
-`company_admin` / `company_auditor` can hit `/api/audit/*`, and a
-compliance officer querying for "events on my org" is implicitly
-trusted to filter by `details.partner_id` or scan via the resource
-type.
+**Phase A (landed 2026-05-21).** Additive column + populate from
+known org-aware paths. No trigger touch, no bulk UPDATE, safe under
+the append-only constraint.
 
-If a SaaS-tier merchant ever calls audit endpoints (which they will,
-once we surface them in `/v1/*`), this design leaks every other
-merchant's actions.
+* `backend/migrations/057_audit_log_organization_id.sql` — `ADD COLUMN
+  IF NOT EXISTS organization_id uuid` (metadata-only on any-size
+  table) + partial index `WHERE organization_id IS NOT NULL`.
+  Idempotent, picks up automatically via `entrypoint.sh` overlay
+  loader.
+* `AuditService.log_action` — new optional `organization_id` kwarg,
+  permissive coercion (UUID / str / garbage → None) so a stale caller
+  passing the wrong type lands the row untagged instead of crashing
+  the mutation flow.
+* `compliance_service._write_audit` / `_write_rule_audit` — both
+  accept `organization_id` and write it; 7 callers updated (claim /
+  resolve / note / release_hold / rule create-update-delete). Source
+  of org is the row being audited (alert.organization_id, rule.organization_id).
+* `routes_platform_admin.py` self-service merchant create — writes
+  the new merchant's id as `organization_id`, so merchant-facing
+  audit endpoints (future) will return the provisioning event under
+  the correct tenant.
+* Tests: `test_audit_log_organization_id.py` (7 cases — UUID, str
+  parsing, garbage coercion, missing kwarg, both compliance helpers,
+  None for global rules).
 
-**Fix:** new migration that
-  1. `ALTER TABLE audit_log ADD COLUMN organization_id uuid` (nullable).
-  2. Backfill from `details->>'partner_id'` and via `JOIN users` for
-     rows where `user_id` resolves to a single org.
-  3. `DROP TRIGGER` (append-only) only for the duration of the
-     backfill, then re-create. (The trigger blocks even our own
-     UPDATEs.)
-  4. Enable RLS on `audit_log` analogous to `wallets` / `transactions`.
+What stayed NULL on purpose:
+* Middleware-driven JWT audit rows (`middleware_audit_jwt`) — every
+  request would need a `users → user_organizations` lookup. Phase B
+  will cache the org via `request.state`.
+* Historic rows pre-2026-05-21 — backfill needs the trigger lifted.
 
-**Why not in E-04:** trigger drop + bulk UPDATE on a multi-million-row
-table is exactly the operation memory `feedback_no_rapid_deploys` and
-the "retire 039's destructive bulk-tombstone UPDATE" commit warn
-against. Wants its own change-window, its own communication.
+**Phase B (pending — separate change window).**
+1. Backfill: `JOIN users → user_organizations` (or
+   `details->>'partner_id'`) to populate historic rows in batches.
+2. Trigger management: `ALTER TABLE audit_log DISABLE TRIGGER
+   orgon_immutable_audit_log` for the backfill TX, re-enable after.
+   Use SET LOCAL session_replication_role = replica if running
+   inside a transaction that must keep the trigger semantically
+   active for concurrent INSERTs.
+3. Read-side filter in `/api/audit/*`: when caller is not
+   super_admin / platform_admin, add `WHERE organization_id = $org`
+   to both `_build_where` paths in `routes_audit.py`.
+4. RLS policy enable + FORCE on `audit_log` — only once `/v1/*`
+   surfaces audit endpoints to merchants.
 
-Acknowledged in `routes_audit.py` module docstring.
+**Why not in this session:** trigger drop + bulk UPDATE on a multi-
+million-row table is exactly the operation memory
+`feedback_no_rapid_deploys` and the "retire 039's destructive bulk-
+tombstone UPDATE" commit warn against. Wants its own change-window
+and dry-run on a recent prod snapshot.
 
-### TD-2. `signature_history` not populated for `/v1/*` sign + batch-sign
+### TD-2. ~~`signature_history` not populated for `/v1/*` sign + batch-sign~~ — **FIXED 2026-05-21**
 
-Discovered while wiring E-02 (`signature_history.request_id`).
+All three sign code-paths now write the same canonical row.
 
-* `/v1/transactions/{id}/sign` calls `merchant_tx_service.sign_transaction`
-  which goes **straight into Safina** — no `signature_history` row.
-* `/api/transactions/batch-sign` calls `TransactionService.sign_transaction`
-  which only updates `transactions.status` — no `signature_history` row.
+Resolution did NOT thread SignatureService through the other callers
+(that would have forced a wholesale dependency-injection rewrite —
+tenant-scoped clients vs the singleton platform client, telegram
+notifier, replay-guard semantics). Instead extracted a module-level
+helper `record_signature_history(db_or_conn, ...)` in
+`backend/services/signature_service.py` and called it from each path:
 
-Only `/api/signatures/{id}/sign` (via `SignatureService`) writes a
-row. So our append-only audit of multi-sig actions is partial.
+* `/api/signatures/{id}/sign` — `SignatureService.sign_transaction` /
+  `reject_transaction` now use the helper (replaces the inline INSERT).
+* `/api/transactions/batch-sign` — `TransactionService.sign_transaction`
+  appends after success. `request_id` threaded through the route handler
+  so the whole batch shares one X-Request-Id (correct UX: one human
+  action against N txs).
+* `/v1/transactions/{id}/sign` — `merchant_tx_service.sign_transaction`
+  appends with the merchant's per-org EC as `signer_address`.
+  `request_id` plumbed through `routes_public_v1.py`.
 
-**Fix:** thread `SignatureService.sign_transaction` (which already
-writes `signature_history`) under both other callers. Drop the
-`TransactionService.sign_transaction` shortcut, replace its single
-caller (`/batch-sign`) with the SignatureService method in a loop.
+Helper is type-permissive (accepts both `AsyncDatabase` wrapper and a
+bare `asyncpg.Connection`) so the merchant path doesn't have to
+round-trip through the wrapper just for one row.
 
-**Why not in E-02:** scope creep. E-02 was about *threading the
-request-id*, not unifying three sign paths. Surfaced honestly in
-the E-02 summary.
+Audit-misses are non-fatal: `UniqueViolationError` is the only branch
+that re-raises (caller decides 409 vs no-op); anything else is logged
+and the sign succeeds anyway. Sign correctness takes precedence over
+audit completeness when the alternative is a failed merchant API call.
+
+Tests: `test_signature_history_helper.py` (4 cases — wrapper kwargs,
+asyncpg positional, strict-wrapper fallback, unique-violation
+propagation). Existing `test_signature_service.py` updated to match
+the new tx_payload kwarg from the Wave-22 scaffold.
 
 ### TD-3. KMS / Vault signer backends never run against real provider
 
@@ -215,6 +251,54 @@ integration starts showing missing webhooks.
 `backend/tests/test_user_created_event.py`. ~1h refactor + 2h tests.
 Deferred from Wave 30 to avoid touching live polling paths in the
 same sprint as the contract changes.
+
+### TD-13. `wallet.deposit.pending` event for mempool-stage signal
+
+Surfaced by the end-user customer-dev walkthrough
+(`docs/CUSTDEV_OPERATOR_END_USER.md` EU-4). User-pain: when an
+end-user sends crypto to a deposit address, there's a 30s-15min gap
+between "tx broadcast" and "first confirmation". During that window
+the operator UI shows `awaiting_payment` with no indication that we
+*do* see the tx — and no signal to ourselves either, because all
+three deposit sources hard-code `only_confirmed=true`:
+
+* `backend/services/deposit_sources/tron.py:39,77` — `"only_confirmed": "true"`
+* `backend/services/deposit_sources/bitcoin.py:27` — `if not status.get("confirmed"): continue`
+* `backend/services/deposit_sources/ethereum.py` — Etherscan default behaviour returns confirmed txs
+
+A `wallet.deposit.pending` event firing at mempool-detection would
+let asystem-core show "we see your transaction, waiting for X
+confirmations" and proactively notify the user instead of letting
+them assume the deposit was lost.
+
+**Why this is L2, not L1:** the absence is observability, not
+correctness. Confirmed-only path is conservative-safe (no
+false-positives from dropped mempool txs, no double-spend confusion).
+The bug we'd be fixing is "user anxiety", not "lost money".
+
+**Fix (when prioritised, est. 1-2 days):**
+1. Add a separate `scan_mempool(client, w, since)` method to the
+   `DepositSource` protocol that's optional (default returns []).
+2. Implement for Tron (TronGrid has `confirmed=false` queries via
+   `events_unconfirmed` table; Bitcoin via mempool.space API; ETH
+   via Etherscan's `txlistinternal` or Alchemy WebSocket pending pool).
+3. Persist mempool-stage rows to a NEW `deposits_pending` table
+   (NOT `deposits` — those are confirmed only, can't break that
+   contract). Promote to `deposits` when sync sees same tx_hash
+   confirmed; expire from `deposits_pending` after N hours if never
+   confirmed (probable mempool drop).
+4. Emit `wallet.deposit.pending` from the mempool-side path; keep
+   `wallet.deposit.detected` from the confirmed-side (current
+   contract preserved).
+5. Document mempool-drop semantics — `pending` emitted, then no
+   `detected` follow-up = tx was dropped/replaced. asystem-core
+   handler should NOT auto-flip order to `paid` on pending; only
+   show informative UI.
+
+**Why not now:** false-positive risk profile vs UX gain — best done
+after at least one live ORGON-via-asystem-core operator complains
+about the gap. Don't add explorer-API quota cost (mempool queries
+are usually rate-limited harder than confirmed) speculatively.
 
 ---
 

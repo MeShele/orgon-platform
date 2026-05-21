@@ -8,6 +8,7 @@
 // failing requests.
 
 import { useState, useEffect, useCallback } from "react";
+import toast from "react-hot-toast";
 import useSWR from "swr";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
@@ -273,7 +274,7 @@ function ActiveToggle({
       await updateRule(rule.id, { is_active: !rule.is_active });
       onChange();
     } catch (e) {
-      window.alert(`Не удалось обновить: ${e instanceof Error ? e.message : String(e)}`);
+      toast.error(`Не удалось обновить: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPending(false);
     }
@@ -312,7 +313,7 @@ function DeleteButton({
       setOpen(false);
       onDeleted();
     } catch (e) {
-      window.alert(`Не удалось удалить: ${e instanceof Error ? e.message : String(e)}`);
+      toast.error(`Не удалось удалить: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPending(false);
     }

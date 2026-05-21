@@ -17,12 +17,15 @@ const STEPS = [
 
 export function FlowSection() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const refs = [
-    useRef<HTMLLIElement>(null),
-    useRef<HTMLLIElement>(null),
-    useRef<HTMLLIElement>(null),
-    useRef<HTMLLIElement>(null),
-  ];
+  // Per-step refs are declared individually (not via array) so the
+  // `react-hooks/refs` lint rule can tell that what's passed to
+  // AnimatedBeam is the ref object itself, not `.current`. Array
+  // index access on a ref tuple trips the rule's pattern-match.
+  const step1Ref = useRef<HTMLLIElement>(null);
+  const step2Ref = useRef<HTMLLIElement>(null);
+  const step3Ref = useRef<HTMLLIElement>(null);
+  const step4Ref = useRef<HTMLLIElement>(null);
+  const stepRefs = [step1Ref, step2Ref, step3Ref, step4Ref];
 
   return (
     <section className="border-b border-border bg-muted/40">
@@ -48,7 +51,7 @@ export function FlowSection() {
                   <RevealItem
                     key={s.n}
                     as="li"
-                    ref={refs[i]}
+                    ref={stepRefs[i]}
                     className="bg-card p-6 lg:p-7 relative transition-colors hover:bg-background"
                   >
                     <div className="flex items-baseline justify-between">
@@ -71,15 +74,15 @@ export function FlowSection() {
               {/* Animated beams: 01→02, 02→03, 03→04 */}
               <AnimatedBeam
                 containerRef={containerRef}
-                fromRef={refs[0]}
-                toRef={refs[1]}
+                fromRef={step1Ref}
+                toRef={step2Ref}
                 duration={4}
                 pathOpacity={0}
               />
               <AnimatedBeam
                 containerRef={containerRef}
-                fromRef={refs[1]}
-                toRef={refs[2]}
+                fromRef={step2Ref}
+                toRef={step3Ref}
                 duration={4}
                 delay={0.5}
                 curvature={50}
@@ -87,8 +90,8 @@ export function FlowSection() {
               />
               <AnimatedBeam
                 containerRef={containerRef}
-                fromRef={refs[2]}
-                toRef={refs[3]}
+                fromRef={step3Ref}
+                toRef={step4Ref}
                 duration={4}
                 delay={1}
                 pathOpacity={0}

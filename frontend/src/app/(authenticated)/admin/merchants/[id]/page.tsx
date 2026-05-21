@@ -215,7 +215,12 @@ function BillingSection({ merchantId, planFromMerchant }: { merchantId: string; 
   }, [merchantId]);
 
   useEffect(() => {
-    load();
+    // The setState calls inside `load` all sit behind `await`, so the
+    // render isn't synchronous — but the lint rule can't see across
+    // the callback boundary. Suppress with explicit `void` to mark
+    // the promise as fire-and-forget.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
   }, [load]);
 
   if (!usage) {
@@ -326,7 +331,9 @@ function InvoicesSection({ merchantId }: { merchantId: string }) {
   }, [merchantId]);
 
   useEffect(() => {
-    load();
+    // Same false-positive as above — setState behind await.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
   }, [load]);
 
   const markPaid = async (invoiceId: string) => {
@@ -502,7 +509,7 @@ function DepositLookupSection({ merchantId }: { merchantId: string }) {
             onChange={(e) => setIncludeOffchain(e.target.checked)}
             className="rounded border-border"
           />
-          <span>Искать также вне наших wallet'ов (сейчас зарезервировано на будущее)</span>
+          <span>Искать также вне наших wallet&apos;ов (сейчас зарезервировано на будущее)</span>
         </label>
 
         {error && (
@@ -647,7 +654,9 @@ function TreasurySection({ merchantId }: { merchantId: string }) {
   }, [merchantId]);
 
   useEffect(() => {
-    load();
+    // Same false-positive — setState behind await in `load`.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void load();
   }, [load]);
 
   return (

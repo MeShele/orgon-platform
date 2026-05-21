@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/lib/icons";
@@ -48,9 +49,9 @@ export default function UsersPage() {
             <div className="mt-1 text-muted-foreground">
               Полные функции (приглашение по e-mail, смена ролей, деактивация) — в разработке.
               Сейчас, чтобы добавить участника, попросите его пройти регистрацию по{" "}
-              <a className="text-primary underline-offset-4 hover:underline" href="/register">
+              <Link className="text-primary underline-offset-4 hover:underline" href="/register">
                 /register
-              </a>
+              </Link>
               , после чего напишите на{" "}
               <a className="text-primary underline-offset-4 hover:underline" href="mailto:support@orgon.asystem.kg">
                 support@orgon.asystem.kg

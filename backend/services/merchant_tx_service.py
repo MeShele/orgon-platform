@@ -148,16 +148,65 @@ async def send_transaction(
 
 
 async def sign_transaction(
-    pool, *, merchant_id: str, tx_id: str,
+    pool, *, merchant_id: str, tx_id: str, request_id: Optional[str] = None,
 ) -> dict:
     """Sign a pending tx under the merchant's EC. Used when slist
     requires the merchant key to confirm (which is the default for
-    our auto-injected slist)."""
+    our auto-injected slist).
+
+    `request_id` — X-Request-Id of the merchant's API call, threaded
+    into `signature_history.request_id` (TD-2 audit unification).
+    """
+    # Pull cached tx fields so the Wave-22 ec_sign scaffold (gated by
+    # SAFINA_CANONICAL_VARIANT) can build the canonical signature body.
+    # When the env flag is unset, the client ignores tx_payload and
+    # keeps the legacy empty-body call — no behavioural change.
+    async with pool.acquire() as conn:
+        tx_row = await conn.fetchrow(
+            "SELECT network, value, to_addr FROM transactions WHERE unid = $1",
+            tx_id,
+        )
+    tx_payload: Optional[dict] = None
+    if tx_row and tx_row.get("network") is not None and tx_row.get("to_addr"):
+        tx_payload = {
+            "network": tx_row["network"],
+            "value": tx_row.get("value") or "0",
+            "to_address": tx_row["to_addr"],
+        }
+
     tenant = await get_safina_client_for_org(pool, merchant_id)
+    signer_address = tenant._signer.address
     try:
-        await tenant.sign_transaction(tx_unid=tx_id)
+        await tenant.sign_transaction(tx_unid=tx_id, tx_payload=tx_payload)
     finally:
         await tenant.close()
+
+    # TD-2: write to signature_history so /v1/* signs land in the same
+    # audit trail as /api/signatures/*. UNIQUE violation is treated as
+    # idempotent (caller re-submitted) — return the current tx state
+    # instead of bubbling 500.
+    try:
+        from backend.services.signature_service import record_signature_history
+        async with pool.acquire() as conn:
+            await record_signature_history(
+                conn,
+                tx_unid=tx_id,
+                signer_address=signer_address,
+                action="signed",
+                request_id=request_id,
+            )
+    except Exception as exc:  # noqa: BLE001 — audit miss must not break sign
+        # Importing asyncpg lazily — if we're in the unique-violation
+        # branch the sign was idempotent and audit is already present.
+        import asyncpg
+        if isinstance(exc, asyncpg.UniqueViolationError):
+            pass
+        else:
+            logger.warning(
+                "signature_history insert failed merchant=%s tx=%s err=%s",
+                merchant_id, tx_id, exc,
+            )
+
     return await get_transaction(pool, merchant_id=merchant_id, tx_id=tx_id)
 
 

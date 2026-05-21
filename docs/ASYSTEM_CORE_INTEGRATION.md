@@ -1,11 +1,12 @@
 # ORGON ↔ asystem-core integration — current contract
 
-> ORGON is the **Custody Core** module of the asystem-core platform.
-> This document records the contract as it actually runs today,
-> verified against both sides of the wire on 2026-05-19. For the
-> public webhook + endpoint catalog see `WEBHOOKS.md` and `API.md`;
-> for the step-by-step integrator's guide see
-> `ASYSTEM_INTEGRATION_PLAYBOOK.md`.
+> ORGON is **one of two** Custody Core modules of the asystem-core
+> platform. This document records the ORGON side of the contract as
+> it actually runs today, verified against both sides of the wire on
+> 2026-05-21. For the public webhook + endpoint catalog see
+> `WEBHOOKS.md` and `API.md`; for the step-by-step integrator's guide
+> see `ASYSTEM_INTEGRATION_PLAYBOOK.md`. For the outgoing-payouts
+> contract spec (Phase 4) see `ASYSTEM_CORE_PHASE4_SPEC.md`.
 
 Owner (ORGON-side): caesarclown (`Suimonkul` in asystem-core handover).
 asystem-core counterpart: Эрмек.
@@ -16,6 +17,35 @@ de-facto in the production code on the asystem-core side (Phase 1–3
 already shipped: `orgon-ping`, `orgon-provision-wallet`, `orgon-webhook`,
 `orgon-webhook-register`). The text below records what is true today;
 the remaining genuinely-open items live at the bottom.
+
+## 0. Dual-custody architecture (added 2026-05-21)
+
+asystem-core now ships **two** custody providers in the same
+`exclusive_group='custody'` — `orgon-custody` and `dfns-custody`.
+The frontend selects which is active via `useActiveCustody()` (returns
+`'orgon' | 'dfns' | null`); a single sell-order hook dispatches to
+`${provider}-provision-wallet` so the same UI works against either.
+
+What this means for the ORGON contract:
+
+* The HMAC + webhook formats described below are unchanged. ORGON
+  remains the source-of-truth for its own surface.
+* Wallet response now exposes both `name` and `info` (same value) so
+  asystem-core's `orgon_wallets.info` column persists meaningful data
+  instead of `null`. This is the only schema-shape change since
+  2026-05-19.
+* New `GET /v1/wallets/{id}/assets` mirrors the DFNS-shape
+  `{ assets: [{kind, symbol, decimals, balance, contract, verified}] }`
+  so asystem-core's `PoolBalanceTile` can read ORGON pool balances
+  through a thin pipe (`orgon-wallet-balance` edge function) instead
+  of needing a per-provider adapter. `GET /v1/wallets/{id}/balance`
+  stays for backward compat.
+* Phase 4 (outgoing payouts) endpoints exist on the ORGON side
+  (`POST /v1/transactions` + `/sign` + outbound webhooks
+  `transaction.broadcasted/.confirmed/.failed`), but asystem-core's
+  `useCustodyCanPayout` is hard-coded to `dfns` only. Wiring ORGON
+  into that path is the remaining open item — see O-2 below and the
+  dedicated spec file.
 
 ---
 
@@ -178,7 +208,7 @@ unresolved. Everything else above is fixed.
 | # | Question | Owner | Blocks |
 |---|---|---|---|
 | ~~O-1~~ | ~~**Mainnet chain_id mapping.**~~ — **ANSWERED 2026-05-20**. Authoritative values from prod `networks_cache` (verified via `GET /api/networks`): `bitcoin-mainnet=1000`, `eth-mainnet=3000`, `eth-sepolia=3040`, `tron-mainnet=5000`, `tron-nile=5010`, `orgon-mainnet=5800`, `orgon-testnet=5810`. Pattern: mainnet base × 1000, testnet offset +10/+40. asystem-core's `NETWORK_SLUG_TO_CHAIN_ID` extension lands the mainnet rows when ready. | — | — |
-| O-2 | **Phase 4 contract: outgoing payouts.** ORGON has `POST /v1/transactions` + `POST /v1/transactions/{id}/sign` (two-step flow). asystem-core hasn't built the consumer side. Need confirmation that two-step is acceptable, or spec a single-shot variant. | Эрмек | Phase 4 |
+| O-2 | **Phase 4: wire ORGON into `useCustodyCanPayout`.** Update 2026-05-21 — asystem-core has shipped Phase 4 but **for DFNS only** (`dfns-create-transfer`, `CustodyPayoutDialog`, `PayoutActions`, `useCustodyCanPayout` returns `dfns | null`). ORGON-side endpoints are ready (`POST /v1/transactions` + `/sign` + outbound webhooks). Action: implement `orgon-create-transfer` edge function + extend `useCustodyCanPayout` to return `'orgon'` when active. Detailed contract + sample Deno client in `ASYSTEM_CORE_PHASE4_SPEC.md`. | Эрмек (consumer) | Phase 4 for ORGON operators |
 | ~~O-3~~ | ~~**Phase 5 contract: treasury balance.**~~ — **CLOSED 2026-05-19**. Pull-model shipped: `GET /v1/wallets/{id}/balance` + `GET /v1/treasury` return cached `token_balances` with honest `as_of` staleness (Wave 32). Excludes `user_deposit` purpose. No migration. Push variant (`treasury.balance.updated` webhook) intentionally deferred — added only if 5-min staleness becomes a real UX problem; design in `PHASE5_TREASURY_FEASIBILITY.md`. | — | — |
 | ~~O-4~~ | ~~**`transaction.failed` source-of-truth.**~~ — **CLOSED 2026-05-19**. Wired via timeout sweep (`backend/services/transaction_failure_sweep.py` + hourly scheduler job): tx in `signed` without `tx_hash` for >24h (env-tunable `TX_FAILED_TIMEOUT_HOURS`) → flipped to `failed`, emit `transaction.failed` with `reason: 'timeout_no_broadcast'`. Not terminal — see `WEBHOOKS.md` caveat. Proper Safina-side `rejected` indicator or chain watcher is the right-path future replacement. | — | — |
 | O-5 | **Travel Rule.** When asystem-core users send crypto out via ORGON, who carries the originator-VASP id — asystem-core's operator-level VASP, or a shared one? Implementation deferred to Phase 4 anyway, but answer needed before E-09. | Legal first, then both | E-09 |

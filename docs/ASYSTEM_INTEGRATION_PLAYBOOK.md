@@ -24,6 +24,48 @@ behavior wins — file an issue at `support@orgon.asystem.kg`.
 
 ---
 
+## 0. Reference implementation — the smoke harness
+
+> **Before writing any HMAC code, run this.** It's the fastest way to
+> prove the contract works on your keys, and it doubles as the
+> **pre-production gate** before each new operator rollout.
+
+`sdks/typescript/examples/asystem-smoke/smoke.ts` — standalone Deno
+script, no `npm install`, Web Crypto API (Deno-native — matches the
+runtime your edge functions execute in). Exercises every Phase 1-3
+endpoint end-to-end:
+
+* HMAC signing matches what `MerchantHMACAuthMiddleware` expects
+* `POST /v1/users` is idempotent on `(merchant_id, external_id)`
+* `POST /v1/wallets` accepts `network` as a string-numeric chain_id
+* `GET /v1/wallets/{id}` round-trips for the activation-polling loop
+* `PUT /v1/webhooks/config` + `GET /v1/webhooks/deliveries` close the loop on outgoing webhook deliverability
+* The synthetic test delivery appears in the deliveries feed
+
+```bash
+ORGON_KEY=okt_… \
+ORGON_SECRET=okst_… \
+ORGON_BASE_URL=https://orgon.asystem.ai \
+  deno run --allow-net --allow-env \
+  sdks/typescript/examples/asystem-smoke/smoke.ts
+```
+
+Exit code 0 = the contract works against the target environment.
+Failures bail at the first stage (no cascade) so the first red line
+shows you exactly where things stopped lining up.
+
+**Treat this as your CI gate.** Run it once locally before writing
+your edge function. Run it again as a pre-prod smoke when activating
+ORGON for a fresh operator — it provisions one throwaway end-user and
+one throwaway wallet, both safe in sandbox. If green → flip the
+module activation toggle in their `/admin/modules` with confidence.
+
+Everything below explains *why* each step in the smoke does what it
+does — read on if you want to understand the contract; skip to §1 if
+you just want to start writing code.
+
+---
+
 ## 1. Credentials and environments
 
 ### Self-service provisioning (recommended)

@@ -139,3 +139,136 @@ def _shape_wallet(wallet, *, balances: list, as_of) -> dict:
         "as_of": as_of.isoformat() if as_of is not None else None,
         "balances": balances,
     }
+
+
+# ---------------------------------------------------------------------
+# DFNS-compatible `/assets` projection.
+#
+# asystem-core's `/admin/custody-wallets` UI (and any other consumer
+# already wired to the DFNS shape) expects:
+#   { assets: [{ kind, symbol, decimals, balance, contract, verified }] }
+# instead of our legacy `{ balances: [{token, value, decimals}] }`.
+#
+# We DON'T deprecate `/v1/wallets/{id}/balance` — existing merchants
+# may already read that key. The new `/assets` endpoint is an
+# additive surface that mirrors DFNS shape exactly so a single
+# frontend component works against either custody provider.
+#
+# Caveat: Safina never reports a token's on-chain contract address
+# through the balance feed (`token_balances` columns), so `contract`
+# is always null. asystem-core's `dfnsAssetKind` util can fall back
+# to symbol-only matching when contract is missing.
+# ---------------------------------------------------------------------
+
+# chain_id (varchar in `token_balances.network`) → native symbol on
+# that chain. Keep in sync with asystem-core
+# `supabase/functions/orgon-provision-wallet/index.ts:NETWORK_SLUG_TO_CHAIN_ID`
+# and the prod `networks_cache`. Closes the "Native vs token" branch
+# of the kind heuristic — see _classify_kind below.
+_NATIVE_BY_CHAIN_ID: dict[str, str] = {
+    "1000": "BTC",  # bitcoin-mainnet
+    "3000": "ETH",  # eth-mainnet
+    "3040": "ETH",  # eth-sepolia
+    "5000": "TRX",  # tron-mainnet
+    "5010": "TRX",  # tron-nile
+    "5800": "ORG",  # orgon-mainnet
+    "5810": "ORG",  # orgon-testnet
+}
+
+# chain_id → asset-kind suffix used by DFNS for non-native tokens on
+# that chain. We only emit these when the symbol differs from the
+# chain's native (e.g. USDT on Tron → kind=Trc20).
+_TOKEN_KIND_BY_CHAIN_ID: dict[str, str] = {
+    "1000": "Token",   # BTC chain — no standard token kind name
+    "3000": "Erc20",
+    "3040": "Erc20",
+    "5000": "Trc20",
+    "5010": "Trc20",
+    "5800": "Token",   # ORG chain — placeholder until mainnet token semantics fixed
+    "5810": "Token",
+}
+
+
+def _classify_kind(network: str | None, symbol: str | None) -> str:
+    """Return DFNS-compatible `kind` for an asset.
+
+    Heuristic: if symbol equals the chain's native — `Native`. Else
+    the chain-family token kind (`Erc20`, `Trc20`, …). Unknown
+    chain → `Token` (generic) — keeps the consumer working without
+    panic when we add a new network before this map is updated.
+    """
+    if not network:
+        return "Token"
+    native = _NATIVE_BY_CHAIN_ID.get(network)
+    if native and symbol and symbol.upper() == native:
+        return "Native"
+    return _TOKEN_KIND_BY_CHAIN_ID.get(network, "Token")
+
+
+def _balance_to_asset(row: dict, *, network: str | None) -> dict:
+    """Map one `token_balances` row to a DFNS-shape asset entry."""
+    raw_decimals = row.get("decimals")
+    try:
+        decimals_int = int(raw_decimals) if raw_decimals is not None else 0
+    except (TypeError, ValueError):
+        decimals_int = 0
+    symbol = row.get("token")
+    return {
+        "kind": _classify_kind(network, symbol),
+        "symbol": symbol,
+        "decimals": decimals_int,
+        "balance": str(row.get("value") or "0"),
+        "contract": None,
+        "verified": True,
+    }
+
+
+async def get_wallet_assets(
+    pool, *, merchant_id: str, wallet_id: str,
+) -> Optional[dict]:
+    """DFNS-compatible balance projection.
+
+    Returns None on the same conditions as `get_wallet_balance`
+    (wallet not found or cross-merchant lookup). The response shape
+    intentionally tracks `dfns-wallet-balance`:
+        { ok, wallet_id, address, network, role, assets, as_of }
+    so a single asystem-core edge function (`orgon-wallet-balance`)
+    can pipe the body straight to the existing PoolBalanceTile
+    without per-provider branching.
+    """
+    async with pool.acquire() as conn:
+        wallet = await conn.fetchrow(
+            """
+            SELECT id::text                AS id,
+                   name,
+                   network,
+                   COALESCE(addr, '')       AS addr,
+                   purpose,
+                   end_user_id::text        AS end_user_id,
+                   wallet_id                AS safina_wallet_id,
+                   created_at
+              FROM wallets
+             WHERE organization_id = $1
+               AND id = $2
+               AND COALESCE(is_hidden, false) = false
+            """,
+            UUID(merchant_id),
+            UUID(wallet_id),
+        )
+        if wallet is None:
+            return None
+        balances, as_of = await _load_balances_for(conn, wallet["safina_wallet_id"])
+
+    network = wallet.get("network")
+    network_str = str(network) if network is not None else None
+    assets = [_balance_to_asset(b, network=network_str) for b in balances]
+    addr = (wallet.get("addr") or "").strip() or None
+    return {
+        "ok": True,
+        "wallet_id": wallet["id"],
+        "address": addr,
+        "network": network,
+        "role": wallet.get("purpose"),
+        "as_of": as_of.isoformat() if as_of is not None else None,
+        "assets": assets,
+    }

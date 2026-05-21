@@ -129,8 +129,10 @@ def test_verify_signer_returns_false_on_malformed_signature():
 # ────────────────────────────────────────────────────────────────────
 
 
-def test_canonical_payload_raises_until_wired():
-    with pytest.raises(NotImplementedError, match="canonical sign-payload"):
+def test_canonical_payload_raises_until_wired(monkeypatch):
+    # Make sure no env variant leaks in from another test in the same run.
+    monkeypatch.delenv("SAFINA_CANONICAL_VARIANT", raising=False)
+    with pytest.raises(NotImplementedError, match="SAFINA_CANONICAL_VARIANT"):
         canonical_payload(tx_unid="x", network=0, value="0", to_address="0x0")
 
 

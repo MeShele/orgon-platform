@@ -6,11 +6,15 @@ import { Eyebrow, Mono } from "@/components/ui/primitives";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/lib/icons";
 
+// `as const` pins the cubic-bezier tuple as a readonly 4-tuple of numbers
+// so framer-motion's stricter `Easing | Easing[]` types accept it. Plain
+// `number[]` would be inferred as `number[]` and rejected — see TS 4881
+// reasoning. Without the cast tsc emits TS2322 on every `motion.*` use.
 const reveal = (delay = 0) => ({
   initial: { opacity: 0, y: 16 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, margin: "-80px" },
-  transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1], delay },
+  transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const, delay },
 });
 
 export default function DevelopersPage() {

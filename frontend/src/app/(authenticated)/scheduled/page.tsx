@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { format } from "date-fns";
 import { useTranslations } from '@/hooks/useTranslations';
 import { Header } from "@/components/layout/Header";
@@ -62,7 +63,7 @@ export default function ScheduledPage() {
       await loadTransactions();
     } catch (error) {
       console.error("Failed to cancel transaction:", error);
-      alert(t('actions.cancelFailed'));
+      toast.error(t('actions.cancelFailed'));
     }
   };
 

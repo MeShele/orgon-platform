@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
 import { Card, CardHeader } from "@/components/common/Card";
@@ -124,10 +125,10 @@ export default function SettingsPage() {
             <div className="font-medium">Часть настроек — превью</div>
             <div className="mt-1 text-muted-foreground">
               Рабочие действия живут на профильных страницах:{" "}
-              <a className="text-primary underline-offset-4 hover:underline" href="/profile">/profile</a> — смена пароля и сессии,{" "}
-              <a className="text-primary underline-offset-4 hover:underline" href="/settings/keys">/settings/keys</a> — EC-ключ подписи Safina,{" "}
-              <a className="text-primary underline-offset-4 hover:underline" href="/settings/system/monitoring">/settings/system/monitoring</a> — мониторинг,{" "}
-              <a className="text-primary underline-offset-4 hover:underline" href="/settings/webhooks">/settings/webhooks</a> — webhooks.
+              <Link className="text-primary underline-offset-4 hover:underline" href="/profile">/profile</Link> — смена пароля и сессии,{" "}
+              <Link className="text-primary underline-offset-4 hover:underline" href="/settings/keys">/settings/keys</Link> — EC-ключ подписи Safina,{" "}
+              <Link className="text-primary underline-offset-4 hover:underline" href="/settings/system/monitoring">/settings/system/monitoring</Link> — мониторинг,{" "}
+              <Link className="text-primary underline-offset-4 hover:underline" href="/settings/webhooks">/settings/webhooks</Link> — webhooks.
               Партнёрские API-ключи — раздел ниже, выпуск через админский API.
             </div>
           </div>
@@ -144,7 +145,7 @@ export default function SettingsPage() {
             { href: "/settings/webhooks", label: "Webhooks", icon: "solar:link-bold", color: "bg-muted text-foreground", admin: true },
             { href: "/settings/system/monitoring", label: "Мониторинг", icon: "solar:monitor-bold", color: "bg-destructive/10 text-destructive", admin: true },
           ].map((item) => (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               className={clsx(
@@ -159,7 +160,7 @@ export default function SettingsPage() {
                 <p className="text-sm font-medium text-foreground">{item.label}</p>
                 {item.admin && <span className="text-[10px] text-muted-foreground">admin</span>}
               </div>
-            </a>
+            </Link>
           ))}
         </div>
       </div>
@@ -272,7 +273,7 @@ export default function SettingsPage() {
                     <Icon icon="solar:info-circle-bold" className="text-primary mt-0.5 shrink-0" />
                     <div>
                       Полное управление паролями, 2FA и сессиями — на странице{" "}
-                      <a className="text-primary underline-offset-4 hover:underline" href="/profile">/profile</a>.
+                      <Link className="text-primary underline-offset-4 hover:underline" href="/profile">/profile</Link>.
                       Поля ниже — превью.
                     </div>
                   </div>
@@ -560,9 +561,9 @@ export default function SettingsPage() {
                   <div>
                     Кнопки экспорта — превью. CSV-выгрузка кошельков и транзакций
                     реально работает на страницах{" "}
-                    <a className="text-primary underline-offset-4 hover:underline" href="/wallets">/wallets</a>
+                    <Link className="text-primary underline-offset-4 hover:underline" href="/wallets">/wallets</Link>
                     {" "}и{" "}
-                    <a className="text-primary underline-offset-4 hover:underline" href="/transactions">/transactions</a>{" "}
+                    <Link className="text-primary underline-offset-4 hover:underline" href="/transactions">/transactions</Link>{" "}
                     — кнопка «Экспорт CSV» в шапке таблицы.
                   </div>
                 </div>

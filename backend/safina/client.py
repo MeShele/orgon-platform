@@ -236,9 +236,69 @@ class SafinaPayClient:
         data = await self._request("POST", "tx", body)
         return data["tx_unid"]
 
-    async def sign_transaction(self, tx_unid: str) -> dict:
-        """Sign (approve) a transaction."""
-        return await self._request("POST", f"tx_sign/{tx_unid}")
+    async def sign_transaction(
+        self,
+        tx_unid: str,
+        *,
+        tx_payload: Optional[dict] = None,
+    ) -> dict:
+        """Sign (approve) a transaction.
+
+        Two modes:
+
+        * **Legacy / default** — no `tx_payload`, no
+          `SAFINA_CANONICAL_VARIANT` env: posts an empty body, relying
+          solely on the per-request auth headers. Matches the behaviour
+          observed since v0; Safina returns 200 OK but, as of fire-test
+          2026-05-11, does NOT actually apply the signature (see
+          `docs/SESSION_2026-05-11_FIRE_TEST_FINDINGS.md` §6). Kept as a
+          fallback so nothing changes for operators who haven't opted in.
+
+        * **Canonical-variant scaffold** — caller passes `tx_payload`
+          (the four fields Safina canonicalizes — see Wave 22's
+          `_CANONICAL_VARIANTS`) AND `SAFINA_CANONICAL_VARIANT` is set.
+          We build a 65-byte signature over the variant-specific digest
+          and submit it as `{"ec_sign": "0x..."}`. The moment a Safina
+          sample tx confirms the right variant via
+          `backend/scripts/safina_discover_canonical.py`, the operator
+          flips the env flag and this branch immediately starts
+          submitting real transaction-level signatures.
+
+        Returns whatever Safina responds — same shape as before for the
+        legacy mode, identical surface for the scaffold mode.
+        """
+        body: Optional[dict] = None
+        if tx_payload is not None:
+            # Lazy env-check so a caller that always passes tx_payload
+            # but hasn't enabled the flag still gets legacy behaviour
+            # (no surprise body submissions). Both gates required.
+            import os
+            variant = os.getenv("SAFINA_CANONICAL_VARIANT", "").strip()
+            if variant:
+                try:
+                    sig_hex = self._signer.sign_tx_canonical_hex(
+                        tx_unid=tx_unid,
+                        network=int(tx_payload["network"]),
+                        value=str(tx_payload["value"]),
+                        to_address=str(tx_payload["to_address"]),
+                        variant=variant,
+                    )
+                    body = {"ec_sign": sig_hex}
+                    logger.info(
+                        "Safina tx_sign: submitting ec_sign body for unid=%s "
+                        "variant=%s (scaffold mode)",
+                        tx_unid, variant,
+                    )
+                except Exception as exc:
+                    # Scaffold build failures should never break the
+                    # legacy code-path. Log + fall through to empty body.
+                    logger.warning(
+                        "Safina tx_sign scaffold failed for unid=%s: %s "
+                        "(falling back to empty body)",
+                        tx_unid, exc,
+                    )
+                    body = None
+        return await self._request("POST", f"tx_sign/{tx_unid}", body)
 
     async def reject_transaction(self, tx_unid: str, reason: str = "") -> dict:
         """Reject a transaction."""

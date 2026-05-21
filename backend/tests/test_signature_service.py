@@ -137,7 +137,12 @@ class TestSignTransaction:
 
         # Assert
         assert result == {}
-        mock_client.sign_transaction.assert_called_once_with(tx_unid)
+        # SignatureService now passes the tx_payload kwarg (Wave-22 ec_sign
+        # scaffold). When no transactions row exists in the mocked DB, the
+        # lookup returns None → tx_payload=None → client-side legacy path.
+        mock_client.sign_transaction.assert_called_once_with(
+            tx_unid, tx_payload=None,
+        )
         # Should record in DB
         assert mock_db.execute.called
 
@@ -155,8 +160,10 @@ class TestSignTransaction:
         # Act
         await service.sign_transaction(tx_unid, user_address=custom_address)
 
-        # Assert
-        mock_client.sign_transaction.assert_called_once_with(tx_unid)
+        # Assert (Wave-22 scaffold passes tx_payload — see test above).
+        mock_client.sign_transaction.assert_called_once_with(
+            tx_unid, tx_payload=None,
+        )
 
     @pytest.mark.asyncio
     async def test_handles_sign_error(self, service, mock_client, mock_db):

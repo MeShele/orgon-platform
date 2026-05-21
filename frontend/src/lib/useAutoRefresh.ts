@@ -19,8 +19,16 @@ export function useAutoRefresh(
   intervalMs: number,
   enabled: boolean = true,
 ) {
+  // Stash the latest callback in a ref so the interval always invokes
+  // the freshest closure without re-arming when the parent re-renders
+  // with a new inline function. Writing the ref **inside an effect**
+  // (rather than during render) keeps us inside the React rules — a
+  // render-time write breaks concurrent rendering when React replays
+  // a render and the ref ends up out of step with what was committed.
   const cbRef = useRef(callback);
-  cbRef.current = callback;
+  useEffect(() => {
+    cbRef.current = callback;
+  }, [callback]);
 
   useEffect(() => {
     if (!enabled || intervalMs <= 0) return;

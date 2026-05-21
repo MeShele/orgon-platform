@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { useTranslations } from "@/hooks/useTranslations";
 import { Header } from "@/components/layout/Header";
@@ -155,7 +156,7 @@ export default function SignaturesPage() {
                 <p className="text-[14px] font-medium text-foreground mb-1">Очередь пуста</p>
                 <p className="text-[12px] text-muted-foreground max-w-md">
                   Когда появится транзакция, требующая M-of-N подписи, она будет здесь — с таймером политики и кнопками «Подписать» / «Отклонить». Проверить логику можно в{" "}
-                  <a href="/demo/architecture" className="text-primary hover:underline">демо-симуляторе</a>.
+                  <Link href="/demo/architecture" className="text-primary hover:underline">демо-симуляторе</Link>.
                 </p>
               </div>
             </div>

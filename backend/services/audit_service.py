@@ -60,6 +60,10 @@ class AuditService:
         metadata: Optional[Dict[str, Any]] = None,
         partner_id: Optional[str] = None,  # legacy kwarg from B2B days, kept so
                                             # callers don't break; folded into details
+        organization_id: Optional[Any] = None,  # TD-1 Phase A — tenant scoping
+                                                # column. NULL is valid (legacy /
+                                                # JWT middleware path) until
+                                                # Phase B backfills.
     ) -> str:
         """Insert a single audit row. Returns the new row id as string.
 
@@ -68,6 +72,11 @@ class AuditService:
         The richer B2B fields (partner_id, request_id, result, error_message,
         metadata) collapse into the `details` jsonb so we don't lose data
         even though `audit_log` has a narrower column set.
+
+        `organization_id` accepts UUID, str, or None. Strings that don't
+        parse as UUID are coerced to None so callers passing a stray
+        partner_id (string) won't blow up the INSERT — the audit row
+        still lands, just untagged.
         """
         uid: Optional[int]
         if user_id is None:
@@ -92,13 +101,28 @@ class AuditService:
         if request_id:
             details["request_id"] = request_id
 
+        # Normalize organization_id — accept UUID, hex str (with/without
+        # dashes), or None. Anything else coerced to None so we never
+        # break a sign / mutation flow on a stale caller passing the
+        # wrong type.
+        org_uuid: Optional[Any] = None
+        if organization_id is not None:
+            from uuid import UUID as _UUID
+            if isinstance(organization_id, _UUID):
+                org_uuid = organization_id
+            else:
+                try:
+                    org_uuid = _UUID(str(organization_id))
+                except (ValueError, AttributeError, TypeError):
+                    org_uuid = None
+
         async with self.db.acquire() as conn:
             log_id = await conn.fetchval(
                 """
                 INSERT INTO audit_log (
                     user_id, action, resource_type, resource_id,
-                    details, ip_address, user_agent
-                ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+                    details, ip_address, user_agent, organization_id
+                ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
                 RETURNING id
                 """,
                 uid,
@@ -108,6 +132,7 @@ class AuditService:
                 json.dumps(details) if details else None,
                 ip_address,
                 user_agent,
+                org_uuid,
             )
             return str(log_id)
 

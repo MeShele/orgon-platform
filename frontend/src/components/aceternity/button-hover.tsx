@@ -76,7 +76,6 @@ export const ButtonHover = React.forwardRef<
         )}
         disabled={disabled || loading}
         onClick={onClick}
-        // @ts-ignore - type prop conflict with motion
         type={type}
       >
         {loading && (

@@ -43,6 +43,26 @@ export default function CompliancePage() {
     <>
       <Header title="Комплаенс" />
       <div className={pageLayout.container}>
+        {/* Roadmap-status banner. The /compliance index is sidebar-marked
+            `roadmap: true` (see `sidebar-nav.ts`); production-ready
+            sub-pages live at `/compliance/rules` and
+            `/compliance/reviews` (Waves 23+25+26). This index page
+            stays as a navigation hub + light overview until a real
+            dashboard ships. Banner sets expectations so the user
+            doesn't mistake the mock reports table for live data. */}
+        <div className="flex items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-4 text-[13px]">
+          <Icon icon="solar:info-circle-bold" className="text-warning mt-0.5 shrink-0 text-base" />
+          <div className="text-foreground">
+            <div className="font-medium">Comply Core — обзорная страница</div>
+            <div className="mt-1 text-muted-foreground">
+              Этот dashboard объединяет ссылки на рабочие compliance-инструменты.
+              Боевые потоки: <span className="text-primary">/compliance/reviews</span> (AML-очередь, SAR),
+              <span className="text-primary"> /compliance/rules</span> (rule engine).
+              Цифры и календарь отчётности на вкладке «Отчётность» — справочно, реальные SLA — в AML drawer'е.
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2 -mt-2">
           <HelpTooltip
             text="Compliance dashboard объединяет KYC, KYB, AML triage и регуляторную отчётность в одном месте."
@@ -263,6 +283,19 @@ export default function CompliancePage() {
           <Card>
             <div className="p-4 sm:p-6">
               <h3 className="font-semibold text-foreground mb-3">Отчётность для Финнадзора</h3>
+              {/* Mock data — таблица ниже жёстко закодирована (это
+                  пример календаря отчётности). Реальные дедлайны и
+                  статусы — в AML-drawer'е → «Сформировать SAR»
+                  (Wave 24). Эта вкладка остаётся справочной до тех
+                  пор пока полноценный reporting dashboard не выйдет в
+                  отдельном sprint'е. */}
+              <div className="mb-4 flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-[12px] text-muted-foreground">
+                <Icon icon="solar:info-circle-bold" className="mt-0.5 shrink-0 text-warning" />
+                <span>
+                  Таблица ниже — пример календаря отчётности (мок).
+                  Боевые SAR-submission'ы и статусы — на вкладке AML, кнопка «Сформировать SAR» в drawer'е алерта.
+                </span>
+              </div>
               {/* Мобильные карточки */}
               <div className="space-y-3 md:hidden">
                 {[

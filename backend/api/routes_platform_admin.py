@@ -183,11 +183,14 @@ async def provision_merchant(
     # (network blip, etc.) by demoting to a warning — never raise.
     try:
         async with pool.acquire() as conn:
+            # TD-1 Phase A — tag the row with the new merchant's org id
+            # so future merchant-facing audit endpoints can return
+            # "your provisioning event" without cross-tenant exposure.
             await conn.execute(
                 """
                 INSERT INTO audit_log
-                    (user_id, action, resource_type, resource_id, details)
-                VALUES (NULL, 'merchant_self_provisioned', 'organization', $1, $2)
+                    (user_id, action, resource_type, resource_id, details, organization_id)
+                VALUES (NULL, 'merchant_self_provisioned', 'organization', $1, $2, $3)
                 """,
                 merchant_id,
                 json.dumps({
@@ -199,6 +202,7 @@ async def provision_merchant(
                     "pricing_plan": body.pricing_plan,
                     "key_pub": issued.key_pub,
                 }),
+                merchant_id,
             )
     except Exception as e:
         logger.warning(

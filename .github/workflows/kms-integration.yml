@@ -1,0 +1,89 @@
+name: KMS integration
+
+# Runs the live-AWS integration test for KMSSignerBackend whenever
+# files under `backend/safina/` change on the live integration
+# branch. Closes TD-3 from docs/TECH_DEBT.md once the terraform module
+# at infrastructure/terraform/kms-signer is applied and secrets are
+# configured.
+#
+# When the OIDC role is NOT configured (no `vars.AWS_CI_KMS_ROLE_ARN`
+# repo variable), the job exits early with a clear message. This lets
+# the workflow live in main without breaking PRs on a repo that has
+# no AWS access yet — the procurement gate stays separate from the
+# code path.
+
+on:
+  push:
+    branches: [feature/demo-simulator, main, preview-ready]
+    paths:
+      - "backend/safina/**"
+      - ".github/workflows/kms-integration.yml"
+  workflow_dispatch:
+
+# OIDC token issuance requires id-token write permission. Without
+# this the assume-role-with-web-identity call returns 403.
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: kms-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    name: KMSSignerBackend · live AWS sign+recover round-trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Skip if AWS access not configured
+        id: gate
+        run: |
+          if [ -z "${{ vars.AWS_CI_KMS_ROLE_ARN }}" ] || [ -z "${{ vars.AWS_CI_KMS_KEY_ID }}" ]; then
+            echo "AWS_CI_KMS_ROLE_ARN or AWS_CI_KMS_KEY_ID not set — TD-3 procurement still pending."
+            echo "Skipping live-AWS integration. Local fake-KMS tests in test_kms_signer_backend.py continue to cover the unit-level."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.skip != 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend deps + boto3
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          pip install -r backend/requirements.txt
+          # boto3 is a runtime dep of KMSSignerBackend but the local
+          # fake-KMS tests don't need it. Install explicitly so we
+          # don't pull surprises from requirements.txt drift.
+          pip install boto3
+
+      - name: Configure AWS credentials via OIDC
+        if: steps.gate.outputs.skip != 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # repository variable set by terraform output `ci_test_role_arn`
+          role-to-assume: ${{ vars.AWS_CI_KMS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-central-1' }}
+          # short-lived (15 min) — integration test runs in < 30s
+          role-session-name: orgon-kms-test-${{ github.run_id }}
+
+      - name: Run KMS integration test
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          ORGON_KMS_INTEGRATION: "1"
+          AWS_KMS_KEY_ID: ${{ vars.AWS_CI_KMS_KEY_ID }}
+        run: |
+          # The test is normally skipped (decorated with skipif on
+          # ORGON_KMS_INTEGRATION!=1) so accidental local runs don't
+          # hit real AWS. With the env set, it goes live.
+          python -m pytest backend/tests/test_kms_signer_integration.py -v

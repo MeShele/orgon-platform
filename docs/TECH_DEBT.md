@@ -105,20 +105,55 @@ asyncpg positional, strict-wrapper fallback, unique-violation
 propagation). Existing `test_signature_service.py` updated to match
 the new tx_payload kwarg from the Wave-22 scaffold.
 
-### TD-3. KMS / Vault signer backends never run against real provider
+### TD-3. KMS signer backend never run against real provider — **CODE COMPLETE, AWAITING PROCUREMENT (2026-05-21)**
 
-`backend/safina/signer_backends.py` ships `KMSSignerBackend` and
-`VaultSignerBackend` as stubs. Unit tests pass them through an
-in-process fake, but no integration test exercises a real AWS KMS
-or HashiCorp Vault Transit engine. The day we flip
-`ORGON_SIGNER_BACKEND=kms` in prod, that is the first execution.
+`KMSSignerBackend` itself is not a stub — it's the Wave-18 production
+implementation in `backend/safina/signer_backends.py`. The gap was:
+unit tests use an in-process fake (eth_keys + cryptography), and
+neither moto[kms] nor any other off-the-shelf fake matches real-AWS
+behaviour on `MessageType=DIGEST` (moto silently re-hashes; real AWS
+uses the input verbatim). So the day someone flips
+`ORGON_SIGNER_BACKEND=kms` in prod is the first time the code runs
+against real AWS.
 
-**Fix:** dedicated terraform-managed KMS key in a sandbox AWS account,
-a CI job that wires up `aws-vault` (or OIDC role) and runs a focused
-suite against it on every change to `safina/`.
+**What landed 2026-05-21** — all preparation deliverables, ready to
+go green the moment AWS access is procured:
 
-**Why not yet:** infra-procurement gate, not code gate. Tracked
-separately on the SOC 2 trail.
+* `infrastructure/terraform/kms-signer/` — full terraform module:
+  asymmetric ECC_SECG_P256K1 KMS key, alias `alias/orgon-safina-{env}`,
+  minimum-privilege IAM role (kms:Sign + kms:GetPublicKey only on
+  this key), optional GitHub OIDC role for CI. README documents
+  topology + apply + smoke + backout. ~210 lines of HCL + ~140 lines
+  of README.
+* `.github/workflows/kms-integration.yml` — CI job that runs the
+  integration test on push to `backend/safina/**`. Gracefully exits
+  with a clear message when `vars.AWS_CI_KMS_ROLE_ARN` is unset, so
+  the workflow can live in main without blocking PRs in repos that
+  have no AWS access yet (the procurement gate stays separate from
+  the code path).
+* `backend/tests/test_kms_signer_integration.py` — 3 tests covering
+  address-derivation from real `kms:GetPublicKey`, sign→recover
+  round-trip, low-s normalisation across 8 different digests. Gated
+  on `ORGON_KMS_INTEGRATION=1` env. Skips cleanly on local runs.
+
+**Remaining (out-of-code):**
+
+1. Provision AWS account `orgon-{env}` (or carve OU from a parent
+   account).
+2. Bootstrap IAM role with `kms:Create*` + `iam:Create*` so terraform
+   can apply.
+3. `cd infrastructure/terraform/kms-signer && terraform init &&
+   terraform apply -var="env=sandbox" -var="github_oidc_repo=MeShele/orgon-platform"`.
+4. Take terraform output `ci_test_role_arn` → set as GitHub repo
+   variable `AWS_CI_KMS_ROLE_ARN`. Same for `kms_key_id_alias` →
+   `AWS_CI_KMS_KEY_ID`.
+5. Push to `feature/demo-simulator` (any change under
+   `backend/safina/**`) — CI workflow goes green for the first time.
+6. Flip backend env: `ORGON_SIGNER_BACKEND=kms`, `AWS_KMS_KEY_ID=
+   alias/orgon-safina-sandbox`, `AWS_REGION=eu-central-1`, plus
+   service-account credentials. Redeploy backend.
+
+Once #5 is green, this entry can be deleted from TECH_DEBT.md.
 
 ---
 

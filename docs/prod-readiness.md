@@ -222,30 +222,37 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 **Что нужно для prod-pilot с AWS KMS:**
 
-1. **AWS-side setup:**
+> 🔧 **Update 2026-05-21.** AWS-side setup теперь автоматизирован
+> через Terraform — `infrastructure/terraform/kms-signer/main.tf`.
+> Шаги ниже остаются как ручной/break-glass путь; рекомендованный
+> путь — `terraform apply`. См. `infrastructure/terraform/kms-signer/README.md`.
+
+1. **AWS-side setup (Terraform, рекомендованный путь):**
    ```bash
-   aws kms create-key \
-     --key-spec ECC_SECG_P256K1 \
-     --key-usage SIGN_VERIFY \
+   cd infrastructure/terraform/kms-signer
+   terraform init
+   terraform workspace new sandbox
+   terraform apply -var="env=sandbox" -var="github_oidc_repo=MeShele/orgon-platform"
+   # Outputs: kms_key_id_alias, kms_key_arn, signer_role_arn, ci_test_role_arn
+   ```
+
+   Ручной путь (без terraform) сохранён в commit history если кому-то
+   нужно собирать инфру руками:
+   ```bash
+   aws kms create-key --key-spec ECC_SECG_P256K1 --key-usage SIGN_VERIFY \
      --description "ORGON Safina signer — pilot <client>"
-   # Note the KeyId. Optionally:
    aws kms create-alias --alias-name alias/orgon-safina-<client> --target-key-id <key-id>
    ```
 
-2. **IAM-policy** для backend-роли — ТОЛЬКО эти два action на ТОЛЬКО этот KeyId:
-   ```json
-   {"Version": "2012-10-17", "Statement": [{
-     "Effect": "Allow",
-     "Action": ["kms:Sign", "kms:GetPublicKey"],
-     "Resource": "<key-arn>"
-   }]}
-   ```
+2. **IAM-policy** — terraform создаёт автоматически. Ручной шаблон
+   (только `kms:Sign` + `kms:GetPublicKey` на конкретный KeyId)
+   живёт в `main.tf::aws_iam_role_policy.signer`.
 
 3. **Coolify env vars:**
    ```
    ORGON_SIGNER_BACKEND=kms
-   AWS_KMS_KEY_ID=alias/orgon-safina-<client>     # или ARN, или KeyId UUID
-   AWS_REGION=eu-central-1                          # где создали ключ
+   AWS_KMS_KEY_ID=alias/orgon-safina-<env>          # из terraform output
+   AWS_REGION=eu-central-1
    AWS_ACCESS_KEY_ID=<service account access key>
    AWS_SECRET_ACCESS_KEY=<service account secret>
    # Можно убрать SAFINA_EC_PRIVATE_KEY — больше не используется в kms-режиме
@@ -255,6 +262,12 @@ curl -H "Authorization: Bearer $TOKEN" \
    - `/api/health/safina` → `safina_reachable: true`
    - В логах backend: `KMSSignerBackend initialised: address=0x... key_id=alias/...`
    - Создать тестовый кошелёк через `/api/wallets` → success → подпись прошла через KMS
+
+5. **CI integration test** — `.github/workflows/kms-integration.yml`
+   запускает 3 теста (`test_kms_signer_integration.py`) против реального
+   KMS при каждом push в `backend/safina/**`. Без выставленных vars
+   workflow skip'ается с явным сообщением — TD-3 в `TECH_DEBT.md`
+   описывает шаги активации.
 
 **Vault** (`VaultSignerBackend`) остаётся stub — отдельная stories когда понадобится. Stub поднимает `NotImplementedError` если выставить `ORGON_SIGNER_BACKEND=vault`.
 

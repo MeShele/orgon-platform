@@ -1,0 +1,393 @@
+"""Payload-pinning tests for the two extracted webhook emit helpers
+(TD-12).
+
+What used to be ~30-line inline blocks inside `sync_transactions` and
+`sync_wallets` is now in two static helpers:
+
+* `TransactionService._emit_tx_lifecycle_events`
+* `WalletService._emit_wallet_activated_if_address_appeared`
+
+These tests pin both halves of each helper: the **gate** (does it fire
+or not for each input state) and the **payload** (exact keys + values
+match the WEBHOOKS.md contract). A future edit that breaks either —
+e.g. changes the `prev_row.tx_hash` emptiness check or drops a payload
+field asystem-core consumes — will fail here without needing a
+full-stack Safina-fake to reproduce.
+
+We don't touch the surrounding UPSERT logic; that's the responsibility
+of the caller and stays untested at this layer (a different feature
+of the polling loop entirely).
+"""
+
+from __future__ import annotations
+
+from typing import Any
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from backend.services.transaction_service import TransactionService
+from backend.services.wallet_service import WalletService
+
+
+# ────────────────────────────────────────────────────────────────────
+# Common helpers — small Safina-model duck-types
+# ────────────────────────────────────────────────────────────────────
+
+
+class _SafinaTx:
+    """Minimal stand-in for the Pydantic `Transaction` model used in
+    sync_transactions. The helper only touches a handful of attributes
+    so we don't pull in the real model + its many required fields."""
+
+    def __init__(
+        self,
+        *,
+        unid: str = "tx-unid-1",
+        tx: str | None = None,
+        token: str = "5010:::TRX###wallet-1",
+        to_addr: str = "TX-recipient",
+        value: float | str = "1.5",
+    ):
+        self.unid = unid
+        self.tx = tx
+        self.token = token
+        self.to_addr = to_addr
+        self.value = value
+
+
+class _SafinaWallet:
+    """Duck-typed Safina wallet — sync_wallets reads .name/.network/.myUNID."""
+
+    def __init__(self, *, name: str = "w1", network: int = 5010, myUNID: str = "u1"):
+        self.name = name
+        self.network = network
+        self.myUNID = myUNID
+
+
+# ────────────────────────────────────────────────────────────────────
+# TransactionService._emit_tx_lifecycle_events
+# ────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_tx_lifecycle_fires_on_null_to_hex_transition() -> None:
+    """The canonical happy path: prev.tx_hash empty, tx.tx now present,
+    org_id present → both broadcasted + confirmed fire with the same
+    payload."""
+    prev_row = {
+        "id": "row-1",
+        "tx_hash": "",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+    tx = _SafinaTx(unid="tx-1", tx="0xfeedcafe", to_addr="TXdest", value="2")
+
+    captured: list[dict] = []
+
+    async def fake_publish(pool, *, merchant_id, event_type, payload, request_id=None):
+        captured.append({
+            "merchant_id": merchant_id,
+            "event_type": event_type,
+            "payload": payload,
+        })
+        return "delivery-id"
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await TransactionService._emit_tx_lifecycle_events(
+            pool, prev_row, tx, "wallet-A",
+        )
+
+    assert len(captured) == 2, "broadcasted + confirmed should both fire"
+    types = [c["event_type"] for c in captured]
+    assert "transaction.broadcasted" in types
+    assert "transaction.confirmed" in types
+
+    # Both events carry an identical payload — Phase 4 may eventually
+    # separate them but today they share by design.
+    p = captured[0]["payload"]
+    assert p == captured[1]["payload"]
+    assert p["tx_id"] == "row-1"
+    assert p["tx_unid"] == "tx-1"
+    assert p["tx_hash"] == "0xfeedcafe"
+    assert p["wallet_name"] == "wallet-A"
+    assert p["to_address"] == "TXdest"
+    assert p["amount"] == "2"
+    assert p["token"] == "5010:::TRX###wallet-1"
+
+
+@pytest.mark.asyncio
+async def test_tx_lifecycle_skips_when_prev_row_none() -> None:
+    """If we don't have a prior row for this unid we never originated
+    the tx (race in the polling loop) — don't emit, the next sync
+    cycle will see it."""
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_lifecycle_events(
+            pool, None, _SafinaTx(tx="0xabc"), "w",
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_lifecycle_skips_when_prev_already_had_hash() -> None:
+    """Re-sync of an already-broadcasted tx: prev.tx_hash already set.
+    Re-firing the webhook would be a duplicate event for asystem-core
+    — replay-guard would catch it, but emitting twice still burns
+    delivery quota for nothing."""
+    prev_row = {
+        "id": "row-1",
+        "tx_hash": "0xpreviously-set",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_lifecycle_events(
+            pool, prev_row, _SafinaTx(tx="0xabc"), "w",
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_lifecycle_skips_when_tx_still_unsigned() -> None:
+    """Sync tick where Safina hasn't broadcast yet — tx.tx still empty.
+    We don't have a hash to deliver, so don't fire."""
+    prev_row = {
+        "id": "row-1",
+        "tx_hash": "",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_lifecycle_events(
+            pool, prev_row, _SafinaTx(tx=None), "w",
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_lifecycle_skips_when_no_organization_id() -> None:
+    """A tx without tenancy is legacy/orphan — don't emit, we have
+    nowhere to deliver."""
+    prev_row = {"id": "row-1", "tx_hash": "", "organization_id": None}
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_lifecycle_events(
+            pool, prev_row, _SafinaTx(tx="0xabc"), "w",
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_lifecycle_swallows_publisher_exception() -> None:
+    """Webhook queue blip must never break the surrounding sync loop —
+    publish failure is logged at WARNING, helper returns normally."""
+    prev_row = {
+        "id": "row-1",
+        "tx_hash": "",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+
+    async def boom(pool, **kwargs):
+        raise RuntimeError("webhook queue exploded")
+
+    pool = object()
+    # Should NOT raise — the test passes if no exception propagates.
+    with patch("backend.services.webhook_publisher.publish_event", boom):
+        await TransactionService._emit_tx_lifecycle_events(
+            pool, prev_row, _SafinaTx(tx="0xabc"), "w",
+        )
+
+
+# ────────────────────────────────────────────────────────────────────
+# WalletService._emit_wallet_activated_if_address_appeared
+# ────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_fires_on_empty_to_address_transition() -> None:
+    """Canonical case: existing.addr was '' before this sync tick,
+    Safina has now returned a real address, merchant_id is known."""
+    existing = {
+        "id": "wallet-uuid-1",
+        "end_user_id": "user-uuid-1",
+        "addr": "",
+        "organization_id": "22222222-3333-4444-5555-666666666666",
+    }
+
+    captured: list[dict] = []
+
+    async def fake_publish(pool, *, merchant_id, event_type, payload, request_id=None):
+        captured.append({
+            "merchant_id": merchant_id,
+            "event_type": event_type,
+            "payload": payload,
+        })
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(network=5010, myUNID="my-unid-1"),
+            "TXnewaddr",
+        )
+
+    assert len(captured) == 1
+    c = captured[0]
+    assert c["event_type"] == "wallet.activated"
+    assert c["merchant_id"] == "22222222-3333-4444-5555-666666666666"
+    assert c["payload"] == {
+        "wallet_id": "wallet-uuid-1",
+        "end_user_id": "user-uuid-1",
+        "network": 5010,
+        "address": "TXnewaddr",
+        "my_unid": "my-unid-1",
+    }
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_treats_whitespace_addr_as_empty() -> None:
+    """A row with `addr = '   '` should be considered "not yet
+    activated" — the strip() guard in the helper protects against
+    cosmetic whitespace tripping the gate."""
+    existing = {
+        "id": "wallet-1",
+        "end_user_id": "u",
+        "addr": "   ",   # whitespace-only — semantically empty
+        "organization_id": "org-1",
+    }
+    captured = []
+
+    async def fake_publish(pool, **kwargs):
+        captured.append(kwargs)
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(), "TXreal",
+        )
+    assert len(captured) == 1
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_skips_when_prev_addr_already_populated() -> None:
+    """Re-sync of an already-activated wallet — addr unchanged. Don't
+    fire again."""
+    existing = {
+        "id": "w1",
+        "end_user_id": "u",
+        "addr": "TXpreviously-set",
+        "organization_id": "org-1",
+    }
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(), "TXpreviously-set",
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_skips_when_new_addr_empty() -> None:
+    """Safina hasn't filled the address yet — nothing to emit. We'll
+    re-check next sync tick."""
+    existing = {
+        "id": "w1", "end_user_id": None, "addr": "",
+        "organization_id": "org-1",
+    }
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(), "",
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_uses_fallback_org_when_existing_is_null() -> None:
+    """Legacy rows without organization_id get tenancy backfilled at
+    sync time — the helper should pick up the fallback when
+    `existing.organization_id` is None."""
+    existing = {
+        "id": "w1", "end_user_id": "u", "addr": "",
+        "organization_id": None,
+    }
+
+    captured = []
+
+    async def fake_publish(pool, *, merchant_id, **kwargs):
+        captured.append({"merchant_id": merchant_id, **kwargs})
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(), "TXnew",
+            fallback_org_id="org-fallback",
+        )
+    assert len(captured) == 1
+    assert captured[0]["merchant_id"] == "org-fallback"
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_skips_when_no_merchant_anywhere() -> None:
+    """Existing.org_id NULL and no fallback — fire would have nowhere
+    to deliver, skip silently."""
+    existing = {
+        "id": "w1", "end_user_id": None, "addr": "",
+        "organization_id": None,
+    }
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(), "TXnew",
+            fallback_org_id=None,
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_handles_null_end_user_id() -> None:
+    """Treasury wallets (corporate hot/fee/cold) have end_user_id=NULL.
+    The payload's `end_user_id` field must be JSON null, not the string
+    'None' or absent entirely."""
+    existing = {
+        "id": "w1", "end_user_id": None, "addr": "",
+        "organization_id": "org-1",
+    }
+    captured = []
+
+    async def fake_publish(pool, *, payload, **kwargs):
+        captured.append(payload)
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(), "TXnew",
+        )
+    assert len(captured) == 1
+    assert captured[0]["end_user_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_wallet_activated_swallows_publisher_exception() -> None:
+    """Same as tx lifecycle — webhook queue blip must never break the
+    sync polling loop."""
+    existing = {
+        "id": "w1", "end_user_id": "u", "addr": "",
+        "organization_id": "org-1",
+    }
+
+    async def boom(pool, **kwargs):
+        raise RuntimeError("queue full")
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", boom):
+        await WalletService._emit_wallet_activated_if_address_appeared(
+            pool, existing, _SafinaWallet(), "TXnew",
+        )

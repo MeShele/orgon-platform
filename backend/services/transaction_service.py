@@ -56,6 +56,86 @@ class TransactionService:
         # service yet (Wave 23, Story 2.8).
         self._compliance = compliance
 
+    # ──────────────────────────────────────────────────────────────────
+    # Webhook emit helpers — extracted from `sync_transactions` /
+    # `sync_wallets` polling bodies so the gate conditions and payload
+    # shapes are testable in isolation (TD-12).
+    #
+    # Each helper has ONE responsibility: decide whether to fire, and
+    # build the canonical payload. They never touch `transactions` /
+    # `wallets` rows — the caller is responsible for the surrounding
+    # UPSERT. This keeps the test surface narrow (no pool roundtrips
+    # for state, just a `pool` arg to hand to `publish_event`).
+    # ──────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def _emit_tx_lifecycle_events(
+        pool,
+        prev_row,
+        tx,
+        wallet_name: Optional[str],
+    ) -> None:
+        """Fire `transaction.broadcasted` + `transaction.confirmed` exactly
+        once when `tx_hash` flips from NULL/empty to a real hex string.
+
+        Gate conditions:
+        * `prev_row` is not None — we only emit for txs we created.
+        * `prev_row.tx_hash` was empty/whitespace before this sync tick.
+        * `tx.tx` is now a truthy hex string.
+        * `prev_row.organization_id` is not None — without tenancy we
+          don't know who to deliver the webhook to.
+
+        Today `confirmed` co-emits with `broadcasted` because Safina is
+        our only confirmation source and `get_transactions` doesn't
+        separate the two events. Documented in `WEBHOOKS.md`; proper
+        block-confirmation tracking is Phase 4 territory.
+
+        Audit-miss is non-fatal: publish failure is logged at WARNING
+        and the sync continues. The original polling path can't be
+        broken by a webhook delivery hiccup.
+        """
+        if prev_row is None:
+            return
+        if (prev_row.get("tx_hash") or "").strip():
+            return
+        if not tx.tx:
+            return
+        if prev_row.get("organization_id") is None:
+            return
+
+        try:
+            from backend.services.webhook_publisher import (
+                publish_event,
+                EV_TX_BROADCASTED,
+                EV_TX_CONFIRMED,
+            )
+            tx_payload = {
+                "tx_id": str(prev_row["id"]),
+                "tx_unid": tx.unid,
+                "tx_hash": tx.tx,
+                "wallet_name": wallet_name,
+                "to_address": tx.to_addr,
+                "amount": str(tx.value),
+                "token": tx.token,
+            }
+            await publish_event(
+                pool,
+                merchant_id=str(prev_row["organization_id"]),
+                event_type=EV_TX_BROADCASTED,
+                payload=tx_payload,
+            )
+            await publish_event(
+                pool,
+                merchant_id=str(prev_row["organization_id"]),
+                event_type=EV_TX_CONFIRMED,
+                payload=tx_payload,
+            )
+        except Exception as e:
+            logger.warning(
+                "transaction.broadcasted/confirmed publish failed for %s: %s",
+                tx.unid, e,
+            )
+
     async def list_transactions(
         self,
         limit: int = 50,
@@ -671,56 +751,12 @@ class TransactionService:
                  status, wallet_name, now, now),
             )
 
-            # Webhook: transaction.broadcasted + transaction.confirmed both
-            # fire exactly once, when tx_hash flips from NULL/empty to a real
-            # hex string. We gate on prev_row being present (we only ever
-            # broadcast a tx we created) AND the existing row being
-            # tenant-attached.
-            #
-            # Today Orgon's only signal that a tx made it to chain is Safina
-            # returning a tx_hash via `get_transactions`. There is no separate
-            # block-confirmation source wired into the polling flow, so
-            # `confirmed` necessarily co-emits with `broadcasted`. This is
-            # documented in WEBHOOKS.md; proper block-confirmation tracking
-            # is a Phase 4 concern (Safina-callback rewire or chain watcher).
-            if (
-                prev_row is not None
-                and not (prev_row.get("tx_hash") or "").strip()
-                and tx.tx
-                and prev_row.get("organization_id") is not None
-            ):
-                try:
-                    from backend.services.webhook_publisher import (
-                        publish_event,
-                        EV_TX_BROADCASTED,
-                        EV_TX_CONFIRMED,
-                    )
-                    tx_payload = {
-                        "tx_id": str(prev_row["id"]),
-                        "tx_unid": tx.unid,
-                        "tx_hash": tx.tx,
-                        "wallet_name": wallet_name,
-                        "to_address": tx.to_addr,
-                        "amount": str(tx.value),
-                        "token": tx.token,
-                    }
-                    await publish_event(
-                        self._db.pool,
-                        merchant_id=str(prev_row["organization_id"]),
-                        event_type=EV_TX_BROADCASTED,
-                        payload=tx_payload,
-                    )
-                    await publish_event(
-                        self._db.pool,
-                        merchant_id=str(prev_row["organization_id"]),
-                        event_type=EV_TX_CONFIRMED,
-                        payload=tx_payload,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        "transaction.broadcasted/confirmed publish failed for %s: %s",
-                        tx.unid, e,
-                    )
+            # Webhook lifecycle emits — extracted to `_emit_tx_lifecycle_events`
+            # for in-isolation testability (TD-12). The helper handles the
+            # NULL→hex transition gate and the broadcasted/confirmed pair.
+            await self._emit_tx_lifecycle_events(
+                self._db.pool, prev_row, tx, wallet_name,
+            )
 
             # Sync signatures
             if tx.wait:

@@ -222,35 +222,33 @@ alongside the other two. Today the SAR pipeline (Wave 24) is invoked
 through compliance-officer flows inside `/compliance/reviews`, not a
 dedicated page.
 
-### TD-12. Inline-emit webhooks lack payload-pinning tests
+### TD-12. ~~Inline-emit webhooks lack payload-pinning tests~~ — **FIXED 2026-05-21**
 
-Three live webhook emits sit **inline** inside large polling functions:
-* `transaction.broadcasted` + `transaction.confirmed` — inside
-  `transaction_service.sync_transactions` (~100 LOC body).
-* `wallet.activated` — inside `wallet_service.sync_wallets` (~120 LOC body).
+Both inline emit blocks extracted to static helpers + payload-pinning
+tests:
 
-The three cleanly-isolated emits (`wallet.deposit.detected`,
-`policy.triggered`, `user.created`) got full payload-pinning tests
-in Wave 30 — Postgres `xmax = 0` discriminator and ON CONFLICT
-semantics covered. The three inline-emit ones don't, because
-exercising the conditional in isolation requires mocking a Safina
-client + iterator + DB schema fixtures, which is more scaffolding
-than test.
+* `TransactionService._emit_tx_lifecycle_events(pool, prev_row, tx, wallet_name)`
+  — `transaction.broadcasted` + `transaction.confirmed` pair. Gate:
+  `prev_row not None AND prev.tx_hash empty AND tx.tx truthy AND
+  prev.organization_id not None`.
+* `WalletService._emit_wallet_activated_if_address_appeared(pool, existing, w, addr, fallback_org_id=None)`
+  — `wallet.activated`. Gate: `prev.addr empty (whitespace-tolerant) AND
+  new addr non-empty AND (existing.organization_id OR fallback_org_id)
+  not None`.
 
-**Risk:** L2. The emits do fire correctly in prod (verified live);
-the gap is regression-only. If a future edit to the surrounding sync
-logic accidentally breaks a gate (e.g. changes the
-`prev_row.tx_hash` emptiness check or `not prev_addr and addr` check),
-nothing in the test suite would notice until the asystem-core
-integration starts showing missing webhooks.
+Both helpers swallow publisher exceptions (logged at WARNING) so a
+webhook-queue blip never breaks the surrounding sync polling loop.
 
-**Fix:** extract each emit block to a private helper —
-`_emit_tx_lifecycle_events(pool, prev_row, tx, wallet_name)` and
-`_emit_wallet_activated_if_address_appeared(pool, existing, w, addr)`
-— and test the helpers directly with the fake-pool pattern in
-`backend/tests/test_user_created_event.py`. ~1h refactor + 2h tests.
-Deferred from Wave 30 to avoid touching live polling paths in the
-same sprint as the contract changes.
+Tests in `backend/tests/test_inline_emit_helpers.py` (14 cases):
+gate-skip for each failure mode (prev_row None, prev already had
+value, tx.tx empty, no org_id, whitespace addr edge), payload-pinning
+for the happy paths (broadcasted + confirmed share payload; wallet
+event matches `WEBHOOKS.md` shape including null end_user_id for
+treasury wallets), and exception-swallow safety.
+
+Future edits to `sync_transactions` / `sync_wallets` that
+accidentally drop a gate condition or a payload field will fail
+these tests without needing a full-stack Safina-fake fixture.
 
 ### TD-13. `wallet.deposit.pending` event for mempool-stage signal
 

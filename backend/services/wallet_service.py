@@ -17,6 +17,72 @@ class WalletService:
         self._client = client
         self._db = db
 
+    # ──────────────────────────────────────────────────────────────────
+    # Webhook emit helper — extracted from `sync_wallets` (TD-12) so the
+    # gate logic and payload shape are testable without spinning up the
+    # full sync polling body.
+    # ──────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    async def _emit_wallet_activated_if_address_appeared(
+        pool,
+        existing: dict,
+        w,  # backend.safina.models.Wallet — duck-typed; .name, .network, .myUNID
+        addr: str,
+        fallback_org_id=None,
+    ) -> None:
+        """Fire `wallet.activated` exactly once when `addr` flips from
+        empty → populated on an existing row.
+
+        Why this gate, not `existing.created_at == now`: Safina sometimes
+        races on activation — wallet creation can land before the chain
+        address is provisioned. The sync loop polls every minute and
+        gradually fills `addr` once Safina returns it. The transition
+        from empty-string to a real address is the meaningful event,
+        not the original INSERT (which goes through a separate path
+        that fires `wallet.requested` instead — see
+        merchant_wallet_service.py).
+
+        `fallback_org_id` is what to use when `existing.organization_id`
+        is NULL — typically the same `org_uuid` the caller is about to
+        write to that column.
+
+        Audit-miss is non-fatal: a webhook delivery hiccup must never
+        break the sync polling loop.
+        """
+        prev_addr = (existing.get("addr") or "").strip()
+        if prev_addr or not addr:
+            return
+        merchant_id = existing.get("organization_id") or fallback_org_id
+        if merchant_id is None:
+            return
+
+        try:
+            from backend.services.webhook_publisher import (
+                publish_event,
+                EV_WALLET_ACTIVATED,
+            )
+            await publish_event(
+                pool,
+                merchant_id=str(merchant_id),
+                event_type=EV_WALLET_ACTIVATED,
+                payload={
+                    "wallet_id": str(existing["id"]),
+                    "end_user_id": (
+                        str(existing["end_user_id"])
+                        if existing.get("end_user_id") else None
+                    ),
+                    "network": w.network,
+                    "address": addr,
+                    "my_unid": w.myUNID,
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "wallet.activated publish failed for %s: %s",
+                w.myUNID, e,
+            )
+
     async def list_wallets(
         self,
         network_id: int | None = None,
@@ -484,42 +550,14 @@ class WalletService:
                      w.myUNID),
                 )
 
-                # Webhook: wallet.activated fires exactly once, on the
-                # transition from empty addr → populated addr. We compare
-                # the pre-UPDATE row to the value we're about to write
-                # because the UPDATE has just landed and SELECTing now
-                # would always show the new value.
-                prev_addr = (existing.get("addr") or "").strip()
-                if not prev_addr and addr:
-                    merchant_id = existing.get("organization_id") or org_uuid
-                    if merchant_id is not None:
-                        try:
-                            from backend.services.webhook_publisher import (
-                                publish_event,
-                                EV_WALLET_ACTIVATED,
-                            )
-                            await publish_event(
-                                self._db.pool,
-                                merchant_id=str(merchant_id),
-                                event_type=EV_WALLET_ACTIVATED,
-                                payload={
-                                    "wallet_id": str(existing["id"]),
-                                    "end_user_id": (
-                                        str(existing["end_user_id"])
-                                        if existing.get("end_user_id") else None
-                                    ),
-                                    "network": w.network,
-                                    "address": addr,
-                                    "my_unid": w.myUNID,
-                                },
-                            )
-                        except Exception as e:
-                            # Webhook queue is best-effort — never let a
-                            # delivery hiccup break the sync loop.
-                            logger.warning(
-                                "wallet.activated publish failed for %s: %s",
-                                w.myUNID, e,
-                            )
+                # Webhook lifecycle emit — extracted to
+                # `_emit_wallet_activated_if_address_appeared` for
+                # in-isolation testability (TD-12). The helper handles
+                # the empty→populated addr transition and merchant_id
+                # resolution.
+                await self._emit_wallet_activated_if_address_appeared(
+                    self._db.pool, existing, w, addr, fallback_org_id=org_uuid,
+                )
             else:
                 await self._db.execute(
                     """INSERT INTO wallets

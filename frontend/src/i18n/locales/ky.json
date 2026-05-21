@@ -60,7 +60,8 @@
       "comingSoon": "Жакында"
     },
     "complianceRules": "Комплаенс эрежелери",
-    "complianceReviews": "AML текшерүүлөр"
+    "complianceAml": "AML кезеги",
+    "complianceReviews": "KYC/KYB өтүнмөлөрү"
   },
   "dashboard": {
     "title": "Башкы бет",

@@ -63,7 +63,8 @@
       "comingSoon": "Скоро"
     },
     "complianceRules": "Правила комплаенс",
-    "complianceReviews": "AML алерты"
+    "complianceAml": "AML очередь",
+    "complianceReviews": "KYC/KYB заявки"
   },
   "dashboard": {
     "title": "Главная",

@@ -56,8 +56,9 @@ export default function CompliancePage() {
             <div className="font-medium">Comply Core — обзорная страница</div>
             <div className="mt-1 text-muted-foreground">
               Этот dashboard объединяет ссылки на рабочие compliance-инструменты.
-              Боевые потоки: <span className="text-primary">/compliance/reviews</span> (AML-очередь, SAR),
-              <span className="text-primary"> /compliance/rules</span> (rule engine).
+              Боевые потоки: <span className="text-primary">/compliance/aml-alerts</span> (AML-очередь + SAR в drawer'е),
+              <span className="text-primary"> /compliance/rules</span> (rule engine),
+              <span className="text-primary"> /compliance/reviews</span> (KYC/KYB approval).
               Цифры и календарь отчётности на вкладке «Отчётность» — справочно, реальные SLA — в AML drawer'е.
             </div>
           </div>

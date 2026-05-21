@@ -43,11 +43,20 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
   {
     label: "insights",
     items: [
-      { href: "/analytics",          label: "analytics",         icon: "solar:chart-linear",         activeIcon: "solar:chart-bold",         roles: ["all"] },
-      { href: "/audit",              label: "audit",             icon: "solar:history-linear",       activeIcon: "solar:history-bold",       roles: ["admin", "viewer"] },
-      { href: "/compliance/rules",   label: "complianceRules",   icon: "solar:filter-linear",        activeIcon: "solar:filter-bold",        roles: ["admin", "viewer"] },
-      { href: "/compliance/reviews", label: "complianceReviews", icon: "solar:shield-warning-linear", activeIcon: "solar:shield-warning-bold", roles: ["admin", "viewer"] },
-      { href: "/reports",            label: "reports",           icon: "solar:document-text-linear", activeIcon: "solar:document-text-bold", roles: ["admin", "viewer"] },
+      { href: "/analytics",              label: "analytics",          icon: "solar:chart-linear",          activeIcon: "solar:chart-bold",          roles: ["all"] },
+      { href: "/audit",                  label: "audit",              icon: "solar:history-linear",        activeIcon: "solar:history-bold",        roles: ["admin", "viewer"] },
+      { href: "/compliance/rules",       label: "complianceRules",    icon: "solar:filter-linear",         activeIcon: "solar:filter-bold",         roles: ["admin", "viewer"] },
+      // AML triage — standalone route (Wave 21 surface).
+      // Previously the only path to this UI was through the
+      // /compliance index page's "AML" tab, which was sidebar-marked
+      // roadmap. This entry surfaces it as first-class for the
+      // compliance-officer daily-use flow.
+      { href: "/compliance/aml-alerts",  label: "complianceAml",      icon: "solar:shield-warning-linear", activeIcon: "solar:shield-warning-bold", roles: ["admin", "viewer"] },
+      // KYC/KYB review queue — applicant verification approval flow
+      // (admin-side; the user-facing /compliance/kyc + /compliance/kyb
+      // pages handle the Sumsub-WebSDK self-submission upstream).
+      { href: "/compliance/reviews",     label: "complianceReviews",  icon: "solar:clipboard-check-linear", activeIcon: "solar:clipboard-check-bold", roles: ["admin", "viewer"] },
+      { href: "/reports",                label: "reports",            icon: "solar:document-text-linear",  activeIcon: "solar:document-text-bold",  roles: ["admin", "viewer"] },
     ],
   },
   {

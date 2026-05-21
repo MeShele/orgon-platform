@@ -1,7 +1,29 @@
 // Single source of truth for the authenticated sidebar navigation.
 // Used by both AceternitySidebar (desktop) and MobileSidebar (drawer).
 
-export type SidebarRole = "all" | "admin" | "signer" | "viewer";
+// Roles match backend's `users.role` values. Order matters for the
+// escalation logic in `filterByRole` — `super_admin` and
+// `platform_admin` see everything `admin` sees plus their dedicated
+// entries (the platform-wide `/admin/*` surface). Without this, a
+// freshly-logged-in super_admin user used to see fewer sidebar items
+// than a `company_admin` because their `user.role` value didn't
+// match anything in any item's `roles` array.
+export type SidebarRole =
+  | "all"
+  | "super_admin"
+  | "platform_admin"
+  | "admin"
+  | "signer"
+  | "viewer";
+
+const _ADMIN_ESCALATION: Record<SidebarRole, SidebarRole[]> = {
+  super_admin: ["super_admin", "platform_admin", "admin"],
+  platform_admin: ["platform_admin", "admin"],
+  admin: ["admin"],
+  signer: ["signer"],
+  viewer: ["viewer"],
+  all: ["all"],
+};
 
 export interface SidebarItem {
   href: string;
@@ -62,6 +84,13 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
   {
     label: "platform",
     items: [
+      // Merchant onboarding & lifecycle management — platform-wide
+      // surface, restricted to super_admin / platform_admin. Before
+      // this entry was added the URL existed (Wave 28) but had no
+      // sidebar path; the only way in was to type the URL by hand or
+      // know the legacy `Sidebar.tsx` (which is dead code in the
+      // redesign). Now first-class for platform operators.
+      { href: "/admin/merchants",         label: "merchants", icon: "solar:shop-linear",                activeIcon: "solar:shop-bold",                roles: ["super_admin", "platform_admin"] },
       { href: "/networks",                label: "networks",  icon: "solar:global-linear",              activeIcon: "solar:global-bold",              roles: ["admin"] },
       { href: "/settings/system",         label: "system",    icon: "solar:server-linear",              activeIcon: "solar:server-bold",              roles: ["admin"] },
     ],
@@ -96,10 +125,18 @@ export const SIDEBAR_NAV: SidebarGroup[] = [
 ];
 
 export function filterByRole(role: SidebarRole, groups = SIDEBAR_NAV): SidebarGroup[] {
+  // Effective role set — super_admin/platform_admin inherit admin
+  // (and platform_admin), so an item gated on `["admin"]` still
+  // shows for super_admin. See `_ADMIN_ESCALATION` for the table.
+  // Falls back to the literal role if it isn't in the map (defensive
+  // against future `users.role` values added on the backend).
+  const effective = _ADMIN_ESCALATION[role] ?? [role];
   return groups
     .map((g) => ({
       ...g,
-      items: g.items.filter((i) => i.roles.includes("all") || i.roles.includes(role)),
+      items: g.items.filter(
+        (i) => i.roles.includes("all") || effective.some((r) => i.roles.includes(r)),
+      ),
     }))
     .filter((g) => g.items.length > 0);
 }

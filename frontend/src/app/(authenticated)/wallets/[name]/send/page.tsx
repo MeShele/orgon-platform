@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 import { Header } from "@/components/layout/Header";
@@ -15,10 +15,29 @@ import { getNetworkConfig, explorerTxUrl } from "@/lib/networkConfig";
 
 type Stage = "input" | "preview" | "signing" | "broadcasting" | "done" | "error";
 
+// Wrap the inner component in a Suspense boundary because `useSearchParams()`
+// suspends during SSR pre-render. Without this Next.js fails the build on
+// this route (App Router rule, surface unchanged for the user).
 export default function SendTransactionPage() {
+  return (
+    <Suspense fallback={null}>
+      <SendTransactionInner />
+    </Suspense>
+  );
+}
+
+function SendTransactionInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const walletName = params.name as string;
+  // `?tx=<unid>` makes the in-flight transfer page bookmarkable +
+  // refresh-survivable. Without this, a user who navigates away and
+  // returns sees the empty form even though Safina is still working
+  // on their tx (or got stuck — same Safina-sign mystery from the
+  // 2026-05-11 fire-test). The query param IS the persistence
+  // mechanism — no localStorage, no server-side session state.
+  const txFromUrl = searchParams?.get("tx") ?? "";
 
   const [wallet, setWallet] = useState<Record<string, unknown> | null>(null);
   const [walletError, setWalletError] = useState("");
@@ -27,14 +46,75 @@ export default function SendTransactionPage() {
   const [toAddr, setToAddr] = useState("");
   const [value, setValue] = useState("");
   const [info, setInfo] = useState("");
-  const [stage, setStage] = useState<Stage>("input");
-  const [txUnid, setTxUnid] = useState<string>("");
+  const [stage, setStage] = useState<Stage>(txFromUrl ? "broadcasting" : "input");
+  const [txUnid, setTxUnid] = useState<string>(txFromUrl);
   const [txHash, setTxHash] = useState<string>("");
   const [submitErr, setSubmitErr] = useState("");
 
   useEffect(() => {
     api.getWallet(walletName).then(setWallet).catch((e) => setWalletError(String(e?.message ?? e)));
   }, [walletName]);
+
+  // When the URL carries a `?tx=` param (user reloaded the page or
+  // came back via bookmark), poll the backend to drive the progress
+  // UI from real transaction state instead of starting at "input".
+  // The polling stops on terminal status OR on component unmount —
+  // `cancelled` ref prevents the async loop from setting state on
+  // an unmounted component.
+  const pollCancelRef = useRef(false);
+  useEffect(() => {
+    if (!txFromUrl) return;
+    pollCancelRef.current = false;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tick = async () => {
+      if (pollCancelRef.current) return;
+      try {
+        const tx = (await api.getTransaction(txFromUrl)) as {
+          tx_hash?: string | null;
+          status?: string | null;
+        } | null;
+        const h = (tx?.tx_hash ?? "").trim();
+        const statusStr = (tx?.status ?? "").toLowerCase();
+        const isCanceledHash =
+          h.toLowerCase().includes("canceled") || h.toLowerCase().includes("limit");
+
+        if (h && !isCanceledHash) {
+          if (!pollCancelRef.current) {
+            setTxHash(h);
+            setStage("done");
+          }
+          return; // terminal, stop polling
+        }
+        if (statusStr === "rejected" || statusStr === "failed" || isCanceledHash) {
+          if (!pollCancelRef.current) {
+            setSubmitErr(
+              isCanceledHash
+                ? "Транзакция отменена Safina (24h-limit или slist-mismatch). См. лог."
+                : `Транзакция в статусе '${statusStr}'.`,
+            );
+            setStage("error");
+          }
+          return;
+        }
+        // Stage derivation: when there's no tx_hash yet but status is
+        // 'signed' → we're past sign step, waiting on broadcast.
+        if (!pollCancelRef.current) {
+          setStage(statusStr === "signed" ? "broadcasting" : "broadcasting");
+        }
+      } catch {
+        // Transient lookup failure (network blip, backend restart) is
+        // non-fatal — try again on next tick. We don't surface the
+        // error to avoid flashing red on a recoverable hiccup.
+      }
+      timer = setTimeout(tick, 6000);
+    };
+    tick();
+    return () => {
+      pollCancelRef.current = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [txFromUrl]);
 
   if (walletError) {
     return (
@@ -90,34 +170,33 @@ export default function SendTransactionPage() {
       )) as { tx_unid: string };
       setTxUnid(created.tx_unid);
 
+      // Pin the unid to the URL so the user can navigate away + return
+      // and see live status instead of an empty form. `replace`
+      // (not push) — we don't want the form-state to be in browser
+      // history; the form is "fired and forgotten" from the
+      // navigation perspective.
+      try {
+        router.replace(
+          `/wallets/${walletName}/send?tx=${encodeURIComponent(created.tx_unid)}`,
+          { scroll: false },
+        );
+      } catch {
+        // Old Next.js scroll-option signature differs; defensive.
+        router.replace(
+          `/wallets/${walletName}/send?tx=${encodeURIComponent(created.tx_unid)}`,
+        );
+      }
+
       // 2. Sign with our tenant EC via the v2 signatures endpoint.
       await api.signTransactionV2(created.tx_unid);
 
+      // 3. Flip to broadcasting. The URL-driven polling effect (which
+      //    woke up when we pushed `?tx=<unid>` above) takes over from
+      //    here — it polls every 6s indefinitely, sets stage to
+      //    `done` when tx_hash lands, or `error` on rejected/canceled.
+      //    No inline loop here: a separate polling loop would race
+      //    the effect and produce double setState toggling.
       setStage("broadcasting");
-
-      // 3. Poll local DB (synced from Safina every minute) until a
-      //    real on-chain tx_hash appears. Safina occasionally writes
-      //    sentinel strings like "Transaction canceled, 1 day limit."
-      //    into tx_hash — filter those out.
-      const start = Date.now();
-      const TIMEOUT_MS = 5 * 60 * 1000;
-      while (Date.now() - start < TIMEOUT_MS) {
-        await new Promise((r) => setTimeout(r, 6000));
-        try {
-          const tx = (await api.getTransaction(created.tx_unid)) as
-            | { tx_hash?: string | null }
-            | null;
-          const h = tx?.tx_hash || "";
-          if (h && !h.toLowerCase().includes("canceled") && !h.toLowerCase().includes("limit")) {
-            setTxHash(h);
-            setStage("done");
-            return;
-          }
-        } catch {
-          /* polling failure is non-fatal — try again */
-        }
-      }
-      throw new Error("Не удалось подтвердить broadcast за 5 минут — проверьте статус позже на странице транзакций.");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
       setSubmitErr(msg);
@@ -268,6 +347,11 @@ export default function SendTransactionPage() {
                             setTxHash("");
                             setTxUnid("");
                             setStage("input");
+                            // Drop the `?tx=` param so the URL reflects
+                            // the fresh-form state — otherwise the
+                            // pinned tx would still drive the polling
+                            // effect on next render.
+                            router.replace(`/wallets/${walletName}/send`, { scroll: false });
                           }}
                         >
                           Отправить ещё
@@ -287,10 +371,31 @@ export default function SendTransactionPage() {
                           UNID транзакции: <span className="font-mono">{txUnid}</span>
                         </p>
                       ) : null}
-                      <div className="pt-2 flex gap-2">
-                        <Button variant="secondary" size="sm" onClick={() => setStage("input")}>
+                      <div className="pt-2 flex flex-wrap gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            // Reset the form for a retry attempt. Clear
+                            // the URL pin so the effect doesn't keep
+                            // polling the dead tx in the background.
+                            setStage("input");
+                            setTxUnid("");
+                            setSubmitErr("");
+                            router.replace(`/wallets/${walletName}/send`, { scroll: false });
+                          }}
+                        >
                           Изменить и повторить
                         </Button>
+                        {txUnid ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => router.push(`/transactions/${txUnid}`)}
+                          >
+                            Детали транзакции
+                          </Button>
+                        ) : null}
                       </div>
                     </div>
                   ) : null}

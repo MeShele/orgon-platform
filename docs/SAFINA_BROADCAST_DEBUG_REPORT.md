@@ -158,6 +158,15 @@ indefinitely.**
   current docs (we used `my.h2k.me/ece/` historically, switched).
 * **Stale env:** `SAFINA_BASE_URL = https://my.safina.pro/ece/`,
   `SAFINA_EC_PRIVATE_KEY` set per-tenant via factory.
+* **Missing `instant` flag:** added per docs/safina.html line 368
+  («TODO: добавить ключ `"instant":""`. Если он есть, то транзакция
+  не требует подтверждения пользователя после сбора подписей»).
+  Shipped 2026-05-22 in our `client.send_transaction` — body now
+  includes `"instant": ""`. Tested with fresh tx
+  `F7BC5CBFBBB70B6145258DFE006738BE` — same stuck-after-sign
+  behaviour. Either the feature isn't deployed on your prod backend
+  yet (the «TODO» in docs hints at this), or it doesn't address
+  whatever's blocking broadcast in our specific setup.
 
 ---
 

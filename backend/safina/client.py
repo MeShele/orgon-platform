@@ -230,6 +230,16 @@ class SafinaPayClient:
             "info": info,
             "value": safina_value,
             "toAddress": to_address,
+            # `instant: ""` documented in safina.html line 368: «если он
+            # есть, то транзакция не требует подтверждения пользователя
+            # после сбора подписей». Without this flag Safina waits for
+            # a human-side "confirm" step after `signed[]` populates —
+            # a flow that doesn't apply to our server-side custody EC
+            # (there's no human behind the key to push the confirm
+            # button). Result: stuck-after-sign forever. Empty-string
+            # value because the spec triggers on key presence, not
+            # value; using "" mirrors the docs example verbatim.
+            "instant": "",
         }
         if json_info:
             body["json_info"] = json_info

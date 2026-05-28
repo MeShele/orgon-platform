@@ -83,10 +83,8 @@ services:
     ports:
       - "127.0.0.1:18890:8890"
     healthcheck:
-      # TEMP (incident 2026-05-28): no-op so the container stays up even if
-      # /api/health is erroring — lets us read runtime logs / the real error
-      # and restores the frontend. Restore the real check below after fix.
-      test: ["CMD-SHELL", "exit 0"]
+      # python is in the slim image; wget/curl are not.
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request,sys; sys.exit(0 if b'ok' in urllib.request.urlopen('http://127.0.0.1:8890/api/health').read() else 1)\""]
       interval: 10s
       timeout: 5s
       retries: 12

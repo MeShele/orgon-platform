@@ -30,6 +30,12 @@ c.commit()
 print('SQLite fallback ready')
 "
 
+# Migrations/seed must not crash the container — a failing migration would
+# otherwise (set -e) kill the entrypoint and crash-loop the backend, taking
+# the whole site down. Log + continue so uvicorn always boots and the error
+# is visible in logs / surfaced via /api/health.
+set +e
+
 # 2. Optional Postgres canonical apply (greenfield deploys).
 if [ "${ORGON_AUTO_MIGRATE:-0}" = "1" ] && [ -n "${DATABASE_URL:-}" ]; then
     echo "[entrypoint] ORGON_AUTO_MIGRATE=1 — checking canonical schema marker"

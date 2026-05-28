@@ -173,9 +173,16 @@ async def lifespan(app: FastAPI):
     if db_url:
         logger.info("🐘 Using PostgreSQL database")
         _async_db = AsyncDatabase(db_url)
-        await _async_db.connect()
+        # Guarded: a DB-connect failure must NOT crash uvicorn startup —
+        # otherwise the container crash-loops and /api/health (SQLite-based)
+        # never comes up to report the problem. Log loudly and continue.
+        try:
+            await _async_db.connect()
+            logger.info("PostgreSQL connection pool created")
+        except Exception as e:
+            app.state.lifespan_error = f"postgres connect failed: {e}"
+            logger.error("POSTGRES CONNECT FAILED — continuing so /api/health stays up: %s", e)
         db = _async_db  # Use async database directly
-        logger.info("PostgreSQL connection pool created")
 
         # PostgreSQL migrations are applied via POST /api/health/run-migrations
 
@@ -222,8 +229,11 @@ async def lifespan(app: FastAPI):
 
     # Force eager pool creation (lazy pool starts as None)
     if _async_db and _async_db._pool is None:
-        await _async_db.connect()
-        logger.info("PostgreSQL pool eagerly connected: %s", _async_db._pool)
+        try:
+            await _async_db.connect()
+            logger.info("PostgreSQL pool eagerly connected: %s", _async_db._pool)
+        except Exception as e:
+            logger.error("eager postgres connect failed — continuing: %s", e)
 
     # Initialize Safina signer + client. Three modes:
     #   1. Real: a signer backend is available (env / KMS / vault) → live Safina API.

@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from backend.safina.client import SafinaPayClient
 from backend.safina.models import SendTransactionRequest
+from backend.safina.tx_status import is_broadcast_hash, clean_tx_hash, looks_canceled
 from backend.safina.signature_verifier import (
     get_verify_mode,
     is_verification_enabled,
@@ -81,7 +82,10 @@ class TransactionService:
         Gate conditions:
         * `prev_row` is not None — we only emit for txs we created.
         * `prev_row.tx_hash` was empty/whitespace before this sync tick.
-        * `tx.tx` is now a truthy hex string.
+        * `tx.tx` is now a real on-chain hash — NOT merely truthy. Safina
+          writes a status string ("Transaction canceled, 1 day limit.")
+          into `tx` on abandonment; `is_broadcast_hash` rejects it so we
+          never fire a false broadcasted/confirmed (the pre-058 bug).
         * `prev_row.organization_id` is not None — without tenancy we
           don't know who to deliver the webhook to.
 
@@ -98,7 +102,7 @@ class TransactionService:
             return
         if (prev_row.get("tx_hash") or "").strip():
             return
-        if not tx.tx:
+        if not is_broadcast_hash(tx.tx):
             return
         if prev_row.get("organization_id") is None:
             return
@@ -112,7 +116,7 @@ class TransactionService:
             tx_payload = {
                 "tx_id": str(prev_row["id"]),
                 "tx_unid": tx.unid,
-                "tx_hash": tx.tx,
+                "tx_hash": clean_tx_hash(tx.tx),
                 "wallet_name": wallet_name,
                 "to_address": tx.to_addr,
                 "amount": str(tx.value),
@@ -699,10 +703,15 @@ class TransactionService:
         now = datetime.now(timezone.utc)
 
         for tx in txs:
-            # Determine status
+            # Determine status. Safina's `tx` field is a real hash only
+            # after broadcast; on abandonment it becomes a status string
+            # ("Transaction canceled, 1 day limit."). Treating any truthy
+            # value as confirmed was the pre-058 false-confirmation bug.
             status = "pending"
-            if tx.tx:
+            if is_broadcast_hash(tx.tx):
                 status = "confirmed"
+            elif looks_canceled(tx.tx):
+                status = "canceled"
             elif tx.signed:
                 status = "signed"
 
@@ -744,7 +753,7 @@ class TransactionService:
                    wallet_name = EXCLUDED.wallet_name,
                    synced_at = EXCLUDED.synced_at,
                    updated_at = EXCLUDED.updated_at""",
-                (tx.id, tx.tx, tx.token, tx.token_name, tx.to_addr,
+                (tx.id, clean_tx_hash(tx.tx), tx.token, tx.token_name, tx.to_addr,
                  str(tx.value), tx.value_hex, tx.unid,
                  int(tx.init_ts) if tx.init_ts else None,  # init_ts это integer (Unix timestamp)
                  int(tx.min_sign) if tx.min_sign else 0,
@@ -936,7 +945,7 @@ class TransactionService:
         """
         details = {
             "tx_unid": getattr(tx, "unid", None),
-            "tx_hash": getattr(tx, "tx", None),
+            "tx_hash": clean_tx_hash(getattr(tx, "tx", None)),
             "expected_signer": sig.get("ecaddress"),
             "signature_hex": sig.get("ecsign"),
             "verify_mode": mode,

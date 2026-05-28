@@ -29,6 +29,13 @@ import pytest
 from backend.services.transaction_service import TransactionService
 from backend.services.wallet_service import WalletService
 
+# A realistic 64-hex on-chain hash. The emit helper now validates the
+# hash format (post-058), so fixtures must use a real-shaped hash — a
+# short "0xfeedcafe" stub is correctly rejected as not-a-broadcast.
+REAL_HASH = "0x" + "ab" * 32
+# Verbatim string Safina writes into `tx` when it abandons a signed tx.
+CANCEL_STR = "Transaction canceled, 1 day limit."
+
 
 # ────────────────────────────────────────────────────────────────────
 # Common helpers — small Safina-model duck-types
@@ -80,7 +87,7 @@ async def test_tx_lifecycle_fires_on_null_to_hex_transition() -> None:
         "tx_hash": "",
         "organization_id": "11111111-2222-3333-4444-555555555555",
     }
-    tx = _SafinaTx(unid="tx-1", tx="0xfeedcafe", to_addr="TXdest", value="2")
+    tx = _SafinaTx(unid="tx-1", tx=REAL_HASH, to_addr="TXdest", value="2")
 
     captured: list[dict] = []
 
@@ -109,7 +116,7 @@ async def test_tx_lifecycle_fires_on_null_to_hex_transition() -> None:
     assert p == captured[1]["payload"]
     assert p["tx_id"] == "row-1"
     assert p["tx_unid"] == "tx-1"
-    assert p["tx_hash"] == "0xfeedcafe"
+    assert p["tx_hash"] == REAL_HASH
     assert p["wallet_name"] == "wallet-A"
     assert p["to_address"] == "TXdest"
     assert p["amount"] == "2"
@@ -145,7 +152,28 @@ async def test_tx_lifecycle_skips_when_prev_already_had_hash() -> None:
     pool = object()
     with patch("backend.services.webhook_publisher.publish_event", fake):
         await TransactionService._emit_tx_lifecycle_events(
-            pool, prev_row, _SafinaTx(tx="0xabc"), "w",
+            pool, prev_row, _SafinaTx(tx=REAL_HASH), "w",
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_lifecycle_skips_when_tx_is_cancellation_string() -> None:
+    """REGRESSION (the 2026-05-27 false-confirmation bug): Safina puts
+    "Transaction canceled, 1 day limit." into `tx` on abandonment. That
+    is truthy but NOT a hash — we must NOT fire broadcasted/confirmed.
+    Pre-058 this fired and told asystem-core a canceled payout was
+    confirmed."""
+    prev_row = {
+        "id": "row-1",
+        "tx_hash": "",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_lifecycle_events(
+            pool, prev_row, _SafinaTx(tx=CANCEL_STR), "w",
         )
     fake.assert_not_called()
 

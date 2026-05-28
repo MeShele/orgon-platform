@@ -25,28 +25,32 @@ from uuid import UUID
 
 from backend.safina.factory import get_safina_client_for_org
 from backend.safina.models import SendTransactionRequest
+from backend.safina.tx_status import is_broadcast_hash, clean_tx_hash, looks_canceled
 
 logger = logging.getLogger("orgon.merchant_tx")
 
 
 def _status_from_row(row: dict) -> str:
-    h = (row.get("tx_hash") or "").strip()
-    if not h:
+    # Shared `tx`-field interpretation (backend.safina.tx_status) so this
+    # surface can never diverge from the sync/webhook paths.
+    h = row.get("tx_hash")
+    if not (h and str(h).strip()):
         # Either pending or signed-but-not-broadcast — for V1 we
         # surface both as 'pending'. A future tweak can read the
         # signatures table to differentiate.
         return "pending"
-    low = h.lower()
-    if "canceled" in low or "limit" in low or "failed" in low:
+    if looks_canceled(h):
         return "canceled"
-    return "broadcasted"
+    if is_broadcast_hash(h):
+        return "broadcasted"
+    # Unknown non-hash string — never claim a broadcast we can't prove.
+    return "pending"
 
 
 def _row_to_public(row, *, network: Optional[int] = None) -> dict:
     """Shape internal `transactions` row for the public API."""
     if not row:
         return {}
-    h = (row.get("tx_hash") or "").strip()
     return {
         "id": row.get("unid"),
         "wallet_name": row.get("wallet_name"),
@@ -54,7 +58,7 @@ def _row_to_public(row, *, network: Optional[int] = None) -> dict:
         "value": row.get("value"),
         "token": row.get("token"),
         "network": network or row.get("network"),
-        "tx_hash": h if (h and "canceled" not in h.lower() and "limit" not in h.lower()) else None,
+        "tx_hash": clean_tx_hash(row.get("tx_hash")),
         "status": _status_from_row(row),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,

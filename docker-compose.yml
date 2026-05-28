@@ -35,6 +35,7 @@ services:
       SAFINA_STUB: "${SAFINA_STUB:-1}"
       SAFINA_BASE_URL: "${SAFINA_BASE_URL:-http://localhost:0}"
       SAFINA_EC_PRIVATE_KEY: "${SAFINA_EC_PRIVATE_KEY:-}"
+      ORGON_DEBUG_TOKEN: "${ORGON_DEBUG_TOKEN:-}"   # TEMP send-test gate — remove after use
       # Signer backend selection. Three modes:
       #   `env`   → reads SAFINA_EC_PRIVATE_KEY (above). Process holds the
       #            EC key in memory. Good for dev / single-org pilots.

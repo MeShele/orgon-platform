@@ -515,13 +515,11 @@ from backend.api.routes_webhooks_sumsub import router as webhooks_sumsub_router
 from backend.api.routes_merchant_admin import router as merchant_admin_router  # B2B API key admin
 from backend.api.routes_public_v1 import router as public_v1_router  # B2B public API (HMAC-signed)
 from backend.api.routes_platform_admin import router as platform_admin_router  # /platform/* master-key gated
-from backend.api.routes_safina_sendtest import router as safina_sendtest_router  # TEMP debug — remove after use
 from backend.api.middleware_merchant_hmac import MerchantHMACAuthMiddleware
 from backend.api.middleware_platform_master import PlatformMasterAuthMiddleware
 from backend.api.middleware_request_id import RequestIdAndErrorMiddleware
 
 app.include_router(health_router)
-app.include_router(safina_sendtest_router)  # TEMP debug — remove after use
 app.include_router(wallets_router)
 app.include_router(transactions_router)
 app.include_router(networks_router)

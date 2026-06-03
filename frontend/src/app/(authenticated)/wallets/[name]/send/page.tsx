@@ -46,6 +46,11 @@ function SendTransactionInner() {
   const [toAddr, setToAddr] = useState("");
   const [value, setValue] = useState("");
   const [info, setInfo] = useState("");
+  // Wallet's token balances — drives the asset selector so an operator
+  // can send a token (USDT/…), not just the native coin. `asset` is the
+  // chosen symbol; empty = fall back to the network's native symbol.
+  const [tokens, setTokens] = useState<Array<{ token: string; value: number }>>([]);
+  const [asset, setAsset] = useState("");
   const [stage, setStage] = useState<Stage>(txFromUrl ? "broadcasting" : "input");
   const [txUnid, setTxUnid] = useState<string>(txFromUrl);
   const [txHash, setTxHash] = useState<string>("");
@@ -53,6 +58,24 @@ function SendTransactionInner() {
 
   useEffect(() => {
     api.getWallet(walletName).then(setWallet).catch((e) => setWalletError(String(e?.message ?? e)));
+  }, [walletName]);
+
+  // Load the wallet's tokens so the operator can pick the asset to send.
+  // Best-effort: a lookup failure just leaves the native-only path.
+  useEffect(() => {
+    api
+      .getWalletTokens(walletName)
+      .then((rows: unknown) => {
+        if (Array.isArray(rows)) {
+          setTokens(
+            rows
+              .filter((r): r is Record<string, unknown> => !!r && typeof r === "object")
+              .map((r) => ({ token: String(r.token ?? ""), value: Number(r.value) || 0 }))
+              .filter((t) => t.token),
+          );
+        }
+      })
+      .catch(() => {});
   }, [walletName]);
 
   // When the URL carries a `?tx=` param (user reloaded the page or
@@ -150,9 +173,23 @@ function SendTransactionInner() {
   const nativeSymbol = netCfg?.nativeSymbol ?? "—";
   const addrPlaceholder = netCfg?.addressPlaceholder ?? "адрес получателя";
   const explorerName = netCfg?.explorerName ?? "explorer";
+  // Asset selector: every token the wallet reports, with the native
+  // symbol guaranteed present (and first). `selectedAsset` is what the
+  // amount + token-string use. Operators can now send USDT etc., not
+  // just the native coin.
+  const availableAssets = (() => {
+    const list = tokens.map((t) => ({ ...t }));
+    if (nativeSymbol !== "—" && !list.some((t) => t.token === nativeSymbol)) {
+      list.unshift({ token: nativeSymbol, value: 0 });
+    }
+    // native first, rest in reported order
+    list.sort((a, b) => (a.token === nativeSymbol ? -1 : b.token === nativeSymbol ? 1 : 0));
+    return list;
+  })();
+  const selectedAsset =
+    asset && availableAssets.some((t) => t.token === asset) ? asset : nativeSymbol;
   // Token string format Safina expects: "<network>:::<symbol>###<wallet_name>".
-  // We only support the native token here for now.
-  const tokenStr = `${String(network)}:::${nativeSymbol}###${String(wallet.name ?? walletName)}`;
+  const tokenStr = `${String(network)}:::${selectedAsset}###${String(wallet.name ?? walletName)}`;
 
   const canSubmit = toAddr.trim().length > 0 && Number(value) > 0;
 
@@ -240,7 +277,32 @@ function SendTransactionInner() {
                       className={inputClass + " font-mono"}
                     />
                   </Field>
-                  <Field label={`Сумма (${nativeSymbol})`}>
+                  {availableAssets.length > 1 ? (
+                    <Field label="Токен">
+                      <div className="flex flex-wrap gap-2">
+                        {availableAssets.map((t) => {
+                          const sel = t.token === selectedAsset;
+                          return (
+                            <button
+                              key={t.token}
+                              type="button"
+                              onClick={() => setAsset(t.token)}
+                              className={
+                                "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors " +
+                                (sel
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border bg-muted text-muted-foreground hover:text-foreground dark:bg-card/50")
+                              }
+                            >
+                              <span className="font-mono">{t.token}</span>
+                              <span className="ml-1.5 opacity-60">{t.value}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </Field>
+                  ) : null}
+                  <Field label={`Сумма (${selectedAsset})`}>
                     <input
                       type="number"
                       step="0.000001"
@@ -265,7 +327,7 @@ function SendTransactionInner() {
                     from={primaryAddr || "(адрес ещё не выдан)"}
                     to={toAddr}
                     amount={value}
-                    symbol={nativeSymbol}
+                    symbol={selectedAsset}
                   />
 
                   <div className="flex justify-end gap-2 pt-2">

@@ -628,6 +628,43 @@ issuance needed.
 
 ---
 
+## 9a. Supported payout assets (matrix)
+
+Authoritative — pulled live from Safina's `tokensinfo` directory
+(2026-06-03). **ORGON sends are symbol-based**: pass `asset` = the
+symbol; Safina resolves the on-chain contract internally. You do NOT
+need to send a `contract` (unlike DFNS's `kind`+`contract`). `decimals`
+is informational (Safina handles unit conversion from the decimal
+`amount` you send).
+
+| network (chain_id) | asset symbols | decimals |
+|---|---|---|
+| `3000` Ethereum | ETH, USDT | 18 / 6 |
+| `3040` Ethereum Sepolia | ETH, USDT | 18 / 6 |
+| `5000` Tron | TRX, USDT, USDC, LDFT, TLCA | 6 |
+| `5010` Tron Nile | TRX, USDT, LDFT, TLCA | 6 |
+| `5800` ORGON | ORGON | 6 |
+| `5810` ORGON TestNet | ORGON | 6 |
+
+(Bitcoin `1000` is native-only and not in the token directory; BTC
+payouts are native-send only.) Fetch the current list yourself via
+`GET /v1/networks` (`tokens` array) — that endpoint is the live source.
+
+**Verified live (2026-06-03):**
+- **Native broadcast works on ETH-Sepolia AND Tron-Nile** via the
+  merchant EC sign path (`POST /v1/transactions` → `/sign`): real
+  on-chain hashes confirmed (ETH block 10980639, Tron block 67998548).
+- **Token (TRC20/ERC20) path is wired** — `token = network:::SYMBOL###
+  wallet` is accepted, the tx is created and signed — but a *successful*
+  token transfer wasn't exercised (no USDT-funded test wallet). Since
+  native broadcast works, a token send from a token-funded wallet is
+  expected to broadcast the same way.
+- **Caveat (Safina-side, not ORGON):** one specific wallet
+  (`TPbpD74y…`, the original lazy-balance wallet) still won't broadcast
+  even with `wallet_tokens` showing a balance and signatures complete —
+  Safina's internal spendable balance for it was never reconciled. A
+  freshly-funded wallet broadcasts fine. Not a systemic blocker.
+
 ## 10. Open questions for this phase
 
 - **`asset` vs `contract`.** ORGON accepts a symbol (`USDT`); DFNS

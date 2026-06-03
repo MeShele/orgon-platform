@@ -83,7 +83,11 @@ async def _eth(client, network, tx_hash) -> ConfirmResult:
     r = await client.get(_ETHERSCAN_V2, params=params)
     r.raise_for_status()
     res = (r.json() or {}).get("result")
-    if not res:  # null → not yet mined / not yet indexed
+    # `result` is the receipt dict when mined, `null` when not yet mined,
+    # or a string/absent on an API error ("Missing/Invalid API Key",
+    # rate-limit, etc.). Anything that isn't a dict → no definitive
+    # answer; retry next tick (don't crash on `.get`).
+    if not isinstance(res, dict):
         return _UNKNOWN
     bn = res.get("blockNumber")
     if bn is None:

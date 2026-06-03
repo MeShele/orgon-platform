@@ -2,13 +2,26 @@
 
 > **Назначение:** при подключении первого institutional-клиента (или нового pilot-окружения) этот документ — единственный источник истины для setup'а. Прошёл по чек-листу → клиент получает рабочий tenant с подставленными prod-кредами.
 
-> **Last updated:** 2026-05-11 (после fire-test сессии — нашли 7 фиксов + 1 open question к Safina; см. `docs/SESSION_2026-05-11_FIRE_TEST_FINDINGS.md`)
+> **Last updated:** 2026-06-03. Этот файл — setup-рунбук (инфра/env/tenant).
+> Форвард-план «до institutional GA» теперь в **`PROD_READINESS_PLAN.md`**.
 
 ---
 
 ## 0. Текущее состояние одной строкой
 
-ORGON работает в режиме **shared-test environment** с публичной test-инсталляцией на `https://orgon.asystem.ai`, демо-аккаунт `demo-admin@orgon.io / demo2026`. Все 7 поддерживаемых Safina-сетей (BTC, ETH, ETH-Sepolia, TRX, TRX-Nile, ORGON, ORGON-test) видны через Safina API, **wallet create + send_transaction до приёма в Safina pending state — verified live**. Database вынесена в Coolify-managed standalone-postgresql с daily-backup'ами. VM защищена 4 GB swapfile от OOM-инцидентов на пиках билда. **Готовность к pilot-launch: ~85%.** 5 institutional-блокеров: ❶ KMS (Wave 18, code-ready, не прогонялось на реальном AWS) · ❷ Safina canonical-payload (Wave 22, 6 variants, **runtime mode = `off` до получения sample signed-tx от Safina**) · ❸ AML triage (Wave 19+21, fire-tested) · ❹ KYC (Wave 19, pre-launch до подачи Sumsub creds) · ❺ KYB (Wave 20, pre-launch). **Open question к Safina (2026-05-11):** `POST /tx_sign` возвращает 200 OK, но Safina молча не учитывает подпись (`wait[]` не очищается, tx не broadcast'ится). Causa неясна без их docs / sample-tx. До разрешения **multi-sig end-to-end не подтверждён live**.
+ORGON живёт в проде на `https://orgon.asystem.ai` (single-node Coolify,
+ветка `feature/demo-simulator`; демо `demo-admin@orgon.io / demo2026`).
+**Headless single-EC custody-флоу проверен end-to-end вживую (2026-06-03):**
+deposits (Tron/BTC/ETH watcher) + **payouts реально broadcast'ятся on-chain**
+(ETH-Sepolia + Tron, нативка + TRC20 USDT), вебхуки broadcasted/
+real-confirmed(+block_number)/failed/canceled, HMAC/RLS/pgcrypto/replay/
+квоты. Старый блокер «sign-but-no-broadcast» **закрыт для single-EC**
+(Safina починила эфир; Tron уходит с зачисленных кошельков). DFNS-паритет
+на ORGON-стороне готов. **Pilot-ready (single-EC) — да.**
+**Institutional GA-ready — ещё нет:** 5 треков в `PROD_READINESS_PLAN.md`
+(P0 ключи в KMS/Vault · P1 Safina-риск + M-of-N · P2 комплаенс · P3
+инфра/бэкапы · P4 релиз). **Multi-sig M-of-N (>1) вживую НЕ подтверждён**
+— проверен только single-EC.
 
 ---
 

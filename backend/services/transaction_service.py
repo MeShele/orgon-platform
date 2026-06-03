@@ -204,6 +204,58 @@ class TransactionService:
                 tx.unid, e,
             )
 
+    @staticmethod
+    async def _emit_tx_canceled_event(
+        pool,
+        prev_row,
+        tx,
+        wallet_name: Optional[str],
+        reason: Optional[str],
+    ) -> None:
+        """Fire `transaction.canceled` exactly once when a tx transitions
+        into the terminal `canceled` status — Safina abandoned it (its
+        ~24h "1 day limit" or a slist mismatch). Lets a merchant unblock
+        retry UX instead of polling forever.
+
+        Same gate + at-most-once semantics as `_emit_tx_failed_event`:
+        `prev_row` present, `organization_id` set, and prev `status` NOT
+        already terminal (`failed`/`canceled`/`confirmed`) so it fires
+        once per row across sync ticks. `reason` is Safina's verbatim
+        cancellation string. Publish failure is logged, never raised.
+        """
+        if prev_row is None:
+            return
+        if prev_row.get("organization_id") is None:
+            return
+        if (prev_row.get("status") or "") in ("failed", "canceled", "confirmed"):
+            return
+
+        try:
+            from backend.services.webhook_publisher import (
+                publish_event,
+                EV_TX_CANCELED,
+            )
+            await publish_event(
+                pool,
+                merchant_id=str(prev_row["organization_id"]),
+                event_type=EV_TX_CANCELED,
+                payload={
+                    "tx_id": str(prev_row["id"]),
+                    "tx_unid": tx.unid,
+                    "tx_hash": None,
+                    "wallet_name": wallet_name,
+                    "to_address": tx.to_addr,
+                    "amount": str(tx.value),
+                    "token": tx.token,
+                    "reason": reason or "canceled",
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "transaction.canceled publish failed for %s: %s",
+                tx.unid, e,
+            )
+
     async def list_transactions(
         self,
         limit: int = 50,
@@ -778,12 +830,12 @@ class TransactionService:
             # leaving an error string in `signed` would hang the tx
             # forever in our system.
             status = classify_safina_tx_status(tx.tx, signed=bool(tx.signed))
-            # On a terminal `failed`, keep Safina's verbatim error string
-            # so /v1 and the transaction.failed webhook can surface WHY.
-            # Cleared (NULL) on any other status so a later broadcast that
-            # supersedes the failure doesn't leave a stale reason.
+            # On a terminal `failed`/`canceled`, keep Safina's verbatim
+            # string so /v1 and the failed/canceled webhooks can surface
+            # WHY. Cleared (NULL) on any other status so a later broadcast
+            # that supersedes it doesn't leave a stale reason.
             failure_reason = (
-                str(tx.tx).strip() if status == "failed" and tx.tx else None
+                str(tx.tx).strip() if status in ("failed", "canceled") and tx.tx else None
             )
 
             # Extract wallet name from token
@@ -847,6 +899,10 @@ class TransactionService:
             # `signed`, which we'd be skipping by going straight to `failed`.
             if status == "failed":
                 await self._emit_tx_failed_event(
+                    self._db.pool, prev_row, tx, wallet_name, failure_reason,
+                )
+            elif status == "canceled":
+                await self._emit_tx_canceled_event(
                     self._db.pool, prev_row, tx, wallet_name, failure_reason,
                 )
 

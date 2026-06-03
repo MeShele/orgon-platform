@@ -47,6 +47,15 @@
   order `completed`); previously `confirmed` arrived prematurely at
   broadcast time. If you were treating `broadcasted` as final, you can
   now wait for `confirmed`. See [`WEBHOOKS.md`](WEBHOOKS.md).
+- **New event `transaction.canceled`** — fires when Safina abandons a
+  signed tx (24h limit / slist mismatch), with the verbatim cancellation
+  string in `reason`. Terminal (won't later broadcast, unlike `failed`).
+  **Action**: handle it in your webhook router to mark the transfer
+  `canceled` and surface retry UX (previously you'd poll forever).
+- **`PHASE4_SPEC` completed** — added drop-in snippets for the remaining
+  parity edge functions (`orgon-wallet-balance`, `orgon-provision-pool-
+  wallet`) and the `CustodyPayoutDialog` provider-dispatch diff (§11), so
+  the `orgon-*` set maps 1:1 to `dfns-*`.
 
 ---
 

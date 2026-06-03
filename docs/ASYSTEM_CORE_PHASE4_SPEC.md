@@ -195,35 +195,56 @@ Envelope unchanged from Phase 3 (see `WEBHOOKS.md` and
 }
 ```
 
-### 4.2 `transaction.confirmed` (transaction_service.py:660)
+### 4.2 `transaction.confirmed` — REAL on-chain confirmation (updated 2026-06-03)
 
-Same shape as `broadcasted`. Fires when on-chain confirmations cross
-the threshold for the chain.
-
-### 4.3 `transaction.failed` (transaction_failure_sweep.py:124)
+No longer co-fires with `broadcasted`. A confirmation sweep polls the
+chain explorer for the tx_hash and fires this once the tx is actually
+in a block, adding a **`block_number`** field. THIS is the signal to
+mark an order `completed`. ORGON-chain (`5800`/`5810`) has no explorer →
+fires immediately with `block_number: null`.
 
 ```jsonc
 {
-  "tx_id": "…",
-  "tx_unid": "tx_…",
-  "tx_hash": null,
-  "wallet_name": "operator-hot",
-  "to_address": "TX…",
-  "amount": "12.5",
-  "token": "…",
-  "reason": "timeout_no_broadcast"   // currently the only reason emitted
+  "tx_id": "…", "tx_unid": "tx_…", "tx_hash": "0xabc…",
+  "wallet_name": "operator-hot", "to_address": "TX…",
+  "amount": "12.5", "token": "5010:::USDT###operator-hot",
+  "block_number": 67998548           // null on ORGON-chain
 }
 ```
 
-### 4.4 What to do on each event
+### 4.3 `transaction.failed`
+
+```jsonc
+{
+  "tx_id": "…", "tx_unid": "tx_…", "tx_hash": null,
+  "wallet_name": "operator-hot", "to_address": "TX…",
+  "amount": "12.5", "token": "…",
+  "reason": "global: Returned error: EVM error: OutOfFunds"  // Safina string, or "timeout_no_broadcast"
+}
+```
+
+Now fires on TWO triggers: immediate (Safina returned an error string in
+`tx`) with the verbatim `reason`, or the 24h timeout (`reason:
+timeout_no_broadcast`). NOT terminal — a later `broadcasted`/`confirmed`
+for the same `tx_id` overrides it.
+
+### 4.4 `transaction.canceled` (live 2026-06-03)
+
+Terminal. Safina abandoned the tx (24h limit / slist mismatch); `reason`
+carries Safina's verbatim string. Same payload shape as `failed`
+(`tx_hash: null`, `reason`). Unlike `failed`, this will NOT later
+broadcast — safe to surface "canceled, retry" in the UI.
+
+### 4.5 What to do on each event
 
 Mirror `dfns-webhook/index.ts` event routing for the DFNS analog:
 
 | Event | Action |
 |---|---|
 | `transaction.broadcasted` | `UPDATE orgon_transfers SET status='broadcasted', tx_hash=…, broadcasted_at=now()` |
-| `transaction.confirmed` | `UPDATE orgon_transfers SET status='confirmed', confirmed_at=now()`; then `UPDATE orders SET status='completed' WHERE id = transfer.order_id` |
-| `transaction.failed` | `UPDATE orgon_transfers SET status='failed', error_text=reason, failed_at=now()`. Do NOT auto-revert the order — keep it in `paid` so operator can retry or manual-payout. |
+| `transaction.confirmed` | `UPDATE orgon_transfers SET status='confirmed', block_number=…, confirmed_at=now()`; then `UPDATE orders SET status='completed' WHERE id = transfer.order_id` |
+| `transaction.failed` | `UPDATE orgon_transfers SET status='failed', error_text=reason, failed_at=now()`. Do NOT auto-revert the order — keep `paid` so operator can retry. (Non-terminal: a later confirmed overrides.) |
+| `transaction.canceled` | `UPDATE orgon_transfers SET status='canceled', error_text=reason, failed_at=now()`. Terminal — surface "canceled, retry" UX. |
 
 Order resolution: webhook `data.tx_id` (or `tx_unid`) links to
 `orgon_transfers.orgon_tx_unid`, which has FK to `orders.id`. Same
@@ -667,15 +688,103 @@ payouts are native-send only.) Fetch the current list yourself via
 
 ## 10. Open questions for this phase
 
-- **`asset` vs `contract`.** ORGON accepts a symbol (`USDT`); DFNS
-  uses `kind=Erc20 + contract=0x…`. On non-EVM chains (Tron), symbol
-  is unambiguous. On EVM chains with multiple USDT-named tokens, the
-  symbol-only path may be wrong. Action: ORGON-side, decide whether
-  `POST /v1/transactions` needs an optional `contract` param. Not
-  blocking for Tron / sandbox.
-- **`canceled` webhook.** Status `canceled` exists locally but no
-  publisher emits it as a webhook. Decide if asystem-core needs it
-  (likely yes — to unblock manual retry UX).
+- **`asset` vs `contract` — RESOLVED (Safina limitation, not ORGON).**
+  Safina's token format is symbol-only (`network:::SYMBOL`); its
+  `tokensinfo` returns `contract: null` — the contract is resolved
+  Safina-side, one per (network, symbol). So ORGON *cannot* pass a
+  `contract` through even if asked. Send `asset` = symbol. If a network
+  ever needs two same-symbol contracts, that's a Safina-side config
+  question, not an ORGON API change. No action.
+- **`canceled` webhook — DONE (live 2026-06-03).** ORGON now emits
+  `transaction.canceled` (with Safina's verbatim `reason`) when a tx is
+  abandoned (24h limit / slist mismatch). Terminal. See `WEBHOOKS.md`.
+  Consume it in `orgon-webhook` to mark the transfer `canceled` and
+  unblock retry UX.
 - **Rate-limit / fee budget signaling.** Not in scope here, but
   asystem-core will eventually want a `fees_estimate` endpoint
   before pushing transfers. Tracked separately.
+
+---
+
+## 11. Appendix — remaining drop-in edge functions (DFNS-parity surface)
+
+Completes the `orgon-*` set so it matches `dfns-*` one-to-one. Both reuse
+the existing `_shared/orgon-client.ts` helpers (`loadOrgonCreds`,
+`orgonRequest`) already used by `orgon-provision-wallet` — same auth /
+role-check boilerplate as that function (omitted here for brevity).
+
+### 11.1 `orgon-wallet-balance` (Phase 5 pull — mirrors `dfns-wallet-balance`)
+
+ORGON already exposes the DFNS-shape `GET /v1/wallets/{id}/assets`
+(`{assets:[{kind,symbol,decimals,balance,contract,verified}]}`), so this
+is a thin pipe — no adapter.
+
+```ts
+// body: { operator_id, wallet_id }   (wallet_id = our orgon_wallets.id)
+const { data: w } = await admin
+  .from('orgon_wallets')
+  .select('orgon_wallet_id, deposit_address, network, wallet_role')
+  .eq('id', wallet_id).eq('operator_id', operator_id).maybeSingle()
+if (!w) return jsonResponse({ ok:false, error:'wallet not found' }, 404)
+
+const creds = await loadOrgonCreds(admin, operator_id)
+const res = await orgonRequest(creds, 'GET', `/v1/wallets/${w.orgon_wallet_id}/assets`)
+return jsonResponse({
+  ok:true, wallet_id, address:w.deposit_address, network:w.network,
+  role:w.wallet_role, assets:res.assets ?? [],   // already DFNS-shape
+})
+```
+
+### 11.2 `orgon-provision-pool-wallet` (mirrors `dfns-provision-pool-wallet`)
+
+ORGON treats treasury/pool wallets as `POST /v1/wallets {treasury:"treasury"}`.
+Map the network slug → numeric chain_id via **`GET /v1/networks`** (don't
+hardcode). Idempotent on the `UNIQUE(operator_id, network) WHERE
+wallet_role='pool'` constraint.
+
+```ts
+// body: { operator_id, network }   (network = app slug e.g. 'tron-nile')
+const { data: existing } = await admin
+  .from('orgon_wallets')
+  .select('id, orgon_wallet_id, deposit_address, status')
+  .eq('operator_id', operator_id).eq('network', network)
+  .eq('wallet_role', 'pool').maybeSingle()
+if (existing?.deposit_address) return jsonResponse({ ok:true, reused:true, ...existing })
+
+const creds = await loadOrgonCreds(admin, operator_id)
+const chainId = await slugToChainId(creds, network)   // GET /v1/networks → find slug → chain_id (string)
+const res = await orgonRequest(creds, 'POST', '/v1/wallets', {
+  treasury: 'treasury', network: chainId,
+})
+// res = { id, address|null, status:'pending', ... }
+const { data: row } = await admin.from('orgon_wallets').upsert({
+  operator_id, network, wallet_role:'pool',
+  orgon_wallet_id: res.id, deposit_address: res.address,
+  status: res.address ? 'active' : 'pending', raw_response: res,
+}, { onConflict:'operator_id,network,wallet_role' }).select().single()
+return jsonResponse({ ok:true, reused:false, wallet_id:row.id,
+  orgon_wallet_id:res.id, deposit_address:res.address, status:row.status })
+```
+
+`slugToChainId` = fetch `GET /v1/networks` (public, no HMAC), find the
+entry whose `slug` matches, return its `chain_id` string. Cache it.
+Address arrives ~60-90s later via the `wallet.activated` webhook (already
+handled in `orgon-webhook`) or poll `GET /v1/wallets/{id}`.
+
+### 11.3 `CustodyPayoutDialog` — generalize the dispatch
+
+The dialog currently calls `dfns-create-transfer` hardcoded. Make it
+provider-driven (the provision path is already generic):
+
+```ts
+const provider = useActiveCustody()           // 'orgon' | 'dfns'
+await invokeEdgeFunction(`${provider}-create-transfer`, {
+  operator_id, order_id,
+  ...(provider === 'dfns'
+    ? { asset_kind: spec.kind, contract: spec.contract, decimals: spec.decimals }
+    : (spec?.contract ? { contract: spec.contract } : {})),   // ORGON: symbol-based, contract optional/ignored
+})
+```
+
+That, plus `useCustodyCanPayout` querying `orgon_wallets` for `provider==='orgon'`
+(see §8), is the last UI change for full payout parity.

@@ -363,6 +363,28 @@ Fires on either of:
 > side `rejected` signal or chain-watcher integration is the long-term
 > right-path.
 
+### `transaction.canceled` — live
+
+Fires when Safina abandons a signed tx — it writes a cancellation
+string into the `tx` field (commonly `"Transaction canceled, 1 day
+limit."`, also slist-mismatch cases). The polling sync flips the tx to
+`canceled` and fires this once, with Safina's verbatim string in
+`reason`. Terminal (unlike `failed`, a `canceled` tx will not later
+broadcast). Use it to unblock retry UX instead of polling forever.
+
+```json
+"data": {
+  "tx_id":       "…",
+  "tx_unid":     "…",
+  "tx_hash":     null,
+  "wallet_name": "…",
+  "to_address":  "T…",
+  "amount":      "100.0",
+  "token":       "USDT",
+  "reason":      "Transaction canceled, 1 day limit."
+}
+```
+
 ### `user.created` — live
 
 Fires when `POST /v1/users` inserts a new `end_users` row. Idempotent

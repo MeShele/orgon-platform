@@ -368,6 +368,77 @@ async def test_tx_failed_defaults_reason_when_none() -> None:
 
 
 # ────────────────────────────────────────────────────────────────────
+# TransactionService._emit_tx_canceled_event
+# ────────────────────────────────────────────────────────────────────
+
+CANCEL_REASON = "Transaction canceled, 1 day limit."
+
+
+@pytest.mark.asyncio
+async def test_tx_canceled_fires_on_transition_with_reason() -> None:
+    prev_row = {
+        "id": "row-c",
+        "tx_hash": "",
+        "status": "signed",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+    tx = _SafinaTx(unid="tx-c", tx=CANCEL_REASON, to_addr="TXdest", value="3")
+    captured: list[dict] = []
+
+    async def fake_publish(pool, *, merchant_id, event_type, payload, request_id=None):
+        captured.append({"event_type": event_type, "payload": payload})
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await TransactionService._emit_tx_canceled_event(
+            pool, prev_row, tx, "wallet-A", CANCEL_REASON,
+        )
+    assert len(captured) == 1
+    assert captured[0]["event_type"] == "transaction.canceled"
+    assert captured[0]["payload"] == {
+        "tx_id": "row-c",
+        "tx_unid": "tx-c",
+        "tx_hash": None,
+        "wallet_name": "wallet-A",
+        "to_address": "TXdest",
+        "amount": "3",
+        "token": "5010:::TRX###wallet-1",
+        "reason": CANCEL_REASON,
+    }
+
+
+@pytest.mark.asyncio
+async def test_tx_canceled_skips_when_already_terminal() -> None:
+    pool = object()
+    for prev_status in ("failed", "canceled", "confirmed"):
+        prev_row = {
+            "id": "row-c", "tx_hash": "", "status": prev_status,
+            "organization_id": "11111111-2222-3333-4444-555555555555",
+        }
+        fake = AsyncMock()
+        with patch("backend.services.webhook_publisher.publish_event", fake):
+            await TransactionService._emit_tx_canceled_event(
+                pool, prev_row, _SafinaTx(tx=CANCEL_REASON), "w", CANCEL_REASON,
+            )
+        fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_canceled_skips_when_no_org_or_no_prev() -> None:
+    pool = object()
+    fake = AsyncMock()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_canceled_event(
+            pool, None, _SafinaTx(tx=CANCEL_REASON), "w", CANCEL_REASON,
+        )
+        await TransactionService._emit_tx_canceled_event(
+            pool, {"id": "x", "tx_hash": "", "status": "signed", "organization_id": None},
+            _SafinaTx(tx=CANCEL_REASON), "w", CANCEL_REASON,
+        )
+    fake.assert_not_called()
+
+
+# ────────────────────────────────────────────────────────────────────
 # WalletService._emit_wallet_activated_if_address_appeared
 # ────────────────────────────────────────────────────────────────────
 

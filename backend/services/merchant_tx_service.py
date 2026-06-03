@@ -25,25 +25,27 @@ from uuid import UUID
 
 from backend.safina.factory import get_safina_client_for_org
 from backend.safina.models import SendTransactionRequest
-from backend.safina.tx_status import is_broadcast_hash, clean_tx_hash, looks_canceled
+from backend.safina.tx_status import is_broadcast_hash, clean_tx_hash
 
 logger = logging.getLogger("orgon.merchant_tx")
 
 
 def _status_from_row(row: dict) -> str:
-    # Shared `tx`-field interpretation (backend.safina.tx_status) so this
-    # surface can never diverge from the sync/webhook paths.
+    # Terminal states are authoritative from the stored `status` column —
+    # the sync classifier (backend.safina.tx_status) already resolved
+    # them, and `tx_hash` is NULL for both (error/cancel strings never
+    # land in tx_hash). Surfacing them here is what stops a failed/
+    # canceled tx from showing as 'pending' forever on /v1.
+    st = (row.get("status") or "").strip()
+    if st in ("failed", "canceled"):
+        return st
+    # Otherwise derive from tx_hash: a real on-chain hash means broadcast.
     h = row.get("tx_hash")
-    if not (h and str(h).strip()):
-        # Either pending or signed-but-not-broadcast — for V1 we
-        # surface both as 'pending'. A future tweak can read the
-        # signatures table to differentiate.
-        return "pending"
-    if looks_canceled(h):
-        return "canceled"
-    if is_broadcast_hash(h):
+    if h and is_broadcast_hash(h):
         return "broadcasted"
-    # Unknown non-hash string — never claim a broadcast we can't prove.
+    # No hash yet (pending or signed-but-not-broadcast) — for V1 we
+    # surface both as 'pending'. A future tweak can read the signatures
+    # table to differentiate.
     return "pending"
 
 
@@ -60,6 +62,9 @@ def _row_to_public(row, *, network: Optional[int] = None) -> dict:
         "network": network or row.get("network"),
         "tx_hash": clean_tx_hash(row.get("tx_hash")),
         "status": _status_from_row(row),
+        # Verbatim Safina error string on a failed tx (e.g.
+        # "global: Returned error: EVM error: OutOfFunds"); null otherwise.
+        "failure_reason": row.get("failure_reason"),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
     }

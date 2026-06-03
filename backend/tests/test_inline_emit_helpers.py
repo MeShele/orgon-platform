@@ -232,6 +232,145 @@ async def test_tx_lifecycle_swallows_publisher_exception() -> None:
 
 
 # ────────────────────────────────────────────────────────────────────
+# TransactionService._emit_tx_failed_event
+# ────────────────────────────────────────────────────────────────────
+
+# Verbatim Safina error string captured live on prod 2026-06-03.
+OOF_STR = "global: Returned error: EVM error: OutOfFunds"
+
+
+@pytest.mark.asyncio
+async def test_tx_failed_fires_on_transition_into_failed() -> None:
+    """Canonical case: prev status was `signed` (in-flight), Safina now
+    returned an error string → `transaction.failed` fires once with the
+    reason carried verbatim."""
+    prev_row = {
+        "id": "row-9",
+        "tx_hash": "",
+        "status": "signed",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+    tx = _SafinaTx(unid="tx-9", tx=OOF_STR, to_addr="0xdest", value="5")
+
+    captured: list[dict] = []
+
+    async def fake_publish(pool, *, merchant_id, event_type, payload, request_id=None):
+        captured.append({"merchant_id": merchant_id, "event_type": event_type, "payload": payload})
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await TransactionService._emit_tx_failed_event(
+            pool, prev_row, tx, "wallet-A", OOF_STR,
+        )
+
+    assert len(captured) == 1
+    c = captured[0]
+    assert c["event_type"] == "transaction.failed"
+    assert c["merchant_id"] == "11111111-2222-3333-4444-555555555555"
+    assert c["payload"] == {
+        "tx_id": "row-9",
+        "tx_unid": "tx-9",
+        "tx_hash": None,
+        "wallet_name": "wallet-A",
+        "to_address": "0xdest",
+        "amount": "5",
+        "token": "5010:::TRX###wallet-1",
+        "reason": OOF_STR,
+    }
+
+
+@pytest.mark.asyncio
+async def test_tx_failed_skips_when_prev_row_none() -> None:
+    """No prior row — orphan tx (created directly on Safina, no tenancy).
+    Nowhere to deliver, don't emit."""
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_failed_event(
+            pool, None, _SafinaTx(tx=OOF_STR), "w", OOF_STR,
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_failed_skips_when_already_terminal() -> None:
+    """At-most-once: a row already in a terminal/emitted state
+    (`failed`/`canceled`/`confirmed`) must not re-fire on the next sync
+    tick."""
+    pool = object()
+    for prev_status in ("failed", "canceled", "confirmed"):
+        prev_row = {
+            "id": "row-9",
+            "tx_hash": "",
+            "status": prev_status,
+            "organization_id": "11111111-2222-3333-4444-555555555555",
+        }
+        fake = AsyncMock()
+        with patch("backend.services.webhook_publisher.publish_event", fake):
+            await TransactionService._emit_tx_failed_event(
+                pool, prev_row, _SafinaTx(tx=OOF_STR), "w", OOF_STR,
+            )
+        fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_failed_skips_when_no_organization_id() -> None:
+    """A failed tx without tenancy can't be delivered anywhere."""
+    prev_row = {"id": "row-9", "tx_hash": "", "status": "signed", "organization_id": None}
+    fake = AsyncMock()
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake):
+        await TransactionService._emit_tx_failed_event(
+            pool, prev_row, _SafinaTx(tx=OOF_STR), "w", OOF_STR,
+        )
+    fake.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_tx_failed_swallows_publisher_exception() -> None:
+    """Webhook blip must not break the sync loop — the status transition
+    already landed in the UPSERT; this helper just logs + returns."""
+    prev_row = {
+        "id": "row-9",
+        "tx_hash": "",
+        "status": "signed",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+
+    async def boom(pool, **kwargs):
+        raise RuntimeError("webhook queue exploded")
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", boom):
+        await TransactionService._emit_tx_failed_event(
+            pool, prev_row, _SafinaTx(tx=OOF_STR), "w", OOF_STR,
+        )
+
+
+@pytest.mark.asyncio
+async def test_tx_failed_defaults_reason_when_none() -> None:
+    """If we somehow reach the emit with no captured reason, the payload
+    still carries a non-null sentinel so consumers can branch."""
+    prev_row = {
+        "id": "row-9",
+        "tx_hash": "",
+        "status": "signed",
+        "organization_id": "11111111-2222-3333-4444-555555555555",
+    }
+    captured: list[dict] = []
+
+    async def fake_publish(pool, *, merchant_id, event_type, payload, request_id=None):
+        captured.append(payload)
+
+    pool = object()
+    with patch("backend.services.webhook_publisher.publish_event", fake_publish):
+        await TransactionService._emit_tx_failed_event(
+            pool, prev_row, _SafinaTx(tx=OOF_STR), "w", None,
+        )
+    assert captured and captured[0]["reason"] == "broadcast_rejected"
+
+
+# ────────────────────────────────────────────────────────────────────
 # WalletService._emit_wallet_activated_if_address_appeared
 # ────────────────────────────────────────────────────────────────────
 

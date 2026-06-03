@@ -10,7 +10,11 @@ from datetime import datetime, timezone
 
 from backend.safina.client import SafinaPayClient
 from backend.safina.models import SendTransactionRequest
-from backend.safina.tx_status import is_broadcast_hash, clean_tx_hash, looks_canceled
+from backend.safina.tx_status import (
+    is_broadcast_hash,
+    clean_tx_hash,
+    classify_safina_tx_status,
+)
 from backend.safina.signature_verifier import (
     get_verify_mode,
     is_verification_enabled,
@@ -137,6 +141,70 @@ class TransactionService:
         except Exception as e:
             logger.warning(
                 "transaction.broadcasted/confirmed publish failed for %s: %s",
+                tx.unid, e,
+            )
+
+    @staticmethod
+    async def _emit_tx_failed_event(
+        pool,
+        prev_row,
+        tx,
+        wallet_name: Optional[str],
+        reason: Optional[str],
+    ) -> None:
+        """Fire `transaction.failed` exactly once when a tx transitions
+        into the terminal `failed` status (Safina wrote an error string
+        into `tx`, e.g. "EVM error: OutOfFunds").
+
+        Gate conditions (mirror `_emit_tx_lifecycle_events`):
+        * `prev_row` is not None — only emit for txs we created/track.
+        * `prev_row.organization_id` is set — without tenancy we don't
+          know who to deliver to.
+        * `prev_row.status` was NOT already a terminal/emitted state
+          (`failed`/`canceled`/`confirmed`) — so this fires at most once
+          per row across sync ticks (next tick sees `failed` and skips).
+
+        `reason` is Safina's verbatim error string. This differs from the
+        24h timeout sweep's `transaction.failed` (reason
+        `timeout_no_broadcast`) only in the `reason` value and timing —
+        same event, same payload shape (WEBHOOKS.md). Per that contract
+        `failed` is non-terminal: a later `broadcasted`/`confirmed` for
+        the same tx_id supersedes it.
+
+        Publish failure is logged at WARNING and swallowed — the status
+        transition already landed in the UPSERT; a webhook hiccup must
+        not break the sync loop.
+        """
+        if prev_row is None:
+            return
+        if prev_row.get("organization_id") is None:
+            return
+        if (prev_row.get("status") or "") in ("failed", "canceled", "confirmed"):
+            return
+
+        try:
+            from backend.services.webhook_publisher import (
+                publish_event,
+                EV_TX_FAILED,
+            )
+            await publish_event(
+                pool,
+                merchant_id=str(prev_row["organization_id"]),
+                event_type=EV_TX_FAILED,
+                payload={
+                    "tx_id": str(prev_row["id"]),
+                    "tx_unid": tx.unid,
+                    "tx_hash": None,
+                    "wallet_name": wallet_name,
+                    "to_address": tx.to_addr,
+                    "amount": str(tx.value),
+                    "token": tx.token,
+                    "reason": reason or "broadcast_rejected",
+                },
+            )
+        except Exception as e:
+            logger.warning(
+                "transaction.failed publish failed for %s: %s",
                 tx.unid, e,
             )
 
@@ -705,15 +773,22 @@ class TransactionService:
         for tx in txs:
             # Determine status. Safina's `tx` field is a real hash only
             # after broadcast; on abandonment it becomes a status string
-            # ("Transaction canceled, 1 day limit."). Treating any truthy
-            # value as confirmed was the pre-058 false-confirmation bug.
-            status = "pending"
-            if is_broadcast_hash(tx.tx):
-                status = "confirmed"
-            elif looks_canceled(tx.tx):
-                status = "canceled"
-            elif tx.signed:
-                status = "signed"
+            # ("Transaction canceled, 1 day limit.") and, since the
+            # 2026-06-03 ETH fix, an error string on rejection
+            # ("global: Returned error: EVM error: OutOfFunds"). The
+            # classifier is the single source of truth (058 + the
+            # OutOfFunds follow-up) — treating any truthy value as
+            # confirmed was the pre-058 false-confirmation bug, and
+            # leaving an error string in `signed` would hang the tx
+            # forever in our system.
+            status = classify_safina_tx_status(tx.tx, signed=bool(tx.signed))
+            # On a terminal `failed`, keep Safina's verbatim error string
+            # so /v1 and the transaction.failed webhook can surface WHY.
+            # Cleared (NULL) on any other status so a later broadcast that
+            # supersedes the failure doesn't leave a stale reason.
+            failure_reason = (
+                str(tx.tx).strip() if status == "failed" and tx.tx else None
+            )
 
             # Extract wallet name from token
             wallet_name = None
@@ -725,7 +800,7 @@ class TransactionService:
             # exactly once. organization_id comes from the existing row
             # (we don't mutate tenancy in this UPSERT).
             prev_row = await self._db.fetchrow(
-                "SELECT id, tx_hash, organization_id FROM transactions WHERE unid = $1",
+                "SELECT id, tx_hash, status, organization_id FROM transactions WHERE unid = $1",
                 (tx.unid,),
             )
 
@@ -737,8 +812,9 @@ class TransactionService:
             await self._db.execute(
                 """INSERT INTO transactions
                    (safina_id, tx_hash, token, token_name, to_addr, value, value_hex,
-                    unid, init_ts, min_sign, status, wallet_name, synced_at, updated_at)
-                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                    unid, init_ts, min_sign, status, wallet_name, failure_reason,
+                    synced_at, updated_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
                ON CONFLICT (unid) DO UPDATE SET
                    safina_id = EXCLUDED.safina_id,
                    tx_hash = EXCLUDED.tx_hash,
@@ -751,13 +827,14 @@ class TransactionService:
                    min_sign = EXCLUDED.min_sign,
                    status = EXCLUDED.status,
                    wallet_name = EXCLUDED.wallet_name,
+                   failure_reason = EXCLUDED.failure_reason,
                    synced_at = EXCLUDED.synced_at,
                    updated_at = EXCLUDED.updated_at""",
                 (tx.id, clean_tx_hash(tx.tx), tx.token, tx.token_name, tx.to_addr,
                  str(tx.value), tx.value_hex, tx.unid,
                  int(tx.init_ts) if tx.init_ts else None,  # init_ts это integer (Unix timestamp)
                  int(tx.min_sign) if tx.min_sign else 0,
-                 status, wallet_name, now, now),
+                 status, wallet_name, failure_reason, now, now),
             )
 
             # Webhook lifecycle emits — extracted to `_emit_tx_lifecycle_events`
@@ -766,6 +843,16 @@ class TransactionService:
             await self._emit_tx_lifecycle_events(
                 self._db.pool, prev_row, tx, wallet_name,
             )
+
+            # Terminal-failure emit — fires `transaction.failed` once when a
+            # tx transitions into `failed` here (Safina returned an error
+            # string in `tx`). Without this the merchant gets no failed
+            # signal: the 24h timeout sweep only matches rows still in
+            # `signed`, which we'd be skipping by going straight to `failed`.
+            if status == "failed":
+                await self._emit_tx_failed_event(
+                    self._db.pool, prev_row, tx, wallet_name, failure_reason,
+                )
 
             # Sync signatures
             if tx.wait:

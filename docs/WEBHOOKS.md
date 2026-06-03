@@ -322,14 +322,21 @@ Fires **at most once per tx**, gated on a per-row
 selects rows for the sweep. A retry-tick caused by webhook queue
 hiccup won't re-fire.
 
-### `transaction.failed` — live (timeout-based)
+### `transaction.failed` — live (two triggers)
 
-Fires when a transaction has been in `status='signed'` without a
-`tx_hash` for longer than the timeout window (default 24h, tunable
-via `TX_FAILED_TIMEOUT_HOURS`). The interpretation: Safina would
-have broadcast within seconds in the success case, so anything stuck
-this long is overwhelmingly dead — rejected at submission, gas-
-priced-out, or otherwise abandoned.
+Fires on either of:
+
+1. **Immediate rejection.** Since Safina's 2026-06-03 ETH fix, a
+   rejected broadcast no longer hangs silently — Safina writes an
+   error string into the `tx` field (e.g. `EVM error: OutOfFunds`).
+   The polling sync recognises this (a non-empty, non-hash,
+   non-cancellation value), flips the tx straight to `status='failed'`
+   and fires this event on the same tick. `reason` carries Safina's
+   verbatim string.
+2. **Timeout.** A tx stuck in `status='signed'` without a `tx_hash`
+   for longer than the window (default 24h, tunable via
+   `TX_FAILED_TIMEOUT_HOURS`) — the fallback for the case where Safina
+   never returns anything at all. `reason` is `timeout_no_broadcast`.
 
 ```json
 "data": {
@@ -340,7 +347,7 @@ priced-out, or otherwise abandoned.
   "to_address":  "T…",
   "amount":      "100.0",
   "token":       "USDT",
-  "reason":      "timeout_no_broadcast"   // only failure mode wired today
+  "reason":      "global: Returned error: EVM error: OutOfFunds"  // Safina string, or "timeout_no_broadcast"
 }
 ```
 

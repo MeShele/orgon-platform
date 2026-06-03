@@ -82,7 +82,21 @@ async def main():
         )
         for f in overlay:
             print(f"[entrypoint] overlay → {f.name}")
-            await conn.execute(f.read_text(encoding="utf-8"))
+            try:
+                await conn.execute(f.read_text(encoding="utf-8"))
+            except Exception as e:
+                # Per-file isolation — a single overlay error must NOT abort
+                # the rest of the loop. A bare loop here previously let one
+                # failing overlay silently prevent every later migration
+                # (e.g. 059) from applying, breaking code that depends on a
+                # not-yet-created column. Mirrors the per-file try/except in
+                # POST /api/health/run-migrations. asyncpg rolls back the
+                # failed statement's implicit txn, so the connection stays
+                # usable for the next overlay.
+                print(
+                    f"[entrypoint] overlay {f.name} FAILED (continuing): {e}",
+                    file=sys.stderr,
+                )
     finally:
         await conn.close()
 

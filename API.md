@@ -276,9 +276,35 @@ explorer.
 
 The `network` field on `POST /v1/wallets` is **a string holding the
 decimal chain id** — `"3040"`, not `3040` (integer → 422) and not
-`"eth-sepolia"` (slugs not yet supported; we'll add a mapping in the
-SDK when there's a real need). Same string format on
+`"eth-sepolia"` (slugs are not accepted on input). Same string format on
 `GET /v1/transactions?network=…` etc.
+
+**Discover this table programmatically — `GET /v1/networks`** (public,
+no HMAC). Returns the canonical chain_id ↔ slug map so an integrator
+maps its own network slug to the numeric `chain_id` our endpoints
+expect, instead of hardcoding it (the ORGON-chain ids `5800`/`5810` are
+not guessable):
+
+```jsonc
+{
+  "networks": [
+    {
+      "chain_id":         "3040",          // string — pass this verbatim on input
+      "chain_id_int":     3040,
+      "slug":             "eth-sepolia",   // null for not-yet-canonicalised chains
+      "name":             "ETH Sepolia Test (ETH)",
+      "native_symbol":    "ETH",
+      "native_decimals":  18,              // null where genuinely unknown (ORGON-chain)
+      "testnet":          true,
+      "sandbox_allowed":  true,            // sandbox keys are restricted to testnets
+      "status":           1,
+      "explorers":        { "address": "…", "tx": "…", "block": "…" },
+      "tokens":           [ /* best-effort directory; authoritative per-wallet via /assets */ ]
+    }
+    // … one entry per row in networks_cache
+  ]
+}
+```
 
 ETH watcher honours `ETHERSCAN_API_KEY` env when set (5 req/s with key,
 1 per 5s without). ORGON's own chain (5800/5810) is provisioned in

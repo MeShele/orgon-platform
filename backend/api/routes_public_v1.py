@@ -97,6 +97,22 @@ async def public_health_extended(request: Request) -> dict:
     }
 
 
+@router.get("/networks")
+async def public_networks(request: Request) -> dict:
+    """Public network reference — `chain_id` ↔ `slug`, native asset,
+    `testnet`/`sandbox_allowed` flags, explorers, best-effort token list.
+
+    Unauthenticated (in the HMAC exempt list): global, non-sensitive
+    reference data. Lets a B2B integrator map its own network slugs
+    (e.g. `"eth-sepolia"`) to the numeric `chain_id` our endpoints
+    expect on input (`"3040"`) instead of hardcoding a fragile table —
+    the ORGON-chain ids (`5800`/`5810`) in particular are not guessable.
+    """
+    from backend.services import network_reference as netref
+    pool = get_db_pool(request)
+    return await netref.list_public_networks(pool)
+
+
 @router.get("/ping")
 async def public_ping(request: Request) -> dict:
     """Authenticated ping. Echoes back caller identity so an integrator

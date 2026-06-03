@@ -16,6 +16,30 @@
 
 ---
 
+## 2026-06-03 — `GET /v1/networks` discovery + live `transaction.failed`
+
+**Additive.** No existing flow breaks.
+
+- **New endpoint**: `GET /v1/networks` (public, no HMAC) — authoritative
+  `chain_id ↔ slug` map with `native_symbol`/`native_decimals`,
+  `testnet`/`sandbox_allowed` flags, explorers, and a best-effort token
+  list. Use it to build your network map instead of hardcoding
+  `NETWORK_SLUG_TO_CHAIN_ID` — the ORGON-chain ids (`5800`/`5810`) are
+  not guessable. Shape documented in [`API.md`](../API.md) → Supported
+  networks. **Action**: optional — replace any hardcoded slug→chain_id
+  table with a fetch from this endpoint.
+- **`transaction.failed` is now live + immediate, not only timeout-based.**
+  When Safina rejects a broadcast it returns an error string (e.g.
+  `EVM error: OutOfFunds`); ORGON now flips the tx to `failed`
+  immediately and fires `transaction.failed` with that verbatim string
+  in `reason` (previously the only `reason` was `timeout_no_broadcast`
+  after 24h). The `/v1/transactions` responses also carry a new
+  `failure_reason` field (null unless failed). See
+  [`WEBHOOKS.md`](WEBHOOKS.md) → `transaction.failed`. **Action**: none
+  required; if you surface payout failures, you can now show `reason`.
+
+---
+
 ## 2026-05-21 — Phase 4 spec + dual-custody surface
 
 **Additive.** No existing flow breaks; new artifacts unblock work that

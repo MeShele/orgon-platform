@@ -80,8 +80,8 @@ class TransactionService:
         tx,
         wallet_name: Optional[str],
     ) -> None:
-        """Fire `transaction.broadcasted` + `transaction.confirmed` exactly
-        once when `tx_hash` flips from NULL/empty to a real hex string.
+        """Fire `transaction.broadcasted` exactly once when `tx_hash` flips
+        from NULL/empty to a real hex string ("money left toward chain").
 
         Gate conditions:
         * `prev_row` is not None — we only emit for txs we created.
@@ -89,14 +89,18 @@ class TransactionService:
         * `tx.tx` is now a real on-chain hash — NOT merely truthy. Safina
           writes a status string ("Transaction canceled, 1 day limit.")
           into `tx` on abandonment; `is_broadcast_hash` rejects it so we
-          never fire a false broadcasted/confirmed (the pre-058 bug).
+          never fire a false broadcasted (the pre-058 bug).
         * `prev_row.organization_id` is not None — without tenancy we
           don't know who to deliver the webhook to.
 
-        Today `confirmed` co-emits with `broadcasted` because Safina is
-        our only confirmation source and `get_transactions` doesn't
-        separate the two events. Documented in `WEBHOOKS.md`; proper
-        block-confirmation tracking is Phase 4 territory.
+        `transaction.confirmed` is NO LONGER co-emitted here. It used to
+        fire in the same tick, which made it a duplicate of broadcasted
+        rather than a real confirmation — and asystem-core marks an order
+        `completed` on confirmed, so that meant premature completion. Real
+        confirmation now comes from `transaction_confirmation_sweep`, which
+        polls the chain explorer for the tx_hash and fires
+        `transaction.confirmed` (with `block_number`) once it's actually in
+        a block (DFNS parity).
 
         Audit-miss is non-fatal: publish failure is logged at WARNING
         and the sync continues. The original polling path can't be
@@ -115,32 +119,24 @@ class TransactionService:
             from backend.services.webhook_publisher import (
                 publish_event,
                 EV_TX_BROADCASTED,
-                EV_TX_CONFIRMED,
             )
-            tx_payload = {
-                "tx_id": str(prev_row["id"]),
-                "tx_unid": tx.unid,
-                "tx_hash": clean_tx_hash(tx.tx),
-                "wallet_name": wallet_name,
-                "to_address": tx.to_addr,
-                "amount": str(tx.value),
-                "token": tx.token,
-            }
             await publish_event(
                 pool,
                 merchant_id=str(prev_row["organization_id"]),
                 event_type=EV_TX_BROADCASTED,
-                payload=tx_payload,
-            )
-            await publish_event(
-                pool,
-                merchant_id=str(prev_row["organization_id"]),
-                event_type=EV_TX_CONFIRMED,
-                payload=tx_payload,
+                payload={
+                    "tx_id": str(prev_row["id"]),
+                    "tx_unid": tx.unid,
+                    "tx_hash": clean_tx_hash(tx.tx),
+                    "wallet_name": wallet_name,
+                    "to_address": tx.to_addr,
+                    "amount": str(tx.value),
+                    "token": tx.token,
+                },
             )
         except Exception as e:
             logger.warning(
-                "transaction.broadcasted/confirmed publish failed for %s: %s",
+                "transaction.broadcasted publish failed for %s: %s",
                 tx.unid, e,
             )
 

@@ -37,6 +37,16 @@
   `failure_reason` field (null unless failed). See
   [`WEBHOOKS.md`](WEBHOOKS.md) → `transaction.failed`. **Action**: none
   required; if you surface payout failures, you can now show `reason`.
+- **`transaction.confirmed` is now a REAL on-chain confirmation**, no
+  longer a same-tick duplicate of `transaction.broadcasted`. After
+  `broadcasted` (tx_hash known), a sweep polls the chain explorer and
+  fires `confirmed` — with a new **`block_number`** field — once the tx
+  is actually mined. ORGON-chain (`5800`/`5810`) has no explorer, so
+  there `confirmed` still fires immediately with `block_number: null`.
+  **Action**: this is the correct signal to mark a payout final (e.g.
+  order `completed`); previously `confirmed` arrived prematurely at
+  broadcast time. If you were treating `broadcasted` as final, you can
+  now wait for `confirmed`. See [`WEBHOOKS.md`](WEBHOOKS.md).
 
 ---
 

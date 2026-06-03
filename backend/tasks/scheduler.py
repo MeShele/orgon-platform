@@ -288,6 +288,34 @@ def setup_scheduler(
     )
     logger.info("Transaction-uncertain preview sweep added (every 5 min)")
 
+    # Outbound on-chain confirmation sweep — the real source of
+    # `transaction.confirmed`. The lifecycle emit fires only
+    # `transaction.broadcasted` when a tx_hash appears; this sweep polls
+    # the public explorer and fires `transaction.confirmed` (+ block_number)
+    # once the tx is actually in a block (DFNS parity — asystem-core marks
+    # the order completed on confirmed, so it must be real, not a
+    # broadcast-time duplicate).
+    async def transaction_confirmation_sweep_job():
+        from backend.main import get_database
+        from backend.services.transaction_confirmation_sweep import run_tick as tx_confirm_run_tick
+        db = get_database()
+        if db is None or db.pool is None:
+            return
+        try:
+            stats = await tx_confirm_run_tick(db.pool)
+            if stats.get("events_emitted"):
+                logger.info("tx_confirmation_sweep: %s", stats)
+        except Exception as e:
+            logger.error("tx_confirmation_sweep job failed: %s", e)
+
+    scheduler.add_job(
+        transaction_confirmation_sweep_job,
+        IntervalTrigger(seconds=60),
+        id="transaction_confirmation_sweep",
+        name="Emit transaction.confirmed on real on-chain confirmation",
+    )
+    logger.info("Transaction-confirmation sweep added (every 60s)")
+
     # Monthly invoice generator. Runs every day at 02:00 UTC and
     # idempotently generates invoices for the PREVIOUS month — so on
     # the 1st of every month all merchants get their invoice within

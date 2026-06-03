@@ -78,10 +78,12 @@ class _SafinaWallet:
 
 
 @pytest.mark.asyncio
-async def test_tx_lifecycle_fires_on_null_to_hex_transition() -> None:
+async def test_tx_lifecycle_fires_only_broadcasted_on_null_to_hex_transition() -> None:
     """The canonical happy path: prev.tx_hash empty, tx.tx now present,
-    org_id present → both broadcasted + confirmed fire with the same
-    payload."""
+    org_id present → ONLY `transaction.broadcasted` fires. `confirmed` is
+    no longer co-emitted here — it now comes from the confirmation sweep
+    on real on-chain inclusion (else it was a premature duplicate that
+    closed orders before the chain confirmed)."""
     prev_row = {
         "id": "row-1",
         "tx_hash": "",
@@ -105,15 +107,10 @@ async def test_tx_lifecycle_fires_on_null_to_hex_transition() -> None:
             pool, prev_row, tx, "wallet-A",
         )
 
-    assert len(captured) == 2, "broadcasted + confirmed should both fire"
-    types = [c["event_type"] for c in captured]
-    assert "transaction.broadcasted" in types
-    assert "transaction.confirmed" in types
-
-    # Both events carry an identical payload — Phase 4 may eventually
-    # separate them but today they share by design.
-    p = captured[0]["payload"]
-    assert p == captured[1]["payload"]
+    assert len(captured) == 1, "only broadcasted should fire (not confirmed)"
+    c = captured[0]
+    assert c["event_type"] == "transaction.broadcasted"
+    p = c["payload"]
     assert p["tx_id"] == "row-1"
     assert p["tx_unid"] == "tx-1"
     assert p["tx_hash"] == REAL_HASH

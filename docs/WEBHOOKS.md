@@ -250,34 +250,31 @@ approval engine ships, rows tagged `request_approval` will be routed
 to the approval queue automatically instead of waiting on manual
 release.
 
-### `transaction.confirmed` — live (co-emits with `transaction.broadcasted`)
+### `transaction.confirmed` — live (real on-chain confirmation)
 
-Fires alongside `transaction.broadcasted` on the same transition —
-Safina returning a `tx_hash` for our submitted tx. Same payload shape.
+Fires when the tx is actually included in a block — **no longer**
+co-emitted with `transaction.broadcasted`. After `broadcasted` (Safina
+returned a `tx_hash`), a confirmation sweep polls the chain's public
+explorer for that hash and fires `confirmed` once it's mined, carrying
+the `block_number`. This is the signal to treat a payout as final
+(e.g. mark an order `completed`).
 
-> **Semantic caveat.** Today Orgon has no separate block-confirmation
-> source wired into the polling flow: the only on-chain signal it
-> sees is Safina exposing a `tx_hash`, which it does once the network
-> has accepted the broadcast. So `transaction.confirmed` and
-> `transaction.broadcasted` describe the **same moment** today.
->
-> If you want to distinguish "submitted" from "mined", treat
-> `broadcasted` as authoritative for now and ignore `confirmed`;
-> dedupe `confirmed` aggressively in your handler. A future revision
-> will move `confirmed` to fire on real block inclusion (Safina
-> webhook re-wire or a chain watcher); when that ships, the contract
-> will get a `confirmations` field in the payload and this caveat
-> will be removed.
+Timing: typically seconds-to-minutes after `broadcasted`, depending on
+the chain. ORGON-chain (`5800`/`5810`) has no public explorer yet, so
+there `confirmed` fires immediately after `broadcasted` with
+`block_number: null` (broadcast is the best signal we have); documented
+so you don't wait forever on a block number that won't come.
 
 ```json
 "data": {
-  "tx_id":       "…",
-  "tx_unid":     "…",
-  "tx_hash":     "0x…",
-  "wallet_name": "…",
-  "to_address":  "T…",
-  "amount":      "100.0",
-  "token":       "USDT"
+  "tx_id":        "…",
+  "tx_unid":      "…",
+  "tx_hash":      "0x…",
+  "wallet_name":  "…",
+  "to_address":   "T…",
+  "amount":       "100.0",
+  "token":        "USDT",
+  "block_number": 12345678          // null on ORGON-chain (no explorer)
 }
 ```
 

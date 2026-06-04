@@ -185,8 +185,8 @@ Envelope unchanged from Phase 3 (see `WEBHOOKS.md` and
 
 ```jsonc
 {
-  "tx_id": "…",                      // Orgon's transactions.id (uuid)
-  "tx_unid": "tx_…",                 // Safina id — same as response id from §3.1
+  "tx_id": "…",                      // PUBLIC tx id — same as `id` from §3.1 POST /v1/transactions. Match your stored reference against THIS. (До 2026-06-04 сюда ошибочно слался внутренний uuid, который /v1 нигде не отдаёт — вебхуки было не с чем матчить.)
+  "tx_unid": "tx_…",                 // duplicate of tx_id, kept for compat
   "tx_hash": "0xabc…",
   "wallet_name": "operator-hot",
   "to_address": "TX…",

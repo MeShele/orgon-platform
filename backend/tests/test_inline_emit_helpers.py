@@ -111,7 +111,7 @@ async def test_tx_lifecycle_fires_only_broadcasted_on_null_to_hex_transition() -
     c = captured[0]
     assert c["event_type"] == "transaction.broadcasted"
     p = c["payload"]
-    assert p["tx_id"] == "row-1"
+    assert p["tx_id"] == "tx-1"  # public id (= unid), not internal row id
     assert p["tx_unid"] == "tx-1"
     assert p["tx_hash"] == REAL_HASH
     assert p["wallet_name"] == "wallet-A"
@@ -265,7 +265,7 @@ async def test_tx_failed_fires_on_transition_into_failed() -> None:
     assert c["event_type"] == "transaction.failed"
     assert c["merchant_id"] == "11111111-2222-3333-4444-555555555555"
     assert c["payload"] == {
-        "tx_id": "row-9",
+        "tx_id": "tx-9",
         "tx_unid": "tx-9",
         "tx_hash": None,
         "wallet_name": "wallet-A",
@@ -396,7 +396,7 @@ async def test_tx_canceled_fires_on_transition_with_reason() -> None:
     assert len(captured) == 1
     assert captured[0]["event_type"] == "transaction.canceled"
     assert captured[0]["payload"] == {
-        "tx_id": "row-c",
+        "tx_id": "tx-c",
         "tx_unid": "tx-c",
         "tx_hash": None,
         "wallet_name": "wallet-A",

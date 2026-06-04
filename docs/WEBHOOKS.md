@@ -205,6 +205,12 @@ Fires once per outbound transaction the moment Safina returns a
 `tx_hash` (signing is complete, the network has accepted the broadcast
 but the tx may still be unconfirmed).
 
+`tx_id` in all `transaction.*` payloads is the **public** transaction
+id — the same value `POST /v1/transactions` returns as `id` — so you
+can match it against your stored reference. `tx_unid` is a duplicate
+kept for compatibility. (Before 2026-06-04 `tx_id` mistakenly carried
+an internal uuid the public API never exposes.)
+
 ```json
 "data": {
   "tx_id":       "…",

@@ -147,7 +147,7 @@ async def test_emits_uncertain_with_documented_payload(monkeypatch):
 
     p = ev["payload"]
     # Mirrors broadcasted/failed shape — same fields, different timing
-    assert p["tx_id"] == "tx-1"
+    assert p["tx_id"] == "UNID-1"  # public id (= unid), not internal row id
     assert p["tx_unid"] == "UNID-1"
     assert p["tx_hash"] is None
     assert p["wallet_name"] == "treasury-1"
@@ -163,12 +163,16 @@ async def test_emits_uncertain_with_documented_payload(monkeypatch):
 async def test_emits_for_each_row_even_when_one_fails(monkeypatch):
     """Per-row publish failures must NOT skip subsequent rows.
     stats reflects partial success."""
-    rows = [_row(id_="tx-1"), _row(id_="tx-2"), _row(id_="tx-3")]
+    rows = [
+        _row(id_="tx-1", unid="U-1"),
+        _row(id_="tx-2", unid="U-2"),
+        _row(id_="tx-3", unid="U-3"),
+    ]
     pool = _FakePool(_FakeConn(rows))
     emitted: list[str] = []
 
     async def fake_publish(pool, *, merchant_id, event_type, payload, request_id=None):
-        if payload["tx_id"] == "tx-2":
+        if payload["tx_id"] == "U-2":
             raise RuntimeError("queue down")
         emitted.append(payload["tx_id"])
 
@@ -178,7 +182,7 @@ async def test_emits_for_each_row_even_when_one_fails(monkeypatch):
 
     stats = await tus.run_tick(pool, timeout_minutes=10)
     assert stats == {"candidates_swept": 3, "events_emitted": 2}
-    assert emitted == ["tx-1", "tx-3"]
+    assert emitted == ["U-1", "U-3"]
 
 
 # ──────────────── timeout config ────────────────

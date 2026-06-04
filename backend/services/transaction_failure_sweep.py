@@ -126,7 +126,7 @@ async def run_tick(pool, *, timeout_hours: Optional[int] = None) -> dict:
                 merchant_id=r["merchant_id"],
                 event_type=EV_TX_FAILED,
                 payload={
-                    "tx_id": r["id"],
+                    "tx_id": r["unid"],
                     "tx_unid": r["unid"],
                     "tx_hash": None,
                     "wallet_name": r["wallet_name"],

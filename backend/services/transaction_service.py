@@ -125,7 +125,14 @@ class TransactionService:
                 merchant_id=str(prev_row["organization_id"]),
                 event_type=EV_TX_BROADCASTED,
                 payload={
-                    "tx_id": str(prev_row["id"]),
+                    # tx_id MUST be the public tx id (= unid): POST
+                    # /v1/transactions returns it as `id`, and consumers
+                    # (asystem-core orgon-webhook) match their stored id
+                    # against it. The internal transactions.id uuid is
+                    # never exposed via /v1, so sending it here made every
+                    # transaction.* webhook unmatchable. tx_unid kept as a
+                    # duplicate for contract compat.
+                    "tx_id": tx.unid,
                     "tx_unid": tx.unid,
                     "tx_hash": clean_tx_hash(tx.tx),
                     "wallet_name": wallet_name,
@@ -188,7 +195,7 @@ class TransactionService:
                 merchant_id=str(prev_row["organization_id"]),
                 event_type=EV_TX_FAILED,
                 payload={
-                    "tx_id": str(prev_row["id"]),
+                    "tx_id": tx.unid,
                     "tx_unid": tx.unid,
                     "tx_hash": None,
                     "wallet_name": wallet_name,
@@ -240,7 +247,7 @@ class TransactionService:
                 merchant_id=str(prev_row["organization_id"]),
                 event_type=EV_TX_CANCELED,
                 payload={
-                    "tx_id": str(prev_row["id"]),
+                    "tx_id": tx.unid,
                     "tx_unid": tx.unid,
                     "tx_hash": None,
                     "wallet_name": wallet_name,

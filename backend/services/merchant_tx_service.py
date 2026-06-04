@@ -42,6 +42,13 @@ def _status_from_row(row: dict) -> str:
     # Otherwise derive from tx_hash: a real on-chain hash means broadcast.
     h = row.get("tx_hash")
     if h and is_broadcast_hash(h):
+        # The confirmation sweep stamps confirmed_emitted_at when the
+        # explorer shows the tx in a block (migration 060). Surfacing it
+        # here keeps GET /v1/transactions/{id} honest with the docstring
+        # promise that status flips broadcasted → confirmed — webhooks and
+        # polling now tell the same story.
+        if row.get("confirmed_emitted_at") is not None:
+            return "confirmed"
         return "broadcasted"
     # No hash yet (pending or signed-but-not-broadcast) — for V1 we
     # surface both as 'pending'. A future tweak can read the signatures
@@ -62,6 +69,9 @@ def _row_to_public(row, *, network: Optional[int] = None) -> dict:
         "network": network or row.get("network"),
         "tx_hash": clean_tx_hash(row.get("tx_hash")),
         "status": _status_from_row(row),
+        # On-chain block of the confirmed tx (confirmation sweep,
+        # migration 060); null until really confirmed. DFNS parity.
+        "block_number": row.get("block_number"),
         # Verbatim Safina error string on a failed tx (e.g.
         # "global: Returned error: EVM error: OutOfFunds"); null otherwise.
         "failure_reason": row.get("failure_reason"),

@@ -119,7 +119,7 @@ async def run_tick(pool, *, limit: int = 200) -> dict:
                     merchant_id=r["merchant_id"],
                     event_type=EV_TX_CONFIRMED,
                     payload={
-                        "tx_id": r["id"],
+                        "tx_id": r["unid"],
                         "tx_unid": r["unid"],
                         "tx_hash": tx_hash,
                         "wallet_name": r["wallet_name"],

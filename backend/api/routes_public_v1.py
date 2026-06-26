@@ -633,6 +633,15 @@ class SendTxBody(BaseModel):
     # explicitly so the contract is visible; the dedup itself happens
     # upstream in middleware, not in this handler.
     external_id: Optional[str] = Field(default=None, max_length=200)
+    # Optional ERC20/TRC20 contract the integrator (asystem-core) may send
+    # to disambiguate a token. Currently informational only: Safina resolves
+    # the asset by symbol, so the symbol in `asset` drives the send. Accepted
+    # so the field isn't silently dropped; wire it into token resolution here
+    # if a chain ever exposes two tokens under one symbol.
+    token_contract: Optional[str] = Field(default=None, max_length=128)
+    # Note: other forward-compat extras (e.g. `network`, also sent by
+    # asystem-core's payout core) are tolerated by Pydantic's default
+    # extra='ignore' — Orgon derives the network from the wallet.
 
 
 @router.post("/transactions", status_code=201)

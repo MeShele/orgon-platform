@@ -149,6 +149,15 @@ async def run_tick(pool, *, timeout_minutes: Optional[int] = None) -> dict:
                     "amount": r["value"],
                     "token": r["token"],
                     "stuck_seconds": stuck_seconds,
+                    # Human-readable cause — consumers (asystem-core webhook)
+                    # read `reason` to populate their error_text; without it
+                    # the field was always null. Mirrors failed/canceled.
+                    "reason": (
+                        f"signed but not broadcast for {stuck_seconds}s "
+                        "(will be marked failed at the 24h mark if still stuck)"
+                        if stuck_seconds is not None
+                        else "signed but not yet broadcast (network delay)"
+                    ),
                     "next_check_in": "transaction.failed will fire at the 24h mark if not broadcast by then",
                 },
             )

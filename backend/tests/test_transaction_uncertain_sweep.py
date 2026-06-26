@@ -157,6 +157,9 @@ async def test_emits_uncertain_with_documented_payload(monkeypatch):
     # New fields specific to uncertain — load-bearing for UI hints
     assert p["stuck_seconds"] is not None and p["stuck_seconds"] >= 720
     assert "24h" in p["next_check_in"]
+    # `reason` present so asystem-core's webhook can fill error_text
+    # (was always null before — it reads data.reason).
+    assert p.get("reason") and "broadcast" in p["reason"]
 
 
 @pytest.mark.asyncio

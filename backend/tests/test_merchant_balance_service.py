@@ -257,3 +257,27 @@ async def test_get_treasury_wallet_without_safina_wid_returns_empty_balances():
     assert out["wallets"][0]["balances"] == []
     assert out["wallets"][0]["as_of"] is None
     assert out["wallets"][0]["status"] == "pending"
+
+
+@pytest.mark.parametrize(
+    "network,symbol,expected",
+    [
+        # Regression: native ORGON was mislabeled `Token` because a
+        # duplicated native-symbol map drifted (ORGON vs "ORG"). Native
+        # symbol now derives from network_reference (single source).
+        ("5810", "ORGON", "Native"),
+        ("5800", "ORGON", "Native"),
+        ("5810", "orgon", "Native"),  # case-insensitive
+        # Other chains unaffected by the fix.
+        ("5010", "TRX", "Native"),
+        ("5010", "USDT", "Trc20"),
+        ("5000", "USDC", "Trc20"),
+        ("3040", "ETH", "Native"),
+        ("3000", "USDT", "Erc20"),
+        ("1000", "BTC", "Native"),
+        (None, "ANY", "Token"),
+        ("9999", "ANY", "Token"),  # unknown chain → generic
+    ],
+)
+def test_classify_kind_native_vs_token(network, symbol, expected):
+    assert bal._classify_kind(network, symbol) == expected

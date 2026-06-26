@@ -24,6 +24,8 @@ from __future__ import annotations
 from typing import Optional
 from uuid import UUID
 
+from .network_reference import NETWORK_REFERENCE
+
 
 async def get_wallet_balance(
     pool, *, merchant_id: str, wallet_id: str,
@@ -160,20 +162,20 @@ def _shape_wallet(wallet, *, balances: list, as_of) -> dict:
 # to symbol-only matching when contract is missing.
 # ---------------------------------------------------------------------
 
-# chain_id (varchar in `token_balances.network`) → native symbol on
-# that chain. Keep in sync with asystem-core
-# `supabase/functions/orgon-provision-wallet/index.ts:NETWORK_SLUG_TO_CHAIN_ID`
-# and the prod `networks_cache`. Closes the "Native vs token" branch
-# of the kind heuristic — see _classify_kind below.
-_NATIVE_BY_CHAIN_ID: dict[str, str] = {
-    "1000": "BTC",  # bitcoin-mainnet
-    "3000": "ETH",  # eth-mainnet
-    "3040": "ETH",  # eth-sepolia
-    "5000": "TRX",  # tron-mainnet
-    "5010": "TRX",  # tron-nile
-    "5800": "ORG",  # orgon-mainnet
-    "5810": "ORG",  # orgon-testnet
-}
+# Native symbol per chain_id comes from the single source of truth
+# (`network_reference.NETWORK_REFERENCE`) — NOT a second hardcoded map.
+# A duplicated table here had drifted (ORGON mislabeled as "ORG"), which
+# made `_classify_kind` treat native ORGON balances as tokens. Deriving
+# from the authoritative map closes that drift permanently.
+def _native_symbol(network: str | None) -> Optional[str]:
+    if not network:
+        return None
+    try:
+        cid = int(network)
+    except (TypeError, ValueError):
+        return None
+    entry = NETWORK_REFERENCE.get(cid)
+    return entry[1] if entry else None
 
 # chain_id → asset-kind suffix used by DFNS for non-native tokens on
 # that chain. We only emit these when the symbol differs from the
@@ -199,8 +201,8 @@ def _classify_kind(network: str | None, symbol: str | None) -> str:
     """
     if not network:
         return "Token"
-    native = _NATIVE_BY_CHAIN_ID.get(network)
-    if native and symbol and symbol.upper() == native:
+    native = _native_symbol(network)
+    if native and symbol and symbol.upper() == native.upper():
         return "Native"
     return _TOKEN_KIND_BY_CHAIN_ID.get(network, "Token")
 

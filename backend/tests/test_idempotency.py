@@ -240,3 +240,28 @@ async def test_prune_expired_handles_malformed_result():
     pool = _FakePool(_BadConn())
     n = await idem.prune_expired(pool)
     assert n == 0
+
+
+# ── body external_id → idem key (asystem-core payout idempotency) ──
+# A retried POST /v1/transactions whose response was lost must dedup on
+# the body `external_id` (asystem-core's channel), or it double-spends.
+@pytest.mark.parametrize("method,path,body,expected", [
+    ("POST", "/v1/transactions",
+     json.dumps({"external_id": "order-123", "amount": "1"}).encode(),
+     "extid:order-123"),
+    ("POST", "/v1/transactions",
+     json.dumps({"external_id": "  ord-7 "}).encode(), "extid:ord-7"),  # trimmed
+    ("POST", "/v1/transactions",
+     json.dumps({"amount": "1"}).encode(), None),               # no external_id
+    ("POST", "/v1/transactions",
+     json.dumps({"external_id": ""}).encode(), None),           # empty
+    ("POST", "/v1/users",
+     json.dumps({"external_id": "u-1"}).encode(), None),        # other path scoped out
+    ("POST", "/v1/transactions/abc/sign", b"{}", None),         # sign path scoped out
+    ("GET", "/v1/transactions",
+     json.dumps({"external_id": "x"}).encode(), None),          # non-mutating
+    ("POST", "/v1/transactions", b"not json", None),            # malformed body opts out
+])
+def test_body_external_id_key(method, path, body, expected):
+    from backend.api.middleware_merchant_hmac import _body_external_id_key
+    assert _body_external_id_key(method, path, body) == expected

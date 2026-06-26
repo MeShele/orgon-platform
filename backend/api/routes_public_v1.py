@@ -627,6 +627,12 @@ class SendTxBody(BaseModel):
     amount: str = Field(..., min_length=1, description="Decimal string, e.g. '1.05'")
     asset: str = Field(default="TRX", min_length=1, max_length=20)
     info: Optional[str] = Field(default=None, max_length=200)
+    # Caller-supplied idempotency anchor (asystem-core sends the order id
+    # here). The HMAC middleware uses it to dedup a retried create so the
+    # same external_id can't broadcast two chain transactions. Accepted
+    # explicitly so the contract is visible; the dedup itself happens
+    # upstream in middleware, not in this handler.
+    external_id: Optional[str] = Field(default=None, max_length=200)
 
 
 @router.post("/transactions", status_code=201)

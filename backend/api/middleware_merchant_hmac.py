@@ -54,6 +54,36 @@ IDEMPOTENCY_HEADER = "x-orgon-idempotency-key"
 IDEMPOTENCY_REPLAY_HEADERS = ("content-type", "x-request-id")
 
 
+def _body_external_id_key(method: str, path: str, body_bytes: bytes) -> str | None:
+    """Derive an idempotency key from the body `external_id` of a payout
+    create.
+
+    asystem-core (and any integrator following orgon-payout-core) carries
+    payout idempotency via the request body's `external_id` on
+    POST /v1/transactions — not via the X-ORGON-Idempotency-Key header.
+    Without honoring it, a retried create (lost response after a timeout)
+    would broadcast a SECOND chain transaction = double-spend. We map that
+    `external_id` to an idem key so the existing replay machinery dedups it.
+
+    Scoped to exactly POST /v1/transactions so the key can't collide with a
+    same-valued external_id on another endpoint (e.g. /v1/users). The
+    `extid:` prefix keeps this namespace separate from header-supplied keys.
+    Any parse failure opts out (returns None) — never blocks the request.
+    """
+    if method.upper() != "POST" or not path.endswith("/v1/transactions"):
+        return None
+    try:
+        data = json.loads(body_bytes or b"")
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    ext = data.get("external_id")
+    if isinstance(ext, str) and ext.strip():
+        return f"extid:{ext.strip()}"
+    return None
+
+
 class MerchantHMACAuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self,
@@ -87,9 +117,14 @@ class MerchantHMACAuthMiddleware(BaseHTTPMiddleware):
         request.state.merchant_scopes = scopes
 
         # ── Idempotency replay (after HMAC, before handler) ────────────
-        # Only mutating verbs carry the header semantically. If it's
-        # missing, we don't fabricate a key — caller opted out.
+        # Header is the explicit opt-in. If it's missing, fall back to the
+        # body `external_id` on payout create (asystem-core's idempotency
+        # channel) so a retried POST /v1/transactions can't double-spend.
         idem_key = request.headers.get(IDEMPOTENCY_HEADER)
+        if not idem_key:
+            idem_key = _body_external_id_key(
+                request.method, request.url.path, body_bytes
+            )
         pool = _get_pool(request)
         req_hash: str | None = None
         if idem_key and request.method.upper() in idem.MUTATING_METHODS and pool is not None:

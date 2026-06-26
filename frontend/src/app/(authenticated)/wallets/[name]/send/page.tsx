@@ -96,6 +96,7 @@ function SendTransactionInner() {
         const tx = (await api.getTransaction(txFromUrl)) as {
           tx_hash?: string | null;
           status?: string | null;
+          failure_message?: string | null;
         } | null;
         const h = (tx?.tx_hash ?? "").trim();
         const statusStr = (tx?.status ?? "").toLowerCase();
@@ -111,10 +112,13 @@ function SendTransactionInner() {
         }
         if (statusStr === "rejected" || statusStr === "failed" || isCanceledHash) {
           if (!pollCancelRef.current) {
+            // Prefer the backend's plain, user-actionable message; fall
+            // back to a friendly default rather than a raw status code.
             setSubmitErr(
-              isCanceledHash
-                ? "Транзакция отменена Safina (24h-limit или slist-mismatch). См. лог."
-                : `Транзакция в статусе '${statusStr}'.`,
+              tx?.failure_message ||
+                (isCanceledHash
+                  ? "Транзакция отменена: истёк срок подтверждения. Создайте новую."
+                  : "Не удалось отправить транзакцию. Попробуйте ещё раз или обратитесь в поддержку."),
             );
             setStage("error");
           }

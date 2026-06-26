@@ -25,7 +25,11 @@ from uuid import UUID
 
 from backend.safina.factory import get_safina_client_for_org
 from backend.safina.models import SendTransactionRequest
-from backend.safina.tx_status import is_broadcast_hash, clean_tx_hash
+from backend.safina.tx_status import (
+    is_broadcast_hash,
+    clean_tx_hash,
+    humanize_failure_reason,
+)
 
 logger = logging.getLogger("orgon.merchant_tx")
 
@@ -74,7 +78,12 @@ def _row_to_public(row, *, network: Optional[int] = None) -> dict:
         "block_number": row.get("block_number"),
         # Verbatim Safina error string on a failed tx (e.g.
         # "global: Returned error: EVM error: OutOfFunds"); null otherwise.
+        # Kept for operator/support debugging.
         "failure_reason": row.get("failure_reason"),
+        # Same failure translated to a plain, user-actionable message
+        # ("Недостаточно средств …"); null when not failed. This is what a
+        # non-technical UI should show — never the raw string above.
+        "failure_message": humanize_failure_reason(row.get("failure_reason")),
         "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
         "updated_at": row["updated_at"].isoformat() if row.get("updated_at") else None,
     }

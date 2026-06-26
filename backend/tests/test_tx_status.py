@@ -14,6 +14,7 @@ from backend.safina.tx_status import (
     looks_canceled,
     looks_failed,
     classify_safina_tx_status,
+    humanize_failure_reason,
 )
 
 REAL_TRON = "f9e97928c346af4087ab61d827ea2bebdd741cee38e9f2670cf961a446b9ee73"  # 64 hex, no 0x
@@ -87,3 +88,34 @@ def test_looks_failed(val, expected):
 ])
 def test_classify_safina_tx_status(tx_field, signed, expected):
     assert classify_safina_tx_status(tx_field, signed=signed) == expected
+
+
+# ── humanize_failure_reason: raw Safina/chain noise → plain user text ──
+# Real strings seen in prod / this session are mapped to actionable
+# messages; nothing leaks a stack-trace or "Error for sendtx" to a user.
+@pytest.mark.parametrize("raw,needle", [
+    ("global: Returned error: EVM error: OutOfFunds", "Недостаточно средств"),
+    ("insufficient balance for transfer", "Недостаточно средств"),
+    ("bandwidth is not enough", "ресурсов сети"),       # not the funds msg
+    ("CREATE_ACCOUNT_ERROR: no OwnerAccount", "не активирован"),
+    ("account not exist", "не активирован"),
+    ("Transaction canceled, 1 day limit.", "Истёк срок"),
+    ("timeout_no_broadcast", "Истёк срок"),
+    ("ContractValidateException: bad address", "проверьте адрес"),
+])
+def test_humanize_known_patterns(raw, needle):
+    msg = humanize_failure_reason(raw)
+    assert msg is not None and needle in msg
+
+
+@pytest.mark.parametrize("raw", [None, "", "   "])
+def test_humanize_empty_is_none(raw):
+    assert humanize_failure_reason(raw) is None
+
+
+def test_humanize_unknown_is_friendly_fallback():
+    # An unrecognized string ("Error for sendtx") must still be friendly,
+    # never the raw text itself.
+    msg = humanize_failure_reason("Error for sendtx")
+    assert msg and "Error for sendtx" not in msg
+    assert "поддержку" in msg or "попробуйте" in msg.lower()

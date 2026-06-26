@@ -14,6 +14,7 @@ from backend.safina.tx_status import (
     is_broadcast_hash,
     clean_tx_hash,
     classify_safina_tx_status,
+    humanize_failure_reason,
 )
 from backend.safina.signature_verifier import (
     get_verify_mode,
@@ -417,6 +418,10 @@ class TransactionService:
                 return None
         sigs = await self._db.fetch("SELECT * FROM tx_signatures WHERE tx_unid = $1", params=(unid,))
         tx["signatures"] = sigs
+        # Plain, user-actionable version of the raw Safina/chain error.
+        # The UI should show this; the raw `failure_reason` stays for
+        # operator/support debugging.
+        tx["failure_message"] = humanize_failure_reason(tx.get("failure_reason"))
         return tx
 
     # --- Validation and formatting helpers ---

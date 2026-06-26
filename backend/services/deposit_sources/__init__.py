@@ -57,3 +57,4 @@ def all_supported_networks() -> list[int]:
 from . import tron as _tron  # noqa: E402,F401
 from . import bitcoin as _btc  # noqa: E402,F401
 from . import ethereum as _eth  # noqa: E402,F401
+from . import orgon as _orgon  # noqa: E402,F401

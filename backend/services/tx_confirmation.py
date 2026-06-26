@@ -25,6 +25,12 @@ _ETH_CHAINID = {3000: "1", 3040: "11155111"}
 _TRON_BASE = {5000: "https://api.trongrid.io", 5010: "https://nile.trongrid.io"}
 _BTC_BASE = {1000: "https://blockstream.info/api"}
 _ORGON_CHAINS = {5800, 5810}
+# ORGON is a Tron fork; its testnet gate exposes the same node API and a
+# real gettransactioninfobyid (verified: returns blockNumber + receipt for
+# mined txs). So testnet (5810) gets REAL on-chain confirmation. Mainnet
+# (5800) has no verified history endpoint yet, so it keeps the
+# broadcast-is-terminal fallback below until one is wired.
+_ORGON_RPC = {5810: "https://quasargate.orgon.space"}
 _ETHERSCAN_V2 = "https://api.etherscan.io/v2/api"
 
 
@@ -56,8 +62,12 @@ async def get_onchain_confirmation(
 ) -> ConfirmResult:
     """Resolve whether `tx_hash` is confirmed on `network`. Best-effort."""
     try:
+        if network in _ORGON_RPC:
+            # Real on-chain lookup via the ORGON node (Tron-fork API).
+            return await _orgon(client, network, tx_hash)
         if network in _ORGON_CHAINS:
-            # No public explorer — broadcast is our terminal signal.
+            # Mainnet (5800): no verified history endpoint yet — broadcast
+            # is our terminal signal (unchanged behavior).
             return ConfirmResult(found=True, confirmed=True, block_number=None)
         if network in _ETH_CHAINID:
             return await _eth(client, network, tx_hash)
@@ -114,6 +124,25 @@ async def _tron(client, network, tx_hash) -> ConfirmResult:
         return _UNKNOWN
     # Native TRX transfers have no receipt.result; token txs do. Presence
     # in the solidity node means confirmed; SUCCESS (or absent) means ok.
+    result = (data.get("receipt") or {}).get("result")
+    ok = result in (None, "SUCCESS")
+    return ConfirmResult(found=True, confirmed=bool(ok), block_number=int(bn))
+
+
+async def _orgon(client, network, tx_hash) -> ConfirmResult:
+    base = _ORGON_RPC[network]
+    # Full node (no walletsolidity on the gate); gettransactioninfobyid
+    # returns {} until the tx is in a block, then blockNumber + receipt.
+    r = await client.post(
+        f"{base}/wallet/gettransactioninfobyid", json={"value": tx_hash}
+    )
+    r.raise_for_status()
+    data = r.json() or {}
+    bn = data.get("blockNumber")
+    if not bn:  # {} → not yet mined; sweep retries next tick
+        return _UNKNOWN
+    # Native transfers carry no receipt.result; presence in a block + a
+    # SUCCESS (or absent) result means confirmed.
     result = (data.get("receipt") or {}).get("result")
     ok = result in (None, "SUCCESS")
     return ConfirmResult(found=True, confirmed=bool(ok), block_number=int(bn))

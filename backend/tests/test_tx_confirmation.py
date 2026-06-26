@@ -52,12 +52,38 @@ def test_supports_confirmation():
 
 
 @pytest.mark.asyncio
-async def test_orgon_chain_confirms_immediately_no_http():
-    client = _FakeClient()  # no responses queued — must not call HTTP
-    for net in (5800, 5810):
-        res = await get_onchain_confirmation(client, net, "0x" + "ab" * 32)
-        assert res.found and res.confirmed and res.block_number is None
+async def test_orgon_mainnet_confirms_immediately_no_http():
+    # 5800 has no verified history endpoint → broadcast is terminal, no HTTP.
+    client = _FakeClient()
+    res = await get_onchain_confirmation(client, 5800, "0x" + "ab" * 32)
+    assert res.found and res.confirmed and res.block_number is None
     assert client.calls == []
+
+
+@pytest.mark.asyncio
+async def test_orgon_testnet_real_confirmation_with_block():
+    # 5810 → real gettransactioninfobyid lookup on the Quasar gate.
+    client = _FakeClient(post_resp=_Resp({"blockNumber": 1943941, "receipt": {"result": "SUCCESS"}}))
+    res = await get_onchain_confirmation(client, 5810, "f1ed1e5a" + "0" * 56)
+    assert res.found and res.confirmed and res.block_number == 1943941
+    assert client.calls[0][0] == "POST"
+    assert "gettransactioninfobyid" in client.calls[0][1]
+
+
+@pytest.mark.asyncio
+async def test_orgon_testnet_native_no_receipt_still_confirmed():
+    # Native ORGON transfers have no receipt.result — in-a-block = confirmed.
+    client = _FakeClient(post_resp=_Resp({"blockNumber": 100}))
+    res = await get_onchain_confirmation(client, 5810, "ab" * 32)
+    assert res.found and res.confirmed and res.block_number == 100
+
+
+@pytest.mark.asyncio
+async def test_orgon_testnet_not_yet_mined_unknown():
+    # Empty {} → tx not in a block yet → not found, sweep retries (no stuck).
+    client = _FakeClient(post_resp=_Resp({}))
+    res = await get_onchain_confirmation(client, 5810, "ab" * 32)
+    assert not res.found and not res.confirmed
 
 
 @pytest.mark.asyncio

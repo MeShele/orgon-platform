@@ -76,6 +76,23 @@ async def _onchain_tokens(network: int, addr: str) -> list[dict]:
     return out
 
 
+def _all_zero(tokens: list) -> bool:
+    """True when Safina reports nothing spendable — either an empty list or
+    only zero-value rows. Safina's monitor returns a `value:0` row (not an
+    empty list) for wallets it never registered, so an emptiness check alone
+    misses the common case."""
+    if not tokens:
+        return True
+    for t in tokens:
+        try:
+            if Decimal(str((t or {}).get("value") or 0)) > 0:
+                return False
+        except Exception:
+            # Non-numeric value → assume real, don't override it.
+            return False
+    return True
+
+
 def _get_service():
     from backend.main import get_wallet_service
     return get_wallet_service()
@@ -196,16 +213,20 @@ async def get_wallet_tokens(
             # No tenant attached → singleton (e.g. platform_admin).
             tokens = await base.get_wallet_tokens(name)
 
-        # Safina ledger empty (its balance monitor didn't register the
-        # wallet) but the chain may hold funds → show the real on-chain
-        # balance instead of a false 0. Best-effort, only for ORGON nets.
-        if not tokens and addr:
+        # Safina's ledger monitor is known to report value:0 even when the
+        # chain holds funds (empty list OR a lone zero-value row). When
+        # nothing spendable comes back, substitute the real on-chain balance
+        # so the wallet page shows the truth instead of a false 0. Only for
+        # ORGON nets; keep the Safina rows if the node is unreachable.
+        if addr and _all_zero(tokens):
             try:
                 net_int = int(network)
             except (TypeError, ValueError):
                 net_int = None
             if net_int is not None:
-                tokens = await _onchain_tokens(net_int, addr)
+                onchain = await _onchain_tokens(net_int, addr)
+                if onchain:
+                    tokens = onchain
         return tokens
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))

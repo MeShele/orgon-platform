@@ -1,5 +1,9 @@
 """Wallet CRUD endpoints."""
 
+import logging
+from decimal import Decimal
+
+import httpx
 from fastapi import APIRouter, HTTPException, Request
 
 from backend.safina.models import CreateWalletRequest
@@ -8,7 +12,68 @@ from backend.rbac import require_roles
 from backend.dependencies import get_user_org_ids, get_db_pool
 from backend.safina.errors import SafinaError
 
+logger = logging.getLogger("orgon.api.wallets")
+
 router = APIRouter(prefix="/api/wallets", tags=["wallets"])
+
+# On-chain balance fallback. Safina's ledger monitor is known to leave
+# `/wallet_tokens` at value:0 even when the chain holds funds (documented,
+# unresolved on their side — see docs/SAFINA_DEPOSIT_BALANCE_ISSUE_RU.md and
+# wallet_service._create_wallet_internal's min_signs note). When Safina
+# returns nothing we read the real balance straight from the chain so the
+# wallet detail page shows the truth instead of a false 0. Read-only,
+# best-effort — mirrors the asystem-core sema fix (orgon-wallet-balance edge).
+_ORGON_ONCHAIN_BASE = {
+    5810: "https://quasargate.orgon.space",  # ORGON Quasar testnet gate (TronGrid-style)
+}
+_ORGON_SUN = Decimal(1_000_000)  # ORGON inherits Tron's 6-decimal "sun" base unit
+# orc20 test contracts → (symbol, decimals). Extend as ORGON ships tokens.
+_ORC20_SYMBOLS = {
+    "oZo9ZekPmHpj6KBbEHSA9686JKNuXY4N5z": ("USDT", 6),
+}
+
+
+async def _onchain_tokens(network: int, addr: str) -> list[dict]:
+    """Live on-chain token list for an ORGON-network wallet, shaped like
+    Safina's `/wallet_tokens` rows ({token, network, value, decimals}) so
+    the frontend renders it unchanged. `value` is human-decimal (sun ÷ 1e6),
+    matching Safina. Node unreachable → return [] (caller keeps the empty
+    Safina result — never raises)."""
+    base = _ORGON_ONCHAIN_BASE.get(network)
+    if not base or not addr:
+        return []
+    out: list[dict] = []
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(
+                f"{base}/v1/accounts/{addr}",
+                headers={"User-Agent": "orgon-platform/1"},
+            )
+            r.raise_for_status()
+            data = (r.json() or {}).get("data") or {}
+        native = Decimal(str(data.get("balance") or 0)) / _ORGON_SUN
+        if native > 0:
+            out.append({
+                "token": "ORGON", "network": network,
+                "value": format(native, "f"), "decimals": 6,
+                "source": "onchain",
+            })
+        for t in data.get("orc20") or []:
+            sym, dec = _ORC20_SYMBOLS.get(
+                t.get("key"), ("TOKEN", int(t.get("decimals") or 6)),
+            )
+            raw = Decimal(str(t.get("value") or 0))
+            if raw <= 0:
+                continue
+            out.append({
+                "token": sym, "network": network,
+                "value": format(raw / (Decimal(10) ** dec), "f"),
+                "decimals": dec, "source": "onchain",
+            })
+    except Exception as e:
+        logger.warning("ORGON on-chain balance fallback failed for %s: %s", addr, e)
+        return []
+    return out
 
 
 def _get_service():
@@ -108,11 +173,14 @@ async def get_wallet_tokens(
     """
     base = _get_service()
     local = await base._db.fetchrow(
-        "SELECT organization_id FROM wallets WHERE name = $1 OR my_unid = $1",
+        "SELECT organization_id, addr, network FROM wallets WHERE name = $1 OR my_unid = $1",
         params=(name,),
     )
     org_id = local.get("organization_id") if local else None
+    addr = local.get("addr") if local else None
+    network = local.get("network") if local else None
     try:
+        tokens: list = []
         if org_id:
             from backend.safina.factory import get_safina_client_for_org
             pool = get_db_pool(http_request)
@@ -121,11 +189,24 @@ async def get_wallet_tokens(
                 raw = await tc._request("GET", f"wallet_tokens/{name}")
                 # Endpoint returns a list of token dicts already in the
                 # shape the frontend expects.
-                return raw if isinstance(raw, list) else []
+                tokens = raw if isinstance(raw, list) else []
             finally:
                 await tc.close()
-        # Fallback: no tenant attached → singleton (e.g. platform_admin).
-        return await base.get_wallet_tokens(name)
+        else:
+            # No tenant attached → singleton (e.g. platform_admin).
+            tokens = await base.get_wallet_tokens(name)
+
+        # Safina ledger empty (its balance monitor didn't register the
+        # wallet) but the chain may hold funds → show the real on-chain
+        # balance instead of a false 0. Best-effort, only for ORGON nets.
+        if not tokens and addr:
+            try:
+                net_int = int(network)
+            except (TypeError, ValueError):
+                net_int = None
+            if net_int is not None:
+                tokens = await _onchain_tokens(net_int, addr)
+        return tokens
     except SafinaError as e:
         raise HTTPException(status_code=502, detail=str(e))
     except Exception as e:
